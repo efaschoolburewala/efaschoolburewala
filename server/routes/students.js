@@ -166,11 +166,15 @@ router.get('/:id/siblings', async (req, res) => {
                 s.image_url,
                 c.class_name,
                 sec.section_name,
-                sr.relation_type
+                CASE 
+                    WHEN COALESCE(TRIM(LOWER(s.father_name)), '') != '' 
+                         AND COALESCE(TRIM(LOWER(s.father_name)), '') = COALESCE(TRIM(LOWER((SELECT father_name FROM students WHERE student_id = $1))), '') 
+                    THEN 'blood'
+                    ELSE 'cousin'
+                END as relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
-            LEFT JOIN student_siblings sr ON sr.student_id = $1 AND sr.sibling_id = s.student_id
             WHERE s.family_id = $2 AND s.student_id != $1
             ORDER BY s.dob ASC
         `, [id, familyId]);

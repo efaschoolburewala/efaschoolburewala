@@ -187,17 +187,9 @@ export default function NewAdmission() {
             return;
         }
 
-        // Auto-detect relation type based on father name
-        let detectedRelation: 'blood' | 'cousin' = 'blood';
-        if (form.father_name && sibling.father_name) {
-            const sameFather = form.father_name.trim().toLowerCase() === sibling.father_name.trim().toLowerCase();
-            detectedRelation = sameFather ? 'blood' : 'cousin';
-        }
-
         // Add to selected siblings array
         const newSibling = {
             ...sibling,
-            relation_type: detectedRelation,
             isExpanded: true // New sibling is expanded by default
         };
 
@@ -211,29 +203,6 @@ export default function NewAdmission() {
             const existingFee = parseFloat(sibling.family_fee) || parseFloat(sibling.monthly_fee) || 0;
             setFamilyFeeInfo({ family_fee: existingFee, family_size: sibling.family_size || 1 });
             setForm(f => ({ ...f, family_fee: existingFee > 0 ? String(existingFee) : f.family_fee }));
-        }
-
-        // If blood sibling and first one, pre-fill parent details
-        if (detectedRelation === 'blood' && selectedSiblings.length === 0) {
-            setForm(f => ({
-                ...f,
-                father_name: sibling.father_name || f.father_name,
-                father_phone: sibling.father_phone || f.father_phone,
-                father_cnic: sibling.father_cnic || f.father_cnic,
-                father_occupation: sibling.father_occupation || f.father_occupation,
-                mother_name: sibling.mother_name || f.mother_name,
-                mother_phone: sibling.mother_phone || f.mother_phone,
-                mother_cnic: sibling.mother_cnic || f.mother_cnic,
-                mother_occupation: sibling.mother_occupation || f.mother_occupation,
-                current_address: sibling.current_address || f.current_address,
-                permanent_address: sibling.permanent_address || f.permanent_address,
-                city: sibling.city || f.city,
-                guardian_name: sibling.guardian_name || f.guardian_name,
-                guardian_relation: sibling.guardian_relation || f.guardian_relation,
-                guardian_phone: sibling.guardian_phone || f.guardian_phone,
-                guardian_cnic: sibling.guardian_cnic || f.guardian_cnic,
-                guardian_address: sibling.guardian_address || f.guardian_address,
-            }));
         }
 
         notify.success(`Sibling added: ${sibling.first_name} ${sibling.last_name}`);
@@ -255,35 +224,7 @@ export default function NewAdmission() {
         setSelectedSiblings(updated);
     };
 
-    const updateSiblingRelationType = (index: number, relationType: 'blood' | 'cousin') => {
-        const updated = [...selectedSiblings];
-        updated[index].relation_type = relationType;
-        setSelectedSiblings(updated);
 
-        // If first blood sibling, update parent details
-        if (relationType === 'blood' && index === 0) {
-            const sibling = updated[index];
-            setForm(f => ({
-                ...f,
-                father_name: sibling.father_name || f.father_name,
-                father_phone: sibling.father_phone || f.father_phone,
-                father_cnic: sibling.father_cnic || f.father_cnic,
-                father_occupation: sibling.father_occupation || f.father_occupation,
-                mother_name: sibling.mother_name || f.mother_name,
-                mother_phone: sibling.mother_phone || f.mother_phone,
-                mother_cnic: sibling.mother_cnic || f.mother_cnic,
-                mother_occupation: sibling.mother_occupation || f.mother_occupation,
-                current_address: sibling.current_address || f.current_address,
-                permanent_address: sibling.permanent_address || f.permanent_address,
-                city: sibling.city || f.city,
-                guardian_name: sibling.guardian_name || f.guardian_name,
-                guardian_relation: sibling.guardian_relation || f.guardian_relation,
-                guardian_phone: sibling.guardian_phone || f.guardian_phone,
-                guardian_cnic: sibling.guardian_cnic || f.guardian_cnic,
-                guardian_address: sibling.guardian_address || f.guardian_address,
-            }));
-        }
-    };
 
     const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const val = e.target.value;
@@ -315,12 +256,18 @@ export default function NewAdmission() {
 
             // Append Sibling Information
             if (selectedSiblings && selectedSiblings.length > 0) {
+                const currentFatherName = (form.father_name || '').trim().toLowerCase();
                 // Send as JSON array
                 formData.append('siblings', JSON.stringify(
-                    selectedSiblings.map(s => ({
-                        sibling_id: s.student_id,
-                        relation_type: s.relation_type
-                    }))
+                    selectedSiblings.map(s => {
+                        const siblingFatherName = (s.father_name || '').trim().toLowerCase();
+                        const dynamicRelation = (currentFatherName !== '' && siblingFatherName !== '' && currentFatherName === siblingFatherName) ? 'blood' : 'cousin';
+                        
+                        return {
+                            sibling_id: s.student_id,
+                            relation_type: dynamicRelation
+                        };
+                    })
                 ));
             }
 
@@ -794,57 +741,41 @@ export default function NewAdmission() {
                                                                 )}
                                                             </div>
 
-                                                            {/* Relationship Type Selector */}
-                                                            <div className="border-top pt-3">
-                                                                <label className="form-label fw-bold small">Relationship Type:</label>
-                                                                <div className="row g-2">
-                                                                    <div className="col-md-6">
-                                                                        <div
-                                                                            className={`card ${sibling.relation_type === 'blood' ? 'border-primary border-2 bg-primary bg-opacity-10' : ''}`}
-                                                                            style={{ cursor: 'pointer' }}
-                                                                            onClick={() => updateSiblingRelationType(index, 'blood')}
-                                                                        >
-                                                                            <div className="card-body p-2 text-center">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    checked={sibling.relation_type === 'blood'}
-                                                                                    onChange={() => updateSiblingRelationType(index, 'blood')}
-                                                                                    className="form-check-input me-2"
-                                                                                />
-                                                                                <i className="bi bi-people-fill text-primary"></i>
-                                                                                <strong className="ms-1 small">Blood Sibling</strong>
+                                                            {/* Relationship Type Evaluator */}
+                                                            {(() => {
+                                                                const currentFather = (form.father_name || '').trim().toLowerCase();
+                                                                const siblingFather = (sibling.father_name || '').trim().toLowerCase();
+                                                                const isBlood = currentFather !== '' && siblingFather !== '' && currentFather === siblingFather;
+                                                                return (
+                                                                    <div className="border-top pt-3 text-center">
+                                                                        <label className="form-label fw-bold small me-2">Detected Relation:</label>
+                                                                        {isBlood ? (
+                                                                            <span className="badge bg-primary px-3 py-2">
+                                                                                <i className="bi bi-people-fill me-1"></i> Blood Sibling
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="badge bg-warning text-dark px-3 py-2">
+                                                                                <i className="bi bi-diagram-3-fill me-1"></i> Cousin
+                                                                            </span>
+                                                                        )}
+                                                                        {isBlood ? (
+                                                                            <div className="alert alert-info alert-sm mt-3 mb-0 py-2 px-3 text-start">
+                                                                                <small>
+                                                                                    <i className="bi bi-info-circle me-1"></i>
+                                                                                    Since father names match, they will be mapped as Blood Siblings on saving.
+                                                                                </small>
                                                                             </div>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="col-md-6">
-                                                                        <div
-                                                                            className={`card ${sibling.relation_type === 'cousin' ? 'border-warning border-2 bg-warning bg-opacity-10' : ''}`}
-                                                                            style={{ cursor: 'pointer' }}
-                                                                            onClick={() => updateSiblingRelationType(index, 'cousin')}
-                                                                        >
-                                                                            <div className="card-body p-2 text-center">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    checked={sibling.relation_type === 'cousin'}
-                                                                                    onChange={() => updateSiblingRelationType(index, 'cousin')}
-                                                                                    className="form-check-input me-2"
-                                                                                />
-                                                                                <i className="bi bi-diagram-3-fill text-warning"></i>
-                                                                                <strong className="ms-1 small">Cousin</strong>
+                                                                        ) : (currentFather !== '' && (
+                                                                            <div className="alert alert-warning alert-sm mt-3 mb-0 py-2 px-3 text-start">
+                                                                                <small>
+                                                                                    <i className="bi bi-info-circle me-1"></i>
+                                                                                    Father names do not match, they will be mapped as Cousins on saving.
+                                                                                </small>
                                                                             </div>
-                                                                        </div>
+                                                                        ))}
                                                                     </div>
-                                                                </div>
-
-                                                                {sibling.relation_type === 'blood' && (
-                                                                    <div className="alert alert-info alert-sm mt-2 mb-0 py-1 px-2">
-                                                                        <small>
-                                                                            <i className="bi bi-info-circle me-1"></i>
-                                                                            Parent details will be auto-filled from this sibling
-                                                                        </small>
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     )}
                                                 </div>
