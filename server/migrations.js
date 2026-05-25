@@ -35,6 +35,29 @@ async function runEssentialMigrations() {
             ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
         `);
 
+        // 4. Backfill student_siblings for blood siblings
+        // Students who share the same family_id AND same father_name are blood siblings.
+        // They may not have an explicit row in student_siblings if they were enrolled before
+        // the relationship tracking table existed. This query fixes that gap.
+        console.log("   → Backfilling student_siblings for blood siblings...");
+        await client.query(`
+            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+            SELECT 
+                a.student_id,
+                b.student_id,
+                'blood'
+            FROM students a
+            JOIN students b 
+                ON a.family_id = b.family_id
+                AND a.student_id != b.student_id
+                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
+                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
+                    = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
+            WHERE a.family_id IS NOT NULL
+            ON CONFLICT (student_id, sibling_id) DO NOTHING
+        `);
+        console.log("   ✓ Blood sibling backfill complete.");
+
         await client.query('COMMIT');
         console.log("✅ All essential migrations completed successfully!");
     } catch (err) {

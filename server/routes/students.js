@@ -149,7 +149,10 @@ router.get('/:id/siblings', async (req, res) => {
             return res.json([]);
         }
 
-        // Get all students with same family_id
+        // Get all students with same family_id and their relation_type from the explicit student_siblings table.
+        // student_siblings is the SINGLE SOURCE OF TRUTH for relation types.
+        // We do NOT fall back to father_name matching at query time — that is done once
+        // during the startup migration (backfill) and produces permanent rows in student_siblings.
         const siblings = await pool.query(`
             SELECT 
                 s.student_id,
@@ -166,21 +169,13 @@ router.get('/:id/siblings', async (req, res) => {
                 s.image_url,
                 c.class_name,
                 sec.section_name,
-                COALESCE(
-                    (SELECT relation_type FROM student_siblings ss 
-                     WHERE (ss.student_id = $1 AND ss.sibling_id = s.student_id)
-                        OR (ss.student_id = s.student_id AND ss.sibling_id = $1)
-                     LIMIT 1),
-                    CASE 
-                        WHEN COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') != '' 
-                             AND COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') = COALESCE(REPLACE(LOWER((SELECT father_name FROM students WHERE student_id = $1)), ' ', ''), '') 
-                        THEN 'blood'
-                        ELSE 'cousin'
-                    END
-                ) as relation_type
+                ss.relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
+            LEFT JOIN student_siblings ss 
+                ON (ss.student_id = $1 AND ss.sibling_id = s.student_id)
+                OR (ss.student_id = s.student_id AND ss.sibling_id = $1)
             WHERE s.family_id = $2 AND s.student_id != $1
             ORDER BY s.dob ASC
         `, [id, familyId]);
@@ -306,18 +301,36 @@ router.post('/families/merge', async (req, res) => {
             [primaryFamilyId, relationType, secondaryFamilyId]
         );
 
-        // Create sibling relationships ONLY between a student from family1 and a student from family2
+        // Create cross-family sibling relationships
         for (let i = 0; i < family1.rows.length; i++) {
             for (let j = 0; j < family2.rows.length; j++) {
                 await client.query(
                     `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
                      VALUES ($1, $2, $3), ($2, $1, $3)
                      ON CONFLICT (student_id, sibling_id) 
-                     DO UPDATE SET relation_type = $3`,
+                     DO NOTHING`,
                     [family1.rows[i].student_id, family2.rows[j].student_id, relationType]
                 );
             }
         }
+
+        // Backfill intra-family blood sibling rows (same father_name within same family)
+        await client.query(`
+            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+            SELECT 
+                a.student_id,
+                b.student_id,
+                'blood'
+            FROM students a
+            JOIN students b 
+                ON a.family_id = b.family_id
+                AND a.student_id != b.student_id
+                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
+                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
+                    = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
+            WHERE a.family_id = $1
+            ON CONFLICT (student_id, sibling_id) DO NOTHING
+        `, [primaryFamilyId]);
 
         await client.query('COMMIT');
         
@@ -447,28 +460,48 @@ router.post('/families/manual-link', async (req, res) => {
             [primaryFamilyId, relation_type, secondaryFamilyId]
         );
 
-        // Create sibling relationships ONLY between a member of the primary family and a member of the secondary family
+        // Create cross-family sibling relationships
+        // For the directly-linked pair: use the specified relation_type
+        // For all other cross-family pairs: use 'cousin' (different fathers → cousins)
         for (let i = 0; i < primaryFamilyStudents.rows.length; i++) {
             for (let j = 0; j < secondaryFamilyStudents.rows.length; j++) {
                 const pId = primaryFamilyStudents.rows[i].student_id;
                 const sId = secondaryFamilyStudents.rows[j].student_id;
                 
-                let pairRelation = 'cousin';
-                // For the specific pair being linked, use the specified relation type
-                if ((pId === student1_id && sId === student2_id) ||
-                    (pId === student2_id && sId === student1_id)) {
-                    pairRelation = relation_type;
-                }
+                const pairRelation = (
+                    (pId === student1_id && sId === student2_id) ||
+                    (pId === student2_id && sId === student1_id)
+                ) ? relation_type : 'cousin';
 
                 await client.query(
                     `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
                      VALUES ($1, $2, $3), ($2, $1, $3)
                      ON CONFLICT (student_id, sibling_id) 
-                     DO UPDATE SET relation_type = $3`,
+                     DO NOTHING`,
                     [pId, sId, pairRelation]
                 );
             }
         }
+
+        // Ensure intra-family blood siblings exist in student_siblings for BOTH original families.
+        // This handles cases where students shared a family_id but had no explicit student_siblings rows.
+        // We use father_name equality as the criterion for blood siblings within a family.
+        await client.query(`
+            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+            SELECT 
+                a.student_id,
+                b.student_id,
+                'blood'
+            FROM students a
+            JOIN students b 
+                ON a.family_id = b.family_id
+                AND a.student_id != b.student_id
+                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
+                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
+                    = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
+            WHERE a.family_id = $1
+            ON CONFLICT (student_id, sibling_id) DO NOTHING
+        `, [primaryFamilyId]);
 
         await client.query('COMMIT');
 
