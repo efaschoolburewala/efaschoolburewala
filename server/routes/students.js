@@ -149,17 +149,25 @@ router.get('/:id/siblings', async (req, res) => {
             return res.json([]);
         }
 
-        // Get all students with same family_id and their relation_type from the explicit student_siblings table.
+        // Get all students with same family_id and their relation_type.
         //
-        // STRATEGY: Check BOTH directions (A→B and B→A) in student_siblings.
-        // This handles cases where only one direction was stored (e.g. old data or manual edits).
-        // If NO row exists in either direction for two family members, default to 'blood' —
-        // because students in the same family_id are blood siblings by default unless
-        // explicitly linked as 'cousin' (cousins are always cross-family merges).
+        // STRATEGY (3-level COALESCE):
+        //   1. Forward row in student_siblings  (A → B): most authoritative
+        //   2. Reverse row in student_siblings  (B → A): handles asymmetric old data
+        //   3. Father-name comparison (SMART FALLBACK):
+        //        • Same father_name  → 'blood'   (they are real siblings)
+        //        • Different father_name → 'cousin' (different dads = cousins in same family)
+        //      This correctly handles bulk-imported families and merged families where
+        //      cousins share a family_id but have different fathers.
         //
-        // We use a correlated COALESCE subquery (not a LEFT JOIN with OR) to avoid
-        // duplicate rows. Both (A→B) and (B→A) should always have the same relation_type,
-        // so checking either direction first is safe.
+        // We use correlated subqueries (not a LEFT JOIN with OR) to avoid duplicate rows.
+
+        // First: fetch the current student's father_name for the comparison
+        const currentStudentRes = await pool.query(
+            `SELECT father_name FROM students WHERE student_id = $1`, [id]
+        );
+        const currentFatherName = (currentStudentRes.rows[0]?.father_name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
         const siblings = await pool.query(`
             SELECT 
                 s.student_id,
@@ -177,29 +185,36 @@ router.get('/:id/siblings', async (req, res) => {
                 c.class_name,
                 sec.section_name,
                 COALESCE(
-                    -- Forward direction: current student → this sibling
+                    -- Level 1: Forward direction (current student → this sibling)
                     (
                         SELECT ss.relation_type 
                         FROM student_siblings ss
                         WHERE ss.student_id = $1 AND ss.sibling_id = s.student_id
                         LIMIT 1
                     ),
-                    -- Reverse direction: this sibling → current student
+                    -- Level 2: Reverse direction (this sibling → current student)
                     (
                         SELECT ss.relation_type 
                         FROM student_siblings ss
                         WHERE ss.student_id = s.student_id AND ss.sibling_id = $1
                         LIMIT 1
                     ),
-                    -- Default: same family = blood sibling unless no row found
-                    'blood'
+                    -- Level 3: Father-name smart fallback
+                    --   Same father → blood sibling
+                    --   Different father → cousin
+                    CASE
+                        WHEN $3 = '' THEN 'blood'
+                        WHEN LOWER(TRIM(REGEXP_REPLACE(s.father_name, '\s+', ' ', 'g'))) = $3
+                            THEN 'blood'
+                        ELSE 'cousin'
+                    END
                 ) AS relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
             WHERE s.family_id = $2 AND s.student_id != $1
             ORDER BY s.dob ASC
-        `, [id, familyId]);
+        `, [id, familyId, currentFatherName]);
 
         res.json(siblings.rows);
     } catch (err) {
@@ -254,23 +269,32 @@ router.post('/repair-sibling-relations', async (req, res) => {
 });
 
 // ==========================================
-// DATA REPAIR: Backfill missing blood rows
+// DATA REPAIR: Backfill missing sibling rows
 // ==========================================
 // For every pair of students sharing the same family_id that has NO row in
-// student_siblings, insert a 'blood' row in both directions.
-// This fixes data from bulk imports or old code paths that did not write
-// student_siblings rows for all intra-family pairs.
+// student_siblings, insert the correct relation_type based on father_name:
+//   • Same father_name  → 'blood'  (real siblings)
+//   • Different father_name → 'cousin' (different fathers in merged family)
 // Safe to call repeatedly (idempotent — DO NOTHING on conflict).
 router.post('/repair-missing-blood-rows', async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // Find all (a, b) pairs in the same family that have NO student_siblings row
-        // in the forward direction (a → b). Insert 'blood' for both directions.
+        // Find all (a, b) pairs in the same family that have NO student_siblings row.
+        // Use father_name comparison to assign the correct relation_type.
         const repairResult = await client.query(`
             INSERT INTO student_siblings (student_id, sibling_id, relation_type)
-            SELECT a.student_id, b.student_id, 'blood'
+            SELECT
+                a.student_id,
+                b.student_id,
+                CASE
+                    WHEN LOWER(TRIM(REGEXP_REPLACE(COALESCE(a.father_name,''), '\\s+', ' ', 'g')))
+                       = LOWER(TRIM(REGEXP_REPLACE(COALESCE(b.father_name,''), '\\s+', ' ', 'g')))
+                       AND COALESCE(TRIM(a.father_name), '') != ''
+                        THEN 'blood'
+                    ELSE 'cousin'
+                END AS relation_type
             FROM students a
             JOIN students b ON a.family_id = b.family_id
               AND a.student_id != b.student_id
@@ -287,7 +311,7 @@ router.post('/repair-missing-blood-rows', async (req, res) => {
 
         res.json({
             success: true,
-            message: `Backfilled ${repairResult.rowCount} missing blood sibling rows`,
+            message: `Backfilled ${repairResult.rowCount} missing sibling rows (with father-name based relation_type)`,
             rowsInserted: repairResult.rowCount
         });
     } catch (err) {
