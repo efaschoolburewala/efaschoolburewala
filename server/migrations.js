@@ -49,6 +49,26 @@ async function runEssentialMigrations() {
         //    relation_type = NULL which the frontend shows as "Family Member".
         //    These should be manually linked via the family management UI.
 
+        // 4. REPAIR: Fix any student_siblings rows incorrectly marked 'blood'
+        //    where the two students have DIFFERENT father names.
+        //    Blood siblings MUST share the same father — different father = cousin or unrelated.
+        //    This repair corrects data corrupted by a previous migration that used DO UPDATE.
+        //    It is safe to run repeatedly (idempotent).
+        console.log("   → Repairing incorrectly marked blood siblings...");
+        const repairResult = await client.query(`
+            UPDATE student_siblings ss
+            SET relation_type = 'cousin'
+            FROM students a, students b
+            WHERE ss.student_id = a.student_id
+              AND ss.sibling_id = b.student_id
+              AND ss.relation_type = 'blood'
+              AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
+              AND COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '') != ''
+              AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
+                  != COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
+        `);
+        console.log(`   ✓ Repaired ${repairResult.rowCount} incorrectly marked blood sibling rows.`);
+
         await client.query('COMMIT');
         console.log("✅ All essential migrations completed successfully!");
     } catch (err) {

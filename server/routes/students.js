@@ -193,6 +193,51 @@ router.get('/:id/siblings', async (req, res) => {
 });
 
 // ==========================================
+// DATA REPAIR: Fix corrupted relation_types
+// ==========================================
+// This endpoint corrects entries that were wrongly set to 'blood' by the
+// faulty DO UPDATE migration. It resets student_siblings rows to 'cousin'
+// where the two students have DIFFERENT father_names (i.e., they are not
+// true blood siblings - their shared family_id is due to a merge).
+// Safe to call repeatedly (idempotent).
+router.post('/repair-sibling-relations', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Find all student_siblings rows marked 'blood' where the two students
+        // have different father names. These were incorrectly set by the bad migration.
+        // They should be 'cousin' because blood siblings must share the same father.
+        const repairResult = await client.query(`
+            UPDATE student_siblings ss
+            SET relation_type = 'cousin'
+            FROM students a, students b
+            WHERE ss.student_id = a.student_id
+              AND ss.sibling_id = b.student_id
+              AND ss.relation_type = 'blood'
+              AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
+              AND COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '') != ''
+              AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
+                  != COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
+        `);
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `Repaired ${repairResult.rowCount} incorrectly marked sibling relationships`,
+            rowsFixed: repairResult.rowCount
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Repair error:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ==========================================
 // PHASE 2 & 3: FAMILY MANAGEMENT ENDPOINTS
 // ==========================================
 
