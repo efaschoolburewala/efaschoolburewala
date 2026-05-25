@@ -150,12 +150,16 @@ router.get('/:id/siblings', async (req, res) => {
         }
 
         // Get all students with same family_id and their relation_type from the explicit student_siblings table.
-        // student_siblings is the SINGLE SOURCE OF TRUTH for relation types.
         //
-        // IMPORTANT: We use a correlated subquery (not a LEFT JOIN with OR) to get relation_type.
-        // A LEFT JOIN with OR on both directions causes duplicate rows because we insert BOTH
-        // (A→B) and (B→A) rows into student_siblings — the OR matches both, doubling every sibling.
-        // The subquery always returns exactly ONE relation_type per sibling.
+        // STRATEGY: Check BOTH directions (A→B and B→A) in student_siblings.
+        // This handles cases where only one direction was stored (e.g. old data or manual edits).
+        // If NO row exists in either direction for two family members, default to 'blood' —
+        // because students in the same family_id are blood siblings by default unless
+        // explicitly linked as 'cousin' (cousins are always cross-family merges).
+        //
+        // We use a correlated COALESCE subquery (not a LEFT JOIN with OR) to avoid
+        // duplicate rows. Both (A→B) and (B→A) should always have the same relation_type,
+        // so checking either direction first is safe.
         const siblings = await pool.query(`
             SELECT 
                 s.student_id,
@@ -172,11 +176,23 @@ router.get('/:id/siblings', async (req, res) => {
                 s.image_url,
                 c.class_name,
                 sec.section_name,
-                (
-                    SELECT ss.relation_type 
-                    FROM student_siblings ss
-                    WHERE ss.student_id = $1 AND ss.sibling_id = s.student_id
-                    LIMIT 1
+                COALESCE(
+                    -- Forward direction: current student → this sibling
+                    (
+                        SELECT ss.relation_type 
+                        FROM student_siblings ss
+                        WHERE ss.student_id = $1 AND ss.sibling_id = s.student_id
+                        LIMIT 1
+                    ),
+                    -- Reverse direction: this sibling → current student
+                    (
+                        SELECT ss.relation_type 
+                        FROM student_siblings ss
+                        WHERE ss.student_id = s.student_id AND ss.sibling_id = $1
+                        LIMIT 1
+                    ),
+                    -- Default: same family = blood sibling unless no row found
+                    'blood'
                 ) AS relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
@@ -231,6 +247,52 @@ router.post('/repair-sibling-relations', async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Repair error:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+// ==========================================
+// DATA REPAIR: Backfill missing blood rows
+// ==========================================
+// For every pair of students sharing the same family_id that has NO row in
+// student_siblings, insert a 'blood' row in both directions.
+// This fixes data from bulk imports or old code paths that did not write
+// student_siblings rows for all intra-family pairs.
+// Safe to call repeatedly (idempotent — DO NOTHING on conflict).
+router.post('/repair-missing-blood-rows', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Find all (a, b) pairs in the same family that have NO student_siblings row
+        // in the forward direction (a → b). Insert 'blood' for both directions.
+        const repairResult = await client.query(`
+            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+            SELECT a.student_id, b.student_id, 'blood'
+            FROM students a
+            JOIN students b ON a.family_id = b.family_id
+              AND a.student_id != b.student_id
+              AND a.family_id IS NOT NULL
+            WHERE NOT EXISTS (
+                SELECT 1 FROM student_siblings ss
+                WHERE ss.student_id = a.student_id
+                  AND ss.sibling_id = b.student_id
+            )
+            ON CONFLICT (student_id, sibling_id) DO NOTHING
+        `);
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `Backfilled ${repairResult.rowCount} missing blood sibling rows`,
+            rowsInserted: repairResult.rowCount
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Backfill repair error:', err);
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
@@ -342,25 +404,46 @@ router.post('/families/merge', async (req, res) => {
             throw new Error('Secondary family not found');
         }
 
-        // Update all secondary family students to primary family
+        // Move all secondary family members to primary family.
+        // Do NOT overwrite sibling_relation — blood siblings among themselves must stay 'blood'.
         await client.query(
-            `UPDATE students 
-             SET family_id = $1, 
-                 sibling_relation = $2
-             WHERE family_id = $3`,
-            [primaryFamilyId, relationType, secondaryFamilyId]
+            `UPDATE students SET family_id = $1 WHERE family_id = $2`,
+            [primaryFamilyId, secondaryFamilyId]
         );
 
-        // Create cross-family sibling relationships
-        // relation_type is explicitly provided by the user (blood or cousin).
-        // We do NOT infer relation_type from father_name — it is unreliable.
+        // STEP A: Ensure all intra-primary-family blood rows exist in student_siblings.
+        for (let i = 0; i < family1.rows.length; i++) {
+            for (let j = i + 1; j < family1.rows.length; j++) {
+                await client.query(
+                    `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+                     VALUES ($1, $2, 'blood'), ($2, $1, 'blood')
+                     ON CONFLICT (student_id, sibling_id) DO NOTHING`,
+                    [family1.rows[i].student_id, family1.rows[j].student_id]
+                );
+            }
+        }
+
+        // STEP B: Ensure all intra-secondary-family blood rows exist in student_siblings.
+        for (let i = 0; i < family2.rows.length; i++) {
+            for (let j = i + 1; j < family2.rows.length; j++) {
+                await client.query(
+                    `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+                     VALUES ($1, $2, 'blood'), ($2, $1, 'blood')
+                     ON CONFLICT (student_id, sibling_id) DO NOTHING`,
+                    [family2.rows[i].student_id, family2.rows[j].student_id]
+                );
+            }
+        }
+
+        // STEP C: Create cross-family sibling relationships with the user-specified relationType.
+        // Use DO UPDATE to overwrite any stale/incorrect relation_type values.
         for (let i = 0; i < family1.rows.length; i++) {
             for (let j = 0; j < family2.rows.length; j++) {
                 await client.query(
                     `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
                      VALUES ($1, $2, $3), ($2, $1, $3)
-                     ON CONFLICT (student_id, sibling_id) 
-                     DO NOTHING`,
+                     ON CONFLICT (student_id, sibling_id)
+                     DO UPDATE SET relation_type = EXCLUDED.relation_type`,
                     [family1.rows[i].student_id, family2.rows[j].student_id, relationType]
                 );
             }
@@ -485,19 +568,47 @@ router.post('/families/manual-link', async (req, res) => {
             [secondaryFamilyId]
         );
 
-        // Move all secondary family members to primary family
+        // Move all secondary family members to primary family.
+        // We do NOT touch sibling_relation here — blood siblings within each original
+        // family must keep their 'blood' status among themselves.
         await client.query(
-            `UPDATE students 
-             SET family_id = $1,
-                 sibling_relation = $2
-             WHERE family_id = $3`,
-            [primaryFamilyId, relation_type, secondaryFamilyId]
+            `UPDATE students SET family_id = $1 WHERE family_id = $2`,
+            [primaryFamilyId, secondaryFamilyId]
         );
 
-        // Create cross-family sibling relationships.
+        // STEP A: Ensure all intra-primary-family blood rows exist in student_siblings.
+        // This guarantees blood siblings always have explicit rows (idempotent — DO NOTHING).
+        for (let i = 0; i < primaryFamilyStudents.rows.length; i++) {
+            for (let j = i + 1; j < primaryFamilyStudents.rows.length; j++) {
+                const pA = primaryFamilyStudents.rows[i].student_id;
+                const pB = primaryFamilyStudents.rows[j].student_id;
+                await client.query(
+                    `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+                     VALUES ($1, $2, 'blood'), ($2, $1, 'blood')
+                     ON CONFLICT (student_id, sibling_id) DO NOTHING`,
+                    [pA, pB]
+                );
+            }
+        }
+
+        // STEP B: Ensure all intra-secondary-family blood rows exist in student_siblings.
+        for (let i = 0; i < secondaryFamilyStudents.rows.length; i++) {
+            for (let j = i + 1; j < secondaryFamilyStudents.rows.length; j++) {
+                const sA = secondaryFamilyStudents.rows[i].student_id;
+                const sB = secondaryFamilyStudents.rows[j].student_id;
+                await client.query(
+                    `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
+                     VALUES ($1, $2, 'blood'), ($2, $1, 'blood')
+                     ON CONFLICT (student_id, sibling_id) DO NOTHING`,
+                    [sA, sB]
+                );
+            }
+        }
+
+        // STEP C: Create cross-family sibling relationships.
         // For the directly-linked pair: use the specified relation_type.
         // For all other cross-family pairs: use 'cousin'.
-        // We do NOT infer relation_type from father_name — it is unreliable.
+        // Use DO UPDATE to overwrite any stale/incorrect relation_type values.
         for (let i = 0; i < primaryFamilyStudents.rows.length; i++) {
             for (let j = 0; j < secondaryFamilyStudents.rows.length; j++) {
                 const pId = primaryFamilyStudents.rows[i].student_id;
@@ -511,8 +622,8 @@ router.post('/families/manual-link', async (req, res) => {
                 await client.query(
                     `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
                      VALUES ($1, $2, $3), ($2, $1, $3)
-                     ON CONFLICT (student_id, sibling_id) 
-                     DO NOTHING`,
+                     ON CONFLICT (student_id, sibling_id)
+                     DO UPDATE SET relation_type = EXCLUDED.relation_type`,
                     [pId, sId, pairRelation]
                 );
             }
