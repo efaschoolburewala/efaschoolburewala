@@ -151,8 +151,11 @@ router.get('/:id/siblings', async (req, res) => {
 
         // Get all students with same family_id and their relation_type from the explicit student_siblings table.
         // student_siblings is the SINGLE SOURCE OF TRUTH for relation types.
-        // We do NOT fall back to father_name matching at query time — that is done once
-        // during the startup migration (backfill) and produces permanent rows in student_siblings.
+        //
+        // IMPORTANT: We use a correlated subquery (not a LEFT JOIN with OR) to get relation_type.
+        // A LEFT JOIN with OR on both directions causes duplicate rows because we insert BOTH
+        // (A→B) and (B→A) rows into student_siblings — the OR matches both, doubling every sibling.
+        // The subquery always returns exactly ONE relation_type per sibling.
         const siblings = await pool.query(`
             SELECT 
                 s.student_id,
@@ -169,13 +172,15 @@ router.get('/:id/siblings', async (req, res) => {
                 s.image_url,
                 c.class_name,
                 sec.section_name,
-                ss.relation_type
+                (
+                    SELECT ss.relation_type 
+                    FROM student_siblings ss
+                    WHERE ss.student_id = $1 AND ss.sibling_id = s.student_id
+                    LIMIT 1
+                ) AS relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
-            LEFT JOIN student_siblings ss 
-                ON (ss.student_id = $1 AND ss.sibling_id = s.student_id)
-                OR (ss.student_id = s.student_id AND ss.sibling_id = $1)
             WHERE s.family_id = $2 AND s.student_id != $1
             ORDER BY s.dob ASC
         `, [id, familyId]);

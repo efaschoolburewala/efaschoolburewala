@@ -35,10 +35,10 @@ async function runEssentialMigrations() {
             ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
         `);
 
-        // 4. Backfill student_siblings for blood siblings
+        // 4. Backfill & correct student_siblings for blood siblings
         // Students who share the same family_id AND same father_name are blood siblings.
-        // They may not have an explicit row in student_siblings if they were enrolled before
-        // the relationship tracking table existed. This query fixes that gap.
+        // Use DO UPDATE (not DO NOTHING) so that any existing incorrect 'cousin' entry
+        // between two actual blood siblings gets corrected to 'blood'.
         console.log("   → Backfilling student_siblings for blood siblings...");
         await client.query(`
             INSERT INTO student_siblings (student_id, sibling_id, relation_type)
@@ -54,7 +54,7 @@ async function runEssentialMigrations() {
                 AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
                     = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
             WHERE a.family_id IS NOT NULL
-            ON CONFLICT (student_id, sibling_id) DO NOTHING
+            ON CONFLICT (student_id, sibling_id) DO UPDATE SET relation_type = 'blood'
         `);
         console.log("   ✓ Blood sibling backfill complete.");
 
