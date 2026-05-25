@@ -208,13 +208,15 @@ export default function StudentDetails() {
     });
 
     useEffect(() => {
-        if (isClassTeacher) {
+        if (isClassTeacher && user?.incharge_class) {
+            const classId = String(user.incharge_class.class_id);
+            const sectionId = String(user.incharge_class.section_id);
             setFilters(prev => ({
                 ...prev,
-                class_id: String(user.incharge_class.class_id),
-                section_id: String(user.incharge_class.section_id)
+                class_id: classId,
+                section_id: sectionId
             }));
-            fetchSections(String(user.incharge_class.class_id));
+            fetchSections(classId);
         }
     }, [isClassTeacher, user]);
 
