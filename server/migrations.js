@@ -35,28 +35,19 @@ async function runEssentialMigrations() {
             ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
         `);
 
-        // 4. Backfill & correct student_siblings for blood siblings
-        // Students who share the same family_id AND same father_name are blood siblings.
-        // Use DO UPDATE (not DO NOTHING) so that any existing incorrect 'cousin' entry
-        // between two actual blood siblings gets corrected to 'blood'.
-        console.log("   → Backfilling student_siblings for blood siblings...");
-        await client.query(`
-            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
-            SELECT 
-                a.student_id,
-                b.student_id,
-                'blood'
-            FROM students a
-            JOIN students b 
-                ON a.family_id = b.family_id
-                AND a.student_id != b.student_id
-                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
-                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
-                    = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
-            WHERE a.family_id IS NOT NULL
-            ON CONFLICT (student_id, sibling_id) DO UPDATE SET relation_type = 'blood'
-        `);
-        console.log("   ✓ Blood sibling backfill complete.");
+        // 4. IMPORTANT: We do NOT use father_name to infer relation_type.
+        //    Father name matching is unreliable in Pakistani naming conventions where
+        //    cousins often share the same grandfather's name as their father name.
+        //
+        //    The student_siblings table is the ONLY source of truth for relation_type.
+        //    Relationships are explicitly set when:
+        //      a) A student is created with siblings (explicit relation_type)
+        //      b) Families are manually linked via /families/manual-link
+        //      c) Families are merged via /families/merge
+        //
+        //    Students in the same family with NO entry in student_siblings will have
+        //    relation_type = NULL which the frontend shows as "Family Member".
+        //    These should be manually linked via the family management UI.
 
         await client.query('COMMIT');
         console.log("✅ All essential migrations completed successfully!");

@@ -307,6 +307,8 @@ router.post('/families/merge', async (req, res) => {
         );
 
         // Create cross-family sibling relationships
+        // relation_type is explicitly provided by the user (blood or cousin).
+        // We do NOT infer relation_type from father_name — it is unreliable.
         for (let i = 0; i < family1.rows.length; i++) {
             for (let j = 0; j < family2.rows.length; j++) {
                 await client.query(
@@ -318,24 +320,6 @@ router.post('/families/merge', async (req, res) => {
                 );
             }
         }
-
-        // Backfill intra-family blood sibling rows (same father_name within same family)
-        await client.query(`
-            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
-            SELECT 
-                a.student_id,
-                b.student_id,
-                'blood'
-            FROM students a
-            JOIN students b 
-                ON a.family_id = b.family_id
-                AND a.student_id != b.student_id
-                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
-                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
-                    = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
-            WHERE a.family_id = $1
-            ON CONFLICT (student_id, sibling_id) DO NOTHING
-        `, [primaryFamilyId]);
 
         await client.query('COMMIT');
         
@@ -465,9 +449,10 @@ router.post('/families/manual-link', async (req, res) => {
             [primaryFamilyId, relation_type, secondaryFamilyId]
         );
 
-        // Create cross-family sibling relationships
-        // For the directly-linked pair: use the specified relation_type
-        // For all other cross-family pairs: use 'cousin' (different fathers → cousins)
+        // Create cross-family sibling relationships.
+        // For the directly-linked pair: use the specified relation_type.
+        // For all other cross-family pairs: use 'cousin'.
+        // We do NOT infer relation_type from father_name — it is unreliable.
         for (let i = 0; i < primaryFamilyStudents.rows.length; i++) {
             for (let j = 0; j < secondaryFamilyStudents.rows.length; j++) {
                 const pId = primaryFamilyStudents.rows[i].student_id;
@@ -487,26 +472,6 @@ router.post('/families/manual-link', async (req, res) => {
                 );
             }
         }
-
-        // Ensure intra-family blood siblings exist in student_siblings for BOTH original families.
-        // This handles cases where students shared a family_id but had no explicit student_siblings rows.
-        // We use father_name equality as the criterion for blood siblings within a family.
-        await client.query(`
-            INSERT INTO student_siblings (student_id, sibling_id, relation_type)
-            SELECT 
-                a.student_id,
-                b.student_id,
-                'blood'
-            FROM students a
-            JOIN students b 
-                ON a.family_id = b.family_id
-                AND a.student_id != b.student_id
-                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') != ''
-                AND COALESCE(REPLACE(LOWER(TRIM(a.father_name)), ' ', ''), '') 
-                    = COALESCE(REPLACE(LOWER(TRIM(b.father_name)), ' ', ''), '')
-            WHERE a.family_id = $1
-            ON CONFLICT (student_id, sibling_id) DO NOTHING
-        `, [primaryFamilyId]);
 
         await client.query('COMMIT');
 

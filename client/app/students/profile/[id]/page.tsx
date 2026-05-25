@@ -988,7 +988,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                             className="card h-100 border-2 hover-shadow transition"
                                                                             style={{
                                                                                 cursor: 'pointer',
-                                                                                borderColor: sibling.relation_type === 'blood' ? '#0d6efd' : '#ffc107',
+                                                                                borderColor: sibling.relation_type === 'blood' ? '#0d6efd' : sibling.relation_type === 'cousin' ? '#ffc107' : '#6c757d',
                                                                                 transition: 'all 0.3s ease'
                                                                             }}
                                                                             onClick={() => router.push(`/students/profile/${sibling.student_id}`)}
@@ -996,15 +996,15 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                             <div
                                                                                 className="card-header border-0 p-3"
                                                                                 style={{
-                                                                                    backgroundColor: sibling.relation_type === 'blood' ? '#e7f1ff' : '#fff3cd'
+                                                                                    backgroundColor: sibling.relation_type === 'blood' ? '#e7f1ff' : sibling.relation_type === 'cousin' ? '#fff3cd' : '#f8f9fa'
                                                                                 }}
                                                                             >
                                                                                 <span className="badge" style={{
-                                                                                    backgroundColor: sibling.relation_type === 'blood' ? '#0d6efd' : '#ffc107',
-                                                                                    color: sibling.relation_type === 'blood' ? 'white' : '#000'
+                                                                                    backgroundColor: sibling.relation_type === 'blood' ? '#0d6efd' : sibling.relation_type === 'cousin' ? '#ffc107' : '#6c757d',
+                                                                                    color: sibling.relation_type === 'blood' ? 'white' : sibling.relation_type === 'cousin' ? '#000' : 'white'
                                                                                 }}>
-                                                                                    <i className={`bi ${sibling.relation_type === 'blood' ? 'bi-people-fill' : 'bi-diagram-3-fill'} me-1`}></i>
-                                                                                    {sibling.relation_type === 'blood' ? 'Blood Sibling' : 'Cousin'}
+                                                                                    <i className={`bi ${sibling.relation_type === 'blood' ? 'bi-people-fill' : sibling.relation_type === 'cousin' ? 'bi-diagram-3-fill' : 'bi-person-lines-fill'} me-1`}></i>
+                                                                                    {sibling.relation_type === 'blood' ? 'Blood Sibling' : sibling.relation_type === 'cousin' ? 'Cousin' : 'Family Member'}
                                                                                 </span>
                                                                             </div>
                                                                             <div className="card-body p-3">
@@ -1019,7 +1019,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                                     width: '50px',
                                                                                                     height: '50px',
                                                                                                     objectFit: 'cover',
-                                                                                                    borderColor: sibling.relation_type === 'blood' ? '#0d6efd' : '#ffc107'
+                                                                                                    borderColor: sibling.relation_type === 'blood' ? '#0d6efd' : sibling.relation_type === 'cousin' ? '#ffc107' : '#6c757d'
                                                                                                 }}
                                                                                             />
                                                                                         ) : (
@@ -1028,7 +1028,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                                 style={{
                                                                                                     width: '50px',
                                                                                                     height: '50px',
-                                                                                                    borderColor: sibling.relation_type === 'blood' ? '#0d6efd' : '#ffc107'
+                                                                                                    borderColor: sibling.relation_type === 'blood' ? '#0d6efd' : sibling.relation_type === 'cousin' ? '#ffc107' : '#6c757d'
                                                                                                 }}
                                                                                             >
                                                                                                 <i className="bi bi-person-fill"></i>
