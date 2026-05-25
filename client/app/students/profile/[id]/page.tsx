@@ -69,6 +69,18 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
     }).format(parseFloat(n?.toString() || '0'));
 
     useEffect(() => {
+        // Reset states to prevent displaying stale data from the previous student
+        setStudent(null);
+        setSiblings([]);
+        setLoading(true);
+        setLoadingSiblings(true);
+        setAcad(null);
+        setFamilySlips([]);
+        setAdmissionFee(null);
+        setAdmissionPayments([]);
+        setAttRecords([]);
+        setAttStats({ present: 0, absent: 0, late: 0, leave: 0, total: 0 });
+
         const fetchStudent = async () => {
             try {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/students/${params.id}`);
