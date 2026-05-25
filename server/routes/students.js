@@ -166,12 +166,18 @@ router.get('/:id/siblings', async (req, res) => {
                 s.image_url,
                 c.class_name,
                 sec.section_name,
-                CASE 
-                    WHEN COALESCE(TRIM(LOWER(s.father_name)), '') != '' 
-                         AND COALESCE(TRIM(LOWER(s.father_name)), '') = COALESCE(TRIM(LOWER((SELECT father_name FROM students WHERE student_id = $1))), '') 
-                    THEN 'blood'
-                    ELSE 'cousin'
-                END as relation_type
+                COALESCE(
+                    (SELECT relation_type FROM student_siblings ss 
+                     WHERE (ss.student_id = $1 AND ss.sibling_id = s.student_id)
+                        OR (ss.student_id = s.student_id AND ss.sibling_id = $1)
+                     LIMIT 1),
+                    CASE 
+                        WHEN COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') != '' 
+                             AND COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') = COALESCE(REPLACE(LOWER((SELECT father_name FROM students WHERE student_id = $1)), ' ', ''), '') 
+                        THEN 'blood'
+                        ELSE 'cousin'
+                    END
+                ) as relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
@@ -300,17 +306,15 @@ router.post('/families/merge', async (req, res) => {
             [primaryFamilyId, relationType, secondaryFamilyId]
         );
 
-        // Create sibling relationships between all students
-        const allStudents = [...family1.rows, ...family2.rows];
-        
-        for (let i = 0; i < allStudents.length; i++) {
-            for (let j = i + 1; j < allStudents.length; j++) {
+        // Create sibling relationships ONLY between a student from family1 and a student from family2
+        for (let i = 0; i < family1.rows.length; i++) {
+            for (let j = 0; j < family2.rows.length; j++) {
                 await client.query(
                     `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
                      VALUES ($1, $2, $3), ($2, $1, $3)
                      ON CONFLICT (student_id, sibling_id) 
                      DO UPDATE SET relation_type = $3`,
-                    [allStudents[i].student_id, allStudents[j].student_id, relationType]
+                    [family1.rows[i].student_id, family2.rows[j].student_id, relationType]
                 );
             }
         }
@@ -422,7 +426,13 @@ router.post('/families/manual-link', async (req, res) => {
         const primaryFamilyId = s1.family_id < s2.family_id ? s1.family_id : s2.family_id;
         const secondaryFamilyId = s1.family_id < s2.family_id ? s2.family_id : s1.family_id;
 
-        // Get all students from secondary family
+        // Get all students from primary family before update
+        const primaryFamilyStudents = await client.query(
+            'SELECT student_id FROM students WHERE family_id = $1',
+            [primaryFamilyId]
+        );
+
+        // Get all students from secondary family before update
         const secondaryFamilyStudents = await client.query(
             'SELECT student_id FROM students WHERE family_id = $1',
             [secondaryFamilyId]
@@ -437,26 +447,17 @@ router.post('/families/manual-link', async (req, res) => {
             [primaryFamilyId, relation_type, secondaryFamilyId]
         );
 
-        // Get all students now in primary family
-        const allFamilyStudents = await client.query(
-            'SELECT student_id FROM students WHERE family_id = $1',
-            [primaryFamilyId]
-        );
-
-        // Create sibling relationships for all combinations
-        const studentIds = allFamilyStudents.rows.map(r => r.student_id);
-        
-        for (let i = 0; i < studentIds.length; i++) {
-            for (let j = i + 1; j < studentIds.length; j++) {
-                let pairRelation = relation_type;
+        // Create sibling relationships ONLY between a member of the primary family and a member of the secondary family
+        for (let i = 0; i < primaryFamilyStudents.rows.length; i++) {
+            for (let j = 0; j < secondaryFamilyStudents.rows.length; j++) {
+                const pId = primaryFamilyStudents.rows[i].student_id;
+                const sId = secondaryFamilyStudents.rows[j].student_id;
                 
-                // For the specific pair being linked, use specified relation
-                if ((studentIds[i] === student1_id && studentIds[j] === student2_id) ||
-                    (studentIds[i] === student2_id && studentIds[j] === student1_id)) {
+                let pairRelation = 'cousin';
+                // For the specific pair being linked, use the specified relation type
+                if ((pId === student1_id && sId === student2_id) ||
+                    (pId === student2_id && sId === student1_id)) {
                     pairRelation = relation_type;
-                } else {
-                    // For others, default to cousin when merging different families
-                    pairRelation = 'cousin';
                 }
 
                 await client.query(
@@ -464,7 +465,7 @@ router.post('/families/manual-link', async (req, res) => {
                      VALUES ($1, $2, $3), ($2, $1, $3)
                      ON CONFLICT (student_id, sibling_id) 
                      DO UPDATE SET relation_type = $3`,
-                    [studentIds[i], studentIds[j], pairRelation]
+                    [pId, sId, pairRelation]
                 );
             }
         }

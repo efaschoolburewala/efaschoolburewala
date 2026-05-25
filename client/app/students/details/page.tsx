@@ -182,7 +182,9 @@ function renderCell(key: string, s: Student, idx: number) {
 
 export default function StudentDetails() {
     const router = useRouter();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
+
+    const isClassTeacher = user?.role_name?.toLowerCase() === 'teacher' && user?.incharge_class;
 
     // ── Data state ────────────────────────────────────────────────────────
     const [students, setStudents] = useState<Student[]>([]);
@@ -204,6 +206,17 @@ export default function StudentDetails() {
         category: '', blood_group: '', religion: '', age: '', keyword: '',
         family_id: ''
     });
+
+    useEffect(() => {
+        if (isClassTeacher) {
+            setFilters(prev => ({
+                ...prev,
+                class_id: String(user.incharge_class.class_id),
+                section_id: String(user.incharge_class.section_id)
+            }));
+            fetchSections(String(user.incharge_class.class_id));
+        }
+    }, [isClassTeacher, user]);
 
     useEffect(() => {
         const init = async () => {
@@ -396,7 +409,7 @@ export default function StudentDetails() {
                                 </div>
                             </div>
                             <div className="col-md-3">
-                                <select className="form-select" value={filters.class_id} onChange={handleClassChange}>
+                                <select className="form-select" value={filters.class_id} onChange={handleClassChange} disabled={!!isClassTeacher}>
                                     <option value="">All Classes</option>
                                     {classes.map((c: any) => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                                 </select>
@@ -404,7 +417,7 @@ export default function StudentDetails() {
                             <div className="col-md-3">
                                 <select className="form-select" value={filters.section_id}
                                     onChange={e => setFilters({ ...filters, section_id: e.target.value })}
-                                    disabled={!filters.class_id}>
+                                    disabled={!filters.class_id || !!isClassTeacher}>
                                     <option value="">All Sections</option>
                                     {sections.map((s: any) => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
                                 </select>

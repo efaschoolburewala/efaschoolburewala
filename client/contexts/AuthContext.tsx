@@ -20,6 +20,8 @@ export interface AuthUser {
     role_level?: number;
     is_active: boolean;
     permissions: Permission[];
+    employee_id?: number;
+    incharge_class?: { class_id: number, section_id: number } | null;
 }
 
 interface AuthContextType {
