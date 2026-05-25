@@ -166,18 +166,18 @@ router.get('/:id/siblings', async (req, res) => {
                 s.image_url,
                 c.class_name,
                 sec.section_name,
-                CASE 
-                    WHEN COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') != '' 
-                         AND COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') = COALESCE(REPLACE(LOWER((SELECT father_name FROM students WHERE student_id = $1)), ' ', ''), '') 
-                    THEN 'blood'
-                    ELSE COALESCE(
-                        (SELECT relation_type FROM student_siblings ss 
-                         WHERE (ss.student_id = $1 AND ss.sibling_id = s.student_id)
-                            OR (ss.student_id = s.student_id AND ss.sibling_id = $1)
-                         LIMIT 1),
-                        'cousin'
-                    )
-                END as relation_type
+                COALESCE(
+                    (SELECT relation_type FROM student_siblings ss 
+                     WHERE (ss.student_id = $1 AND ss.sibling_id = s.student_id)
+                        OR (ss.student_id = s.student_id AND ss.sibling_id = $1)
+                     LIMIT 1),
+                    CASE 
+                        WHEN COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') != '' 
+                             AND COALESCE(REPLACE(LOWER(s.father_name), ' ', ''), '') = COALESCE(REPLACE(LOWER((SELECT father_name FROM students WHERE student_id = $1)), ' ', ''), '') 
+                        THEN 'blood'
+                        ELSE 'cousin'
+                    END
+                ) as relation_type
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
