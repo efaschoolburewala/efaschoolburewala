@@ -210,7 +210,7 @@ export default function LoginPage() {
                             </button>
                         </form>
 
-                        <div className="credentials-card">
+                        {/* <div className="credentials-card">
                             <div className="credentials-content">
                                 <i className="bi bi-key-fill key-icon" />
                                 <div className="credentials-info">
@@ -226,7 +226,7 @@ export default function LoginPage() {
                             >
                                 Auto Fill
                             </button>
-                        </div>
+                        </div> */}
                     </div>
                 </main>
             </div>
