@@ -1330,6 +1330,3 @@ router.get('/family-summary/:student_id', async (req, res) => {
 });
 
 module.exports = router;
-
-
-
