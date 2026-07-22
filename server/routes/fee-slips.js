@@ -731,7 +731,13 @@ router.get('/print-queue', async (req, res) => {
 
         // Family vouchers — primary = student in highest class (max class_id)
         for (const [fid, slips] of Object.entries(familyMap)) {
-            slips.sort((a, b) => (b.c_class_id || 0) - (a.c_class_id || 0) || a.first_name.localeCompare(b.first_name));
+            slips.sort((a, b) => {
+                if ((b.c_class_id || 0) !== (a.c_class_id || 0)) return (b.c_class_id || 0) - (a.c_class_id || 0);
+                const secA = a.section_name || '';
+                const secB = b.section_name || '';
+                if (secA !== secB) return secA.localeCompare(secB);
+                return (a.first_name || '').localeCompare(b.first_name || '');
+            });
             const primary = slips[0];
             const siblings = slips.slice(1);
             vouchers.push({
@@ -757,7 +763,7 @@ router.get('/print-queue', async (req, res) => {
                  LEFT JOIN classes c ON s.class_id = c.class_id
                  LEFT JOIN sections sec ON s.section_id = sec.section_id
                  WHERE s.family_id = ANY($1) AND s.status = 'Active'
-                 ORDER BY c.class_id DESC NULLS LAST, s.first_name`,
+                 ORDER BY c.class_id DESC NULLS LAST, sec.section_name ASC NULLS LAST, s.first_name`,
                 [familyIds]
             );
             const membersMap = {};
@@ -799,11 +805,16 @@ router.get('/print-queue', async (req, res) => {
             }
         }
 
-        // Sort: class_id DESC, then pending first, then by name
+        // Sort: class_id DESC, then section_name ASC, then pending first, then by name
         filteredVouchers.sort((a, b) => {
             const classA = a.primary.c_class_id || 0;
             const classB = b.primary.c_class_id || 0;
             if (classA !== classB) return classB - classA;
+            
+            const secA = a.primary.section_name || '';
+            const secB = b.primary.section_name || '';
+            if (secA !== secB) return secA.localeCompare(secB);
+
             if (!a.is_printed && b.is_printed) return -1;
             if (a.is_printed && !b.is_printed) return 1;
             return (a.primary.first_name || '').localeCompare(b.primary.first_name || '');
