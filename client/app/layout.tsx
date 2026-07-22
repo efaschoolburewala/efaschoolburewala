@@ -9,6 +9,18 @@ import { AuthProvider } from '../contexts/AuthContext';
 export const metadata: Metadata = {
   title: 'Smart School System',
   description: 'A PERN Stack Application',
+  applicationName: 'Smart School System',
+  manifest: '/manifest.json',
+  themeColor: '#0b3a53',
+  icons: {
+    icon: '/icons/app-icon.svg',
+    apple: '/icons/app-icon.svg',
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Smart School System',
+    statusBarStyle: 'default',
+  },
 };
 
 export default function RootLayout({

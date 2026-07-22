@@ -1,0 +1,18 @@
+{
+  "name": "Smart School System",
+  "short_name": "School System",
+  "description": "Smart school management system for students, fees, attendance, HRM, and reports.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0b3a53",
+  "icons": [
+    {
+      "src": "/icons/app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
