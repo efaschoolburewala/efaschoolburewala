@@ -393,6 +393,7 @@ export default function ExaminationMarksPage() {
                                 <input
                                     type="number"
                                     className="form-control"
+                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                     value={totalMarks}
                                     min={1}
                                     onChange={(e) => setTotalMarks(e.target.value)}
@@ -467,6 +468,7 @@ export default function ExaminationMarksPage() {
                                                     <input
                                                         type="number"
                                                         className="form-control form-control-sm"
+                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                         min={0}
                                                         max={Number(totalMarks) || undefined}
                                                         step="0.01"

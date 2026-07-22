@@ -466,7 +466,7 @@ export default function PrintSlipsPage() {
                             </div>
                             <div className="col-md-2">
                                 <label className="form-label fw-bold small text-muted">Year</label>
-                                <input type="number" className="form-control" value={year} onChange={e => setYear(e.target.value)} />
+                                <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
                             </div>
                             <div className="col-md-3">
                                 <label className="form-label fw-bold small text-muted">Class Filter (optional)</label>

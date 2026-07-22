@@ -485,6 +485,7 @@ export default function StudentDetails() {
                                 <div className="col-md-2">
                                     <label className="form-label small text-muted text-uppercase fw-bold">Age (Years)</label>
                                     <input type="number" className="form-control form-control-sm" placeholder="e.g. 15"
+                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
                                         value={filters.age} onChange={e => setFilters({ ...filters, age: e.target.value })} />
                                 </div>
                                 <div className="col-12 text-end">

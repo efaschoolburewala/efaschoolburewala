@@ -397,6 +397,7 @@ export default function TestMarkingPage() {
                                     <input
                                         type="number" className="form-control"
                                         placeholder="e.g. 50"
+                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                         value={formTotal} onChange={e => setFormTotal(e.target.value)}
                                         min={1}
                                     />
@@ -573,6 +574,7 @@ export default function TestMarkingPage() {
                                                                     type="number"
                                                                     className={`form-control form-control-sm text-center${isInvalid ? ' is-invalid' : ''}`}
                                                                     style={{ width: 100, margin: '0 auto' }}
+                                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                                     min={0}
                                                                     max={Number(sheet.test.total_marks)}
                                                                     step="0.5"

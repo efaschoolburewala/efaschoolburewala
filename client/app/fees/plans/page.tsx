@@ -412,6 +412,7 @@ export default function FeePlansPage() {
                                                                             <div className="input-group input-group-sm">
                                                                                 <span className="input-group-text bg-light">PKR</span>
                                                                                 <input type="number" className="form-control" value={sel.amount} min="0"
+                                                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                                                     onChange={e => updateHeadAmount(head.head_id, e.target.value)}
                                                                                     placeholder="0.00" onClick={e => e.stopPropagation()} />
                                                                             </div>

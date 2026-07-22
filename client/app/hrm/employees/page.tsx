@@ -392,7 +392,7 @@ export default function EmployeesPage() {
                                                 <label className="form-label small fw-bold">Salary (PKR)</label>
                                                 <div className="input-group">
                                                     <span className="input-group-text">$</span>
-                                                    <input type="number" className="form-control" value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
+                                                    <input type="number" className="form-control" value={formData.salary} onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
                                                 </div>
                                             </div>
 

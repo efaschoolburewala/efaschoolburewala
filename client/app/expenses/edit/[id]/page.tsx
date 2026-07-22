@@ -202,6 +202,7 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
                                             step="0.01"
                                             className="form-control"
                                             value={formData.amount}
+                                            onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                             onChange={(e) => handleChange('amount', e.target.value)}
                                             placeholder="0.00"
                                             required

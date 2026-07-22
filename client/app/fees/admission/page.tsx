@@ -750,6 +750,7 @@ export default function AdmissionFeePage() {
                         <input
                           type="number"
                           className="form-control fw-bold fs-5"
+                          onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                           required
                           min="0"
                           max={
@@ -785,6 +786,7 @@ export default function AdmissionFeePage() {
                         <input
                           type="number"
                           className="form-control fw-bold fs-5"
+                          onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                           min="0"
                           max={selectedLedger.remaining_amount}
                           value={payForm.discount_amount}
@@ -826,6 +828,7 @@ export default function AdmissionFeePage() {
                             <input
                               type="number"
                               className="form-control"
+                              onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                               value={tuitionAmount}
                               onChange={(e) => setTuitionAmount(e.target.value)}
                             />
@@ -835,6 +838,7 @@ export default function AdmissionFeePage() {
                             <input
                               type="number"
                               className="form-control text-success fw-bold"
+                              onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                               value={tuitionReceived}
                               onChange={(e) => setTuitionReceived(e.target.value)}
                             />

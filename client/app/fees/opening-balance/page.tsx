@@ -403,6 +403,7 @@ export default function OpeningBalancePage() {
                                         <span className="input-group-text bg-white"><i className="bi bi-wallet2" style={{ color: 'var(--accent-orange)' }} /></span>
                                         <span className="input-group-text bg-white fw-semibold">Rs.</span>
                                         <input type="number" className="form-control rounded-end-3" min="0" step="1" placeholder="0"
+                                            onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                             value={setForm.opening_balance} onChange={e => setSetForm({ ...setForm, opening_balance: e.target.value })}
                                             style={{ border: '1.5px solid #dee2e6', borderLeft: 'none' }} autoFocus />
                                     </div>

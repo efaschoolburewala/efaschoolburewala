@@ -1349,6 +1349,7 @@ export default function StudentDashboard({ user }: { user: any }) {
                                                             <div className="col-12">
                                                                 <label className="form-label fw-bold small text-muted">Amount Receiving (PKR) <span className="text-danger">*</span></label>
                                                                 <input type="number" className="form-control fw-bold fs-5" required
+                                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                                     min="1" max={admissionFee.remaining_amount}
                                                                     value={payAmt} onChange={e => setPayAmt(e.target.value)} />
                                                             </div>

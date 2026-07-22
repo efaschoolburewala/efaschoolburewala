@@ -397,6 +397,7 @@ export default function FeeGeneratePage() {
                             <div className="mb-3">
                                 <label className="form-label fw-bold small text-muted">Year <span className="text-danger">*</span></label>
                                 <input type="number" className="form-control" value={selectedYear}
+                                    onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
                                     onChange={e => setSelectedYear(e.target.value)} />
                             </div>
                             <div className="row g-2 mb-3">
@@ -509,6 +510,7 @@ export default function FeeGeneratePage() {
                                                     <div className="input-group input-group-sm">
                                                         <span className="input-group-text bg-light">PKR</span>
                                                         <input type="number" className="form-control" value={head.amount}
+                                                            onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                             onChange={e => updateExtra(i, 'amount', e.target.value)} placeholder="0" />
                                                     </div>
                                                 </div>
@@ -716,6 +718,7 @@ export default function FeeGeneratePage() {
                                                 <div className="input-group input-group-sm">
                                                     <span className="input-group-text bg-light">PKR</span>
                                                     <input type="number" className="form-control" value={item.amount}
+                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                         onChange={e => setEditItems(p => p.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
                                                         min="0" />
                                                 </div>

@@ -576,6 +576,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                                 <div className="input-group">
                                                     <span className="input-group-text">Rs.</span>
                                                     <input type="number" className="form-control form-control-lg" placeholder="0.00" required
+                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                         value={form.family_fee}
                                                         onChange={e => setForm({ ...form, family_fee: e.target.value })} />
                                                 </div>
@@ -589,6 +590,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                                 <div className="input-group">
                                                     <span className="input-group-text">Rs.</span>
                                                     <input type="number" className="form-control" placeholder="0.00"
+                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                         value={form.admission_fee} onChange={e => setForm({ ...form, admission_fee: e.target.value })} />
                                                 </div>
                                             </div>
@@ -597,6 +599,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                                 <div className="input-group">
                                                     <span className="input-group-text">Rs.</span>
                                                     <input type="number" className="form-control" placeholder="0.00"
+                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                         value={form.other_charges} onChange={e => setForm({ ...form, other_charges: e.target.value })} />
                                                 </div>
                                             </div>
@@ -610,6 +613,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                             <div className="input-group">
                                                 <span className="input-group-text">Rs.</span>
                                                 <input type="number" className="form-control form-control-lg" placeholder="0.00" required
+                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                     value={form.monthly_fee} onChange={e => setForm({ ...form, monthly_fee: e.target.value })} />
                                             </div>
                                         </div>
@@ -618,6 +622,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                             <div className="input-group">
                                                 <span className="input-group-text">Rs.</span>
                                                 <input type="number" className="form-control" placeholder="0.00"
+                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                     value={form.admission_fee} onChange={e => setForm({ ...form, admission_fee: e.target.value })} />
                                             </div>
                                         </div>
@@ -626,6 +631,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                             <div className="input-group">
                                                 <span className="input-group-text">Rs.</span>
                                                 <input type="number" className="form-control" placeholder="0.00"
+                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                     value={form.other_charges} onChange={e => setForm({ ...form, other_charges: e.target.value })} />
                                             </div>
                                         </div>

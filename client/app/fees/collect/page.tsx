@@ -476,7 +476,7 @@ export default function CollectFeePage() {
                             <label className="form-label fw-bold small text-muted">
                                 <i className="bi bi-calendar3 me-1"></i>Year <span className="text-danger">*</span>
                             </label>
-                            <input type="number" className="form-control" value={year} onChange={e => setYear(e.target.value)} />
+                            <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
                         </div>
                         <div className="col-md-3">
                             <label className="form-label fw-bold small text-muted">
@@ -971,6 +971,7 @@ export default function CollectFeePage() {
                                                                 <div className="input-group input-group-sm w-auto" style={{ maxWidth: '120px' }}>
                                                                     <span className="input-group-text bg-white small">PKR</span>
                                                                     <input type="number" className="form-control form-control-sm text-end" placeholder="0"
+                                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                                         value={headPayVals['fallback'] || ''} onChange={e => setHeadPayVals({ ...headPayVals, fallback: e.target.value })} min="0" />
                                                                 </div>
                                                             </div>
@@ -1029,6 +1030,7 @@ export default function CollectFeePage() {
                                                                                 {combAmtB > 0 && <span className="text-danger fw-bold" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Bal: {combRem}</span>}
                                                                                 <div className="input-group input-group-sm w-auto" style={{ maxWidth: '100px' }}>
                                                                                     <input type="number" className="form-control form-control-sm text-end" placeholder="0"
+                                                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                                                         value={combInputVal > 0 ? combInputVal : ''}
                                                                                         onChange={(e) => {
                                                                                             const vStr = e.target.value;
@@ -1074,6 +1076,7 @@ export default function CollectFeePage() {
                                                                                 {amtB > 0 && <span className="text-danger fw-bold" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Bal: {rem}</span>}
                                                                                 <div className="input-group input-group-sm w-auto" style={{ maxWidth: '100px' }}>
                                                                                     <input type="number" className="form-control form-control-sm text-end" placeholder="0"
+                                                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                                                         value={headPayVals[headId] || ''} onChange={e => setHeadPayVals({ ...headPayVals, [headId]: e.target.value })}
                                                                                         disabled={parseFloat(rem) <= 0 && paid > 0} min="0" />
                                                                                 </div>

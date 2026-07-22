@@ -401,6 +401,7 @@ export default function ExamCollectionPage() {
                                 type="number"
                                 className="form-control"
                                 value={collectionAmount}
+                                onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                 onChange={e => setCollectionAmount(e.target.value)}
                                 min={0}
                                 step="0.01"
