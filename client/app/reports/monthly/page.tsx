@@ -284,9 +284,9 @@ export default function MonthlyReportPage() {
     };
 
     return (
-        <div className="container-fluid p-4 bg-light min-vh-100">
-            {/* Header Banner - Executive Gradient */}
-            <div className="d-flex justify-content-between align-items-center mb-4 p-4 rounded-4 shadow-lg position-relative overflow-hidden"
+        <div className="container-fluid p-2 p-md-4 bg-light min-vh-100">
+            {/* Header Banner - Executive Gradient & Fully Responsive */}
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-lg position-relative overflow-hidden"
                 style={{
                     background: 'linear-gradient(135deg, #1b2e3b 0%, #0f766e 60%, #047857 100%)',
                     color: 'white',
@@ -294,20 +294,20 @@ export default function MonthlyReportPage() {
                 }}>
                 <div style={{ position: 'relative', zIndex: 2 }}>
                     <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="badge px-3 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>
+                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
                             <i className="bi bi-shield-check me-1"></i>EXECUTIVE FINANCIAL AUDIT
                         </span>
                     </div>
-                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: '1.75rem' }}>
+                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
                         Monthly Tuition &amp; Expense Financial Report
                     </h2>
-                    <p className="text-white-50 mb-0 small">
+                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
                         Comprehensive Cash Flow, Operating Surplus &amp; Family Fee Analysis for <strong>{monthName} {year}</strong>
                     </p>
                 </div>
                 
-                <div className="d-flex gap-2" style={{ position: 'relative', zIndex: 2 }}>
-                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2"
+                <div className="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end" style={{ position: 'relative', zIndex: 2 }}>
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
                         onClick={doExportPDF} title="Export PDF Report"
                         style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
@@ -315,7 +315,7 @@ export default function MonthlyReportPage() {
                         <i className="bi bi-file-earmark-pdf-fill text-danger fs-6"></i>
                         <span className="fw-semibold">PDF Report</span>
                     </button>
-                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2"
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
                         onClick={doExportExcel} title="Export Excel"
                         style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
@@ -323,7 +323,7 @@ export default function MonthlyReportPage() {
                         <i className="bi bi-file-earmark-spreadsheet-fill text-success fs-6"></i>
                         <span className="fw-semibold">Excel</span>
                     </button>
-                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2"
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
                         onClick={doExportCSV} title="Export CSV"
                         style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
@@ -334,11 +334,11 @@ export default function MonthlyReportPage() {
                 </div>
             </div>
 
-            {/* Smart Filter Bar */}
+            {/* Smart Filter Bar - Mobile Grid Optimized */}
             <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
                 <div className="card-body p-3">
-                    <div className="row g-3 align-items-center">
-                        <div className="col-md-2">
+                    <div className="row g-2 g-md-3 align-items-center">
+                        <div className="col-6 col-sm-4 col-md-2">
                             <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
                                 <i className="bi bi-calendar3 me-1 text-primary"></i>Month
                             </label>
@@ -346,7 +346,7 @@ export default function MonthlyReportPage() {
                                 {MONTHS.map(m => <option key={m.num} value={m.num}>{m.name}</option>)}
                             </select>
                         </div>
-                        <div className="col-md-2">
+                        <div className="col-6 col-sm-4 col-md-2">
                             <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
                                 <i className="bi bi-calendar-event me-1 text-primary"></i>Year
                             </label>
@@ -354,7 +354,7 @@ export default function MonthlyReportPage() {
                                 {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-12 col-sm-4 col-md-3">
                             <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
                                 <i className="bi bi-building me-1 text-primary"></i>Class Filter
                             </label>
@@ -363,7 +363,7 @@ export default function MonthlyReportPage() {
                                 {classes.map((c: any) => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-md-2">
+                        <div className="col-12 col-sm-6 col-md-2">
                             <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
                                 <i className="bi bi-diagram-3 me-1 text-primary"></i>Section
                             </label>
@@ -372,7 +372,7 @@ export default function MonthlyReportPage() {
                                 {sections.map((s: any) => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-md-3 ms-auto text-end">
+                        <div className="col-12 col-sm-6 col-md-3 ms-auto">
                             <label className="form-label small text-muted text-uppercase fw-bold mb-1 d-block" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
                                 Instant Search
                             </label>
@@ -389,37 +389,37 @@ export default function MonthlyReportPage() {
                 </div>
             </div>
 
-            {/* Financial Summary Cards */}
-            <div className="row g-3 mb-4">
+            {/* Financial Summary Cards - 2 Grid per row on Mobile */}
+            <div className="row g-2 g-md-3 mb-4">
                 {/* 1. Billed Tuition */}
-                <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #0f766e' }}>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Tuition Fee Billed</span>
-                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(15,118,110,0.1)', color: '#0f766e' }}>
-                                <i className="bi bi-piggy-bank-fill fs-5"></i>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-2.5 p-md-3 bg-white" style={{ borderLeft: '4px solid #0f766e' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-1 mb-md-2">
+                            <span className="text-muted small text-uppercase fw-bold text-truncate" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Tuition Billed</span>
+                            <div className="rounded-3 p-1.5 p-md-2" style={{ backgroundColor: 'rgba(15,118,110,0.1)', color: '#0f766e' }}>
+                                <i className="bi bi-piggy-bank-fill fs-6 fs-md-5"></i>
                             </div>
                         </div>
-                        <h3 className="fw-black mb-1 text-dark" style={{ letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_billed)}</h3>
-                        <span className="text-muted small" style={{ fontSize: 11 }}>Expected Tuition Revenue</span>
+                        <h3 className="fw-black mb-1 text-dark" style={{ letterSpacing: '-0.5px', fontSize: 'clamp(1rem, 2.2vw, 1.5rem)' }}>{fmtPKR(summary.total_billed)}</h3>
+                        <span className="text-muted small d-none d-sm-inline" style={{ fontSize: 11 }}>Expected Tuition Revenue</span>
                     </div>
                 </div>
 
                 {/* 2. Collected Tuition */}
-                <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #16a34a' }}>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Tuition Collected</span>
-                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
-                                <i className="bi bi-cash-coin fs-5"></i>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-2.5 p-md-3 bg-white" style={{ borderLeft: '4px solid #16a34a' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-1 mb-md-2">
+                            <span className="text-muted small text-uppercase fw-bold text-truncate" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Tuition Collected</span>
+                            <div className="rounded-3 p-1.5 p-md-2" style={{ backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
+                                <i className="bi bi-cash-coin fs-6 fs-md-5"></i>
                             </div>
                         </div>
-                        <h3 className="fw-black mb-1 text-success" style={{ letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_collected)}</h3>
-                        <div className="d-flex align-items-center gap-2 mt-1">
-                            <div className="progress flex-grow-1" style={{ height: 6, borderRadius: 10, background: '#e2e8f0' }}>
+                        <h3 className="fw-black mb-1 text-success" style={{ letterSpacing: '-0.5px', fontSize: 'clamp(1rem, 2.2vw, 1.5rem)' }}>{fmtPKR(summary.total_collected)}</h3>
+                        <div className="d-flex align-items-center gap-1.5 mt-1">
+                            <div className="progress flex-grow-1" style={{ height: 5, borderRadius: 10, background: '#e2e8f0' }}>
                                 <div className="progress-bar bg-success rounded-pill" role="progressbar" style={{ width: `${Math.min(100, summary.collection_rate)}%` }}></div>
                             </div>
-                            <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: 10 }}>
+                            <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: 9 }}>
                                 {summary.collection_rate}%
                             </span>
                         </div>
@@ -427,78 +427,78 @@ export default function MonthlyReportPage() {
                 </div>
 
                 {/* 3. Remaining Dues */}
-                <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #dc2626' }}>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Remaining Dues</span>
-                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
-                                <i className="bi bi-exclamation-octagon-fill fs-5"></i>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-2.5 p-md-3 bg-white" style={{ borderLeft: '4px solid #dc2626' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-1 mb-md-2">
+                            <span className="text-muted small text-uppercase fw-bold text-truncate" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Remaining Dues</span>
+                            <div className="rounded-3 p-1.5 p-md-2" style={{ backgroundColor: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
+                                <i className="bi bi-exclamation-octagon-fill fs-6 fs-md-5"></i>
                             </div>
                         </div>
-                        <h3 className="fw-black mb-1 text-danger" style={{ letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_remaining)}</h3>
-                        <span className="text-muted small" style={{ fontSize: 11 }}>Uncollected Tuition Balance</span>
+                        <h3 className="fw-black mb-1 text-danger" style={{ letterSpacing: '-0.5px', fontSize: 'clamp(1rem, 2.2vw, 1.5rem)' }}>{fmtPKR(summary.total_remaining)}</h3>
+                        <span className="text-muted small d-none d-sm-inline" style={{ fontSize: 11 }}>Uncollected Tuition Balance</span>
                     </div>
                 </div>
 
                 {/* 4. Monthly Expenses */}
-                <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #ea580c' }}>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Monthly Expenses</span>
-                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(234,88,12,0.1)', color: '#ea580c' }}>
-                                <i className="bi bi-receipt-cutoff fs-5"></i>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-2.5 p-md-3 bg-white" style={{ borderLeft: '4px solid #ea580c' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-1 mb-md-2">
+                            <span className="text-muted small text-uppercase fw-bold text-truncate" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Monthly Expenses</span>
+                            <div className="rounded-3 p-1.5 p-md-2" style={{ backgroundColor: 'rgba(234,88,12,0.1)', color: '#ea580c' }}>
+                                <i className="bi bi-receipt-cutoff fs-6 fs-md-5"></i>
                             </div>
                         </div>
-                        <h3 className="fw-black mb-1" style={{ color: '#ea580c', letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_expenses)}</h3>
-                        <span className="text-muted small" style={{ fontSize: 11 }}>Total Month Expenses</span>
+                        <h3 className="fw-black mb-1" style={{ color: '#ea580c', letterSpacing: '-0.5px', fontSize: 'clamp(1rem, 2.2vw, 1.5rem)' }}>{fmtPKR(summary.total_expenses)}</h3>
+                        <span className="text-muted small d-none d-sm-inline" style={{ fontSize: 11 }}>Total Month Expenses</span>
                     </div>
                 </div>
             </div>
 
             {/* Net Surplus & Realized Cash Row */}
-            <div className="row g-3 mb-4">
-                <div className="col-md-6">
-                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white" style={{ borderLeft: '5px solid #0284c7', background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)' }}>
+            <div className="row g-2 g-md-3 mb-4">
+                <div className="col-12 col-md-6">
+                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white h-100" style={{ borderLeft: '5px solid #0284c7', background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)' }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-uppercase fw-bold small text-muted d-block" style={{ fontSize: 10, letterSpacing: '0.06em' }}>
+                                <span className="text-uppercase fw-bold small text-muted d-block" style={{ fontSize: 9, letterSpacing: '0.06em' }}>
                                     Expected Operating Surplus (Billed Tuition - Expenses)
                                 </span>
-                                <h3 className="fw-black mb-0 mt-1" style={{ color: summary.expected_surplus >= 0 ? '#0284c7' : '#dc2626', letterSpacing: '-0.5px' }}>
+                                <h3 className="fw-black mb-0 mt-1" style={{ color: summary.expected_surplus >= 0 ? '#0284c7' : '#dc2626', letterSpacing: '-0.5px', fontSize: 'clamp(1.1rem, 2.2vw, 1.6rem)' }}>
                                     {fmtPKR(summary.expected_surplus)}
                                 </h3>
                             </div>
-                            <div className="rounded-circle p-3" style={{ background: 'rgba(2,132,199,0.1)', color: '#0284c7' }}>
-                                <i className="bi bi-graph-up-arrow fs-4"></i>
+                            <div className="rounded-circle p-2.5 p-md-3 flex-shrink-0" style={{ background: 'rgba(2,132,199,0.1)', color: '#0284c7' }}>
+                                <i className="bi bi-graph-up-arrow fs-5 fs-md-4"></i>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="col-md-6">
-                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white"
+                <div className="col-12 col-md-6">
+                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white h-100"
                         style={{
                             borderLeft: `5px solid ${summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626'}`,
                             background: summary.net_cash_balance >= 0 ? 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)' : 'linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)'
                         }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="text-uppercase fw-bold small text-muted" style={{ fontSize: 10, letterSpacing: '0.06em' }}>
+                                <div className="d-flex align-items-center gap-2 flex-wrap">
+                                    <span className="text-uppercase fw-bold small text-muted" style={{ fontSize: 9, letterSpacing: '0.06em' }}>
                                         Net Realized Cash Balance (Collected Tuition - Expenses)
                                     </span>
-                                    <span className={`badge rounded-pill ${summary.net_cash_balance >= 0 ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: 9 }}>
+                                    <span className={`badge rounded-pill ${summary.net_cash_balance >= 0 ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: 8 }}>
                                         {summary.net_cash_balance >= 0 ? 'SURPLUS' : 'DEFICIT'}
                                     </span>
                                 </div>
-                                <h3 className="fw-black mb-0 mt-1" style={{ color: summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626', letterSpacing: '-0.5px' }}>
+                                <h3 className="fw-black mb-0 mt-1" style={{ color: summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626', letterSpacing: '-0.5px', fontSize: 'clamp(1.1rem, 2.2vw, 1.6rem)' }}>
                                     {fmtPKR(summary.net_cash_balance)}
                                 </h3>
                             </div>
-                            <div className="rounded-circle p-3" style={{
+                            <div className="rounded-circle p-2.5 p-md-3 flex-shrink-0" style={{
                                 background: summary.net_cash_balance >= 0 ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
                                 color: summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626'
                             }}>
-                                <i className="bi bi-wallet2 fs-4"></i>
+                                <i className="bi bi-wallet2 fs-5 fs-md-4"></i>
                             </div>
                         </div>
                     </div>
@@ -507,29 +507,33 @@ export default function MonthlyReportPage() {
 
             {/* Main Family Table Card */}
             <div className="card shadow-lg border-0 rounded-4 overflow-hidden bg-white">
-                <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    {/* Status Tabs */}
-                    <div className="btn-group p-1 bg-light rounded-3" role="group" style={{ border: '1px solid #e2e8f0' }}>
-                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'all' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
+                <div className="card-header bg-white p-2.5 p-md-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    {/* Status Tabs - Wrapping flex grid for mobile */}
+                    <div className="d-flex flex-wrap gap-1 p-1 bg-light rounded-3" role="group" style={{ border: '1px solid #e2e8f0', width: 'fit-content' }}>
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold px-2.5 py-1 ${statusTab === 'all' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
+                            style={{ fontSize: 11 }}
                             onClick={() => setStatusTab('all')}>
                             All ({summary.total_families_count})
                         </button>
-                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'paid' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold px-2.5 py-1 ${statusTab === 'paid' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
+                            style={{ fontSize: 11 }}
                             onClick={() => setStatusTab('paid')}>
                             Fully Paid ({summary.paid_count})
                         </button>
-                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'partial' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold px-2.5 py-1 ${statusTab === 'partial' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
+                            style={{ fontSize: 11 }}
                             onClick={() => setStatusTab('partial')}>
                             Partial ({summary.partial_count})
                         </button>
-                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'unpaid' ? 'btn-danger text-white shadow-sm' : 'btn-light text-muted'}`}
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold px-2.5 py-1 ${statusTab === 'unpaid' ? 'btn-danger text-white shadow-sm' : 'btn-light text-muted'}`}
+                            style={{ fontSize: 11 }}
                             onClick={() => setStatusTab('unpaid')}>
                             Unpaid Dues ({summary.unpaid_count})
                         </button>
                     </div>
 
                     <div className="d-flex align-items-center gap-2">
-                        <span className="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
+                        <span className="badge bg-light text-dark border px-2.5 py-1.5 rounded-pill fw-semibold" style={{ fontSize: 11 }}>
                             Showing {filteredFamilies.length} Records
                         </span>
                     </div>
@@ -548,17 +552,17 @@ export default function MonthlyReportPage() {
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+                            <table className="table table-hover align-middle mb-0" style={{ fontSize: 12.5, minWidth: 680 }}>
                                 <thead className="text-uppercase small" style={{ backgroundColor: '#1b2e3b', color: '#ffffff' }}>
                                     <tr>
-                                        <th className="ps-3" style={{ width: 40, padding: '12px 14px' }}>#</th>
-                                        <th style={{ padding: '12px 14px' }}>Family ID</th>
-                                        <th style={{ padding: '12px 14px' }}>Student &amp; Father Details</th>
-                                        <th style={{ padding: '12px 14px' }}>Class &amp; Section</th>
-                                        <th className="text-end" style={{ padding: '12px 14px' }}>Tuition Billed</th>
-                                        <th className="text-end" style={{ padding: '12px 14px' }}>Tuition Paid</th>
-                                        <th className="text-end" style={{ padding: '12px 14px' }}>Remaining Dues</th>
-                                        <th className="text-center pe-3" style={{ padding: '12px 14px' }}>Status</th>
+                                        <th className="ps-3" style={{ width: 35, padding: '10px 12px' }}>#</th>
+                                        <th style={{ padding: '10px 12px' }}>Family ID</th>
+                                        <th style={{ padding: '10px 12px' }}>Student &amp; Father Details</th>
+                                        <th style={{ padding: '10px 12px' }}>Class &amp; Section</th>
+                                        <th className="text-end" style={{ padding: '10px 12px' }}>Tuition Billed</th>
+                                        <th className="text-end" style={{ padding: '10px 12px' }}>Tuition Paid</th>
+                                        <th className="text-end" style={{ padding: '10px 12px' }}>Remaining Dues</th>
+                                        <th className="text-center pe-3" style={{ padding: '10px 12px' }}>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -566,19 +570,19 @@ export default function MonthlyReportPage() {
                                         <tr key={f.slip_id || i} style={{ transition: 'background 0.15s' }}>
                                             <td className="ps-3 text-muted small fw-semibold">{i + 1}</td>
                                             <td>
-                                                <span className="badge bg-light text-primary border fw-semibold" style={{ fontSize: 11 }}>
+                                                <span className="badge bg-light text-primary border fw-semibold" style={{ fontSize: 10.5 }}>
                                                     {f.family_id || '—'}
                                                 </span>
                                             </td>
                                             <td>
                                                 <div className="d-flex align-items-center gap-2">
                                                     <div className="rounded-circle bg-teal text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
-                                                        style={{ width: 32, height: 32, fontSize: 12, background: 'linear-gradient(135deg, #0f766e, #047857)' }}>
+                                                        style={{ width: 30, height: 30, fontSize: 11, background: 'linear-gradient(135deg, #0f766e, #047857)' }}>
                                                         {(f.student_name || '?').charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <div className="fw-bold text-dark">{f.student_name}</div>
-                                                        <div className="small text-muted" style={{ fontSize: 11 }}>
+                                                        <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{f.student_name}</div>
+                                                        <div className="text-muted" style={{ fontSize: 10.5 }}>
                                                             Father: {f.father_name || '—'} {f.father_phone ? `(${f.father_phone})` : ''}
                                                         </div>
                                                     </div>
@@ -598,10 +602,10 @@ export default function MonthlyReportPage() {
                                                 {fmtPKR(f.tuition_remaining)}
                                             </td>
                                             <td className="text-center pe-3">
-                                                <span className={`badge rounded-pill px-3 py-1 ${
+                                                <span className={`badge rounded-pill px-2.5 py-1 ${
                                                     f.payment_status === 'paid' ? 'bg-success bg-opacity-15 text-success border border-success' :
                                                     f.payment_status === 'partial' ? 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning' : 'bg-danger bg-opacity-15 text-danger border border-danger'
-                                                }`} style={{ fontSize: 10, fontWeight: 700 }}>
+                                                }`} style={{ fontSize: 9.5, fontWeight: 700 }}>
                                                     {f.payment_status === 'paid' ? 'FULLY PAID' :
                                                      f.payment_status === 'partial' ? 'PARTIAL' : 'UNPAID DUES'}
                                                 </span>
