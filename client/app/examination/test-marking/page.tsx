@@ -434,7 +434,7 @@ export default function TestMarkingPage() {
                                         <div className="input-group input-group-sm" style={{ width: 170 }}>
                                             <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
                                             <input type="text" className="form-control border-0 bg-light" placeholder="Search..."
-                                                value={searchKeyword} onChange={e => setSearchKeyword(e.key || e.target.value)} />
+                                                value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
                                         </div>
 
                                         {!sheet.readonly && hasPermission('academic', 'write') && (
