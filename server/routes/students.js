@@ -1479,7 +1479,7 @@ router.post('/bulk', async (req, res) => {
 // 3. Get All Students (With Filters)
 router.get('/', async (req, res) => {
     try {
-        const { class_id, section_id, gender, keyword, category, status, blood_group, is_orphan, family_id } = req.query;
+        const { class_id, section_id, gender, keyword, category, status, blood_group, is_orphan, family_id, age, religion } = req.query;
         
         let query = `
             SELECT s.*, c.class_name, sec.section_name, u.username, u.plain_password as system_pwd
@@ -1487,87 +1487,97 @@ router.get('/', async (req, res) => {
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
             LEFT JOIN app_users u ON s.user_id = u.id 
-              WHERE 1=1`;
-          const params = [];
+            WHERE 1=1`;
+        const params = [];
         let paramCount = 1;
 
-        if (class_id) {
+        if (class_id && class_id.trim() !== '') {
             query += ` AND s.class_id = $${paramCount}`;
-            params.push(class_id);
+            params.push(class_id.trim());
             paramCount++;
         }
 
-        if (section_id) {
+        if (section_id && section_id.trim() !== '') {
             query += ` AND s.section_id = $${paramCount}`;
-            params.push(section_id);
+            params.push(section_id.trim());
             paramCount++;
         }
 
-        if (gender) {
-            query += ` AND s.gender = $${paramCount}`;
-            params.push(gender);
+        if (gender && gender.trim() !== '') {
+            query += ` AND LOWER(TRIM(s.gender)) = LOWER($${paramCount})`;
+            params.push(gender.trim());
             paramCount++;
         }
 
-        if (category) {
-            query += ` AND s.category = $${paramCount}`;
-            params.push(category);
+        if (category && category.trim() !== '') {
+            query += ` AND LOWER(TRIM(s.category)) = LOWER($${paramCount})`;
+            params.push(category.trim());
             paramCount++;
         }
 
-        if (status) {
-            query += ` AND s.status = $${paramCount}`;
-            params.push(status);
+        if (status && status.trim() !== '') {
+            query += ` AND LOWER(TRIM(s.status)) = LOWER($${paramCount})`;
+            params.push(status.trim());
             paramCount++;
         }
 
-        if (blood_group) {
-            query += ` AND s.blood_group = $${paramCount}`;
-            params.push(blood_group);
+        if (blood_group && blood_group.trim() !== '') {
+            query += ` AND LOWER(TRIM(s.blood_group)) = LOWER($${paramCount})`;
+            params.push(blood_group.trim());
             paramCount++;
         }
 
-        if (is_orphan) {
+        if (is_orphan !== undefined && is_orphan !== null && is_orphan !== '') {
             query += ` AND s.is_orphan = $${paramCount}`;
-            params.push(is_orphan === 'true');
+            params.push(is_orphan === 'true' || is_orphan === true);
             paramCount++;
         }
 
-        if (family_id) {
+        if (family_id && family_id.trim() !== '') {
             query += ` AND s.family_id ILIKE $${paramCount}`;
-            params.push(`%${family_id}%`);
+            params.push(`%${family_id.trim()}%`);
             paramCount++;
         }
 
-        if (keyword) {
+        if (keyword && keyword.trim() !== '') {
+            const kw = keyword.trim();
             query += ` AND (
                 s.first_name ILIKE $${paramCount} OR 
                 s.last_name ILIKE $${paramCount} OR 
+                CONCAT(s.first_name, ' ', s.last_name) ILIKE $${paramCount} OR
+                CONCAT(s.last_name, ' ', s.first_name) ILIKE $${paramCount} OR
                 s.admission_no ILIKE $${paramCount} OR
-                s.father_name ILIKE $${paramCount}
+                s.roll_no ILIKE $${paramCount} OR
+                s.father_name ILIKE $${paramCount} OR
+                s.mother_name ILIKE $${paramCount} OR
+                s.guardian_name ILIKE $${paramCount} OR
+                s.student_mobile ILIKE $${paramCount} OR
+                s.father_phone ILIKE $${paramCount} OR
+                s.family_id ILIKE $${paramCount} OR
+                u.username ILIKE $${paramCount}
             )`;
-            params.push(`%${keyword}%`);
+            params.push(`%${kw}%`);
             paramCount++;
         }
 
-        if (req.query.age) {
-            query += ` AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, s.dob)) = $${paramCount}`;
-            params.push(req.query.age);
+        if (age && age.toString().trim() !== '' && !isNaN(parseInt(age.toString()))) {
+            query += ` AND s.dob IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, s.dob)) = $${paramCount}::int`;
+            params.push(parseInt(age.toString()));
             paramCount++;
         }
 
-        if (req.query.religion) {
-             query += ` AND s.religion = $${paramCount}`;
-             params.push(req.query.religion);
+        if (religion && religion.trim() !== '') {
+             query += ` AND LOWER(TRIM(s.religion)) = LOWER($${paramCount})`;
+             params.push(religion.trim());
              paramCount++;
         }
 
-        query += ` ORDER BY s.class_id, s.section_id, s.roll_no, s.first_name`;
+        query += ` ORDER BY s.class_id NULLS LAST, s.section_id NULLS LAST, s.roll_no NULLS LAST, s.first_name`;
 
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (err) {
-        console.error(err.message);
+        console.error("Error in GET /students:", err.message);
         res.status(500).json({ error: "Server Error" });
     }
 });

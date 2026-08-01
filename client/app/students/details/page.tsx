@@ -233,6 +233,30 @@ export default function StudentDetails() {
         return () => clearTimeout(t);
     }, [filters]);
 
+    // Automatically fetch sections whenever class_id filter changes
+    useEffect(() => {
+        if (filters.class_id) {
+            fetchSections(filters.class_id);
+        } else {
+            setSections([]);
+        }
+    }, [filters.class_id]);
+
+    // Reset filters helper respecting class teacher permissions
+    const resetFilters = () => {
+        if (isClassTeacher && user?.incharge_class) {
+            setFilters({
+                class_id: String(user.incharge_class.class_id),
+                section_id: String(user.incharge_class.section_id),
+                gender: '', status: '', category: '', blood_group: '', religion: '', age: '', keyword: '', family_id: ''
+            });
+        } else {
+            setFilters({
+                class_id: '', section_id: '', gender: '', status: '', category: '', blood_group: '', religion: '', age: '', keyword: '', family_id: ''
+            });
+        }
+    };
+
     // Close column picker when clicking outside
     useEffect(() => {
         if (!showColPicker) return;
@@ -267,7 +291,7 @@ export default function StudentDetails() {
         try {
             const queryParams = new URLSearchParams();
             Object.entries(filters).forEach(([key, value]) => {
-                if (value) queryParams.append(key, value);
+                if (value) queryParams.append(key, value.trim());
             });
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/students?${queryParams.toString()}`);
             if (res.ok) {
@@ -408,6 +432,11 @@ export default function StudentDetails() {
                                     <span className="input-group-text bg-white border-end-0"><i className="bi bi-search text-muted"></i></span>
                                     <input type="text" className="form-control border-start-0 ps-0" placeholder="Name / Roll / Adm No..."
                                         value={filters.keyword} onChange={e => setFilters({ ...filters, keyword: e.target.value })} />
+                                    {filters.keyword && (
+                                        <button className="btn btn-outline-secondary border border-start-0" type="button" onClick={() => setFilters({ ...filters, keyword: '' })}>
+                                            <i className="bi bi-x"></i>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             <div className="col-md-3">
@@ -429,6 +458,11 @@ export default function StudentDetails() {
                                     <span className="input-group-text bg-white border-end-0"><i className="bi bi-people-fill text-muted"></i></span>
                                     <input type="text" className="form-control border-start-0 ps-0" placeholder="Family ID..."
                                         value={filters.family_id} onChange={e => setFilters({ ...filters, family_id: e.target.value })} />
+                                    {filters.family_id && (
+                                        <button className="btn btn-outline-secondary border border-start-0" type="button" onClick={() => setFilters({ ...filters, family_id: '' })}>
+                                            <i className="bi bi-x"></i>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -490,7 +524,7 @@ export default function StudentDetails() {
                                 </div>
                                 <div className="col-12 text-end">
                                     <button type="button" className="btn btn-link text-muted text-decoration-none btn-sm"
-                                        onClick={() => setFilters({ class_id: '', section_id: '', gender: '', status: '', category: '', blood_group: '', religion: '', age: '', keyword: '', family_id: '' })}>
+                                        onClick={resetFilters}>
                                         <i className="bi bi-x-circle me-1"></i> Clear All Filters
                                     </button>
                                 </div>
