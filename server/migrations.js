@@ -117,29 +117,29 @@ async function runEssentialMigrations() {
         await client.query(`
             ALTER TABLE app_roles ADD COLUMN IF NOT EXISTS dashboard_access VARCHAR(50) DEFAULT 'admin';
 
-            UPDATE app_roles 
-            SET dashboard_access = 'admin' 
-            WHERE (dashboard_access IS NULL OR dashboard_access = '')
-              AND (LOWER(role_name) LIKE '%admin%' OR LOWER(role_name) LIKE '%principal%' OR LOWER(role_name) LIKE '%coordinator%');
-
+            -- Unconditionally update system roles to correct default dashboards
             UPDATE app_roles 
             SET dashboard_access = 'teacher' 
-            WHERE (dashboard_access IS NULL OR dashboard_access = '')
-              AND (LOWER(role_name) LIKE '%teacher%' OR LOWER(role_name) LIKE '%assistant%');
+            WHERE LOWER(role_name) LIKE '%teacher%' 
+               OR LOWER(role_name) LIKE '%assistant%' 
+               OR (role_level >= 50 AND role_level < 90 AND LOWER(role_name) NOT LIKE '%admin%' AND LOWER(role_name) NOT LIKE '%principal%' AND LOWER(role_name) NOT LIKE '%coordinator%');
 
             UPDATE app_roles 
             SET dashboard_access = 'accountant' 
-            WHERE (dashboard_access IS NULL OR dashboard_access = '')
-              AND LOWER(role_name) LIKE '%accountant%';
+            WHERE LOWER(role_name) LIKE '%accountant%' 
+               OR (role_level >= 20 AND role_level < 50 AND LOWER(role_name) NOT LIKE '%teacher%' AND LOWER(role_name) NOT LIKE '%assistant%');
 
             UPDATE app_roles 
             SET dashboard_access = 'student' 
-            WHERE (dashboard_access IS NULL OR dashboard_access = '')
-              AND LOWER(role_name) LIKE '%student%';
+            WHERE LOWER(role_name) LIKE '%student%' 
+               OR (role_level < 20 AND LOWER(role_name) NOT LIKE '%accountant%');
 
             UPDATE app_roles 
             SET dashboard_access = 'admin' 
-            WHERE dashboard_access IS NULL OR dashboard_access = '';
+            WHERE LOWER(role_name) LIKE '%admin%' 
+               OR LOWER(role_name) LIKE '%principal%' 
+               OR LOWER(role_name) LIKE '%coordinator%' 
+               OR role_level >= 90;
         `);
 
         await client.query('COMMIT');

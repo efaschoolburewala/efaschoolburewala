@@ -73,13 +73,23 @@ function fmtN(v: number | null | undefined): string {
 const API_BASE_MS = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
 
 
+function getLogoUrl(rawLogo?: string): string {
+    if (!rawLogo || !rawLogo.trim()) return '';
+    const logoStr = rawLogo.trim();
+    if (logoStr.startsWith('http://') || logoStr.startsWith('https://') || logoStr.startsWith('data:')) {
+        return logoStr;
+    }
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+    const cleanPath = logoStr.replace(/^\/+/, '');
+    return `${baseUrl}/${cleanPath}`;
+}
+
 function buildPrintHtml(payload: SheetPayload): string {
     const { meta, school, subjects, students } = payload;
     const schoolName = school.school_name || 'Smart School';
     const address = school.school_address || '';
     const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' | ');
-    const rawLogo = school.school_logo_url || '';
-    const logo = rawLogo ? (rawLogo.startsWith('http') ? rawLogo : `${API_BASE_MS}${rawLogo}`) : '';
+    const logo = getLogoUrl(school.school_logo_url);
 
     // grand total of total_marks across all subjects (any student with marks defines total per subject)
     const subjectTotalMap = new Map<number, number>();

@@ -600,6 +600,25 @@ export default function RolesPage() {
                                             ))}
                                         </select>
                                     </div>
+                                    <div className="col-12 col-md-6">
+                                        <label className="form-label fw-semibold small text-uppercase d-flex align-items-center gap-1" style={{ letterSpacing: '0.05em', color: 'var(--primary-dark)' }}>
+                                            <i className="bi bi-display" style={{ color: '#0f766e' }}></i> Assigned Dashboard Access <span className="text-danger">*</span>
+                                        </label>
+                                        <select className="form-select rounded-3 fw-bold"
+                                            value={formData.dashboard_access || 'admin'}
+                                            onChange={e => setFormData({ ...formData, dashboard_access: e.target.value })}
+                                            style={{ border: '1.5px solid #0f766e', height: 42, color: '#0f766e' }}>
+                                            {DASHBOARD_OPTIONS.map(dash => (
+                                                <option key={dash.value} value={dash.value}>
+                                                    {dash.label} — ({dash.desc})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <small className="text-muted d-block mt-1">
+                                            <i className="bi bi-info-circle me-1"></i>
+                                            Users assigned to this role will see this specific dashboard interface upon logging in.
+                                        </small>
+                                    </div>
                                     {formData.id !== 0 && (formData.assigned_count ?? 0) > 0 && (
                                         <div className="col-12 col-md-6">
                                             <div className="p-3 rounded-3" style={{ background: '#e0f2fe', border: '1px solid #0ea5e9' }}>
