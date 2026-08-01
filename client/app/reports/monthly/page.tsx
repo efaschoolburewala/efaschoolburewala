@@ -122,20 +122,20 @@ export default function MonthlyReportPage() {
 
         const rowsHtml = filteredFamilies.map((f, idx) => `
             <tr>
-                <td style="text-align:center;padding:6px;">${idx + 1}</td>
-                <td style="padding:6px;font-weight:600;">${f.family_id || '—'}</td>
-                <td style="padding:6px;">
-                    <div style="font-weight:bold;">${f.student_name}</div>
-                    <div style="font-size:9px;color:#666;">Father: ${f.father_name || '—'} (${f.father_phone || '—'})</div>
+                <td style="text-align:center;padding:7px;border-bottom:1px solid #e2e8f0;">${idx + 1}</td>
+                <td style="padding:7px;font-weight:700;color:#0f766e;border-bottom:1px solid #e2e8f0;">${f.family_id || '—'}</td>
+                <td style="padding:7px;border-bottom:1px solid #e2e8f0;">
+                    <div style="font-weight:700;color:#1e293b;">${f.student_name}</div>
+                    <div style="font-size:9px;color:#64748b;">Father: ${f.father_name || '—'} ${f.father_phone ? '(' + f.father_phone + ')' : ''}</div>
                 </td>
-                <td style="padding:6px;">${f.class_name || '—'} - ${f.section_name || '—'}</td>
-                <td style="text-align:right;padding:6px;font-weight:600;">${fmtPKR(f.tuition_billed)}</td>
-                <td style="text-align:right;padding:6px;color:#16a34a;font-weight:600;">${fmtPKR(f.tuition_paid)}</td>
-                <td style="text-align:right;padding:6px;color:${f.tuition_remaining > 0 ? '#dc2626' : '#16a34a'};font-weight:700;">${fmtPKR(f.tuition_remaining)}</td>
-                <td style="text-align:center;padding:6px;">
-                    <span style="padding:2px 8px;border-radius:12px;font-size:9px;font-weight:700;background:${
-                        f.payment_status === 'paid' ? '#dcfce7;color:#15803d' :
-                        f.payment_status === 'partial' ? '#ffedd5;color:#c2410c' : '#fee2e2;color:#b91c1c'
+                <td style="padding:7px;border-bottom:1px solid #e2e8f0;font-weight:600;">${f.class_name || '—'} - ${f.section_name || '—'}</td>
+                <td style="text-align:right;padding:7px;font-weight:700;color:#1e293b;border-bottom:1px solid #e2e8f0;">${fmtPKR(f.tuition_billed)}</td>
+                <td style="text-align:right;padding:7px;color:#16a34a;font-weight:700;border-bottom:1px solid #e2e8f0;">${fmtPKR(f.tuition_paid)}</td>
+                <td style="text-align:right;padding:7px;color:${f.tuition_remaining > 0 ? '#dc2626' : '#16a34a'};font-weight:800;border-bottom:1px solid #e2e8f0;">${fmtPKR(f.tuition_remaining)}</td>
+                <td style="text-align:center;padding:7px;border-bottom:1px solid #e2e8f0;">
+                    <span style="padding:3px 10px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:0.04em;background:${
+                        f.payment_status === 'paid' ? '#dcfce7;color:#15803d;border:1px solid #bbf7d0' :
+                        f.payment_status === 'partial' ? '#ffedd5;color:#c2410c;border:1px solid #fed7aa' : '#fee2e2;color:#b91c1c;border:1px solid #fca5a5'
                     };">
                         ${f.payment_status.toUpperCase()}
                     </span>
@@ -150,32 +150,28 @@ export default function MonthlyReportPage() {
                 <meta charset="utf-8"/>
                 <title>Monthly Fee & Financial Report - ${monthName} ${year}</title>
                 <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; margin: 15px; color: #1e293b; }
-                    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-bottom: 15px; }
-                    .title-box h1 { margin: 0; font-size: 20px; color: #0f766e; font-weight: 800; }
-                    .title-box p { margin: 3px 0 0 0; color: #64748b; font-size: 11px; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; margin: 15px; color: #1e293b; line-height: 1.4; }
+                    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #0f766e; padding-bottom: 12px; margin-bottom: 15px; }
                     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
-                    .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
-                    .stat-label { font-size: 9px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 3px; }
-                    .stat-val { font-size: 14px; font-weight: 800; color: #0f172a; }
+                    .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+                    .stat-label { font-size: 9px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 3px; letter-spacing: 0.05em; }
+                    .stat-val { font-size: 15px; font-weight: 800; color: #0f172a; }
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    th { background: #0f766e; color: #fff; padding: 8px 6px; font-size: 10px; text-transform: uppercase; text-align: left; }
-                    td { border-bottom: 1px solid #e2e8f0; font-size: 10px; }
-                    tr:nth-child(even) td { background: #f8fafc; }
+                    th { background: #1e293b; color: #fff; padding: 8px 7px; font-size: 10px; text-transform: uppercase; text-align: left; letter-spacing: 0.05em; }
                     @media print { @page { margin: 8mm; size: A4 portrait; } }
                 </style>
             </head>
             <body>
                 <div class="header">
                     <div>
-                        ${schoolInfo.logo ? `<img src="${schoolInfo.logo}" height="45" style="margin-bottom:5px;display:block;" />` : ''}
-                        <div style="font-size:16px;font-weight:800;color:#0f766e;">${schoolInfo.name}</div>
-                        <div style="font-size:10px;color:#64748b;">${schoolInfo.address} ${schoolInfo.phone ? ' | Ph: ' + schoolInfo.phone : ''}</div>
+                        ${schoolInfo.logo ? `<img src="${schoolInfo.logo}" height="48" style="margin-bottom:6px;display:block;" />` : ''}
+                        <div style="font-size:18px;font-weight:900;color:#0f766e;letter-spacing:-0.5px;">${schoolInfo.name}</div>
+                        <div style="font-size:10px;color:#64748b;margin-top:2px;">${schoolInfo.address} ${schoolInfo.phone ? ' | Ph: ' + schoolInfo.phone : ''}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:16px;font-weight:800;color:#0f172a;">MONTHLY TUITION & FINANCIAL REPORT</div>
-                        <div style="font-size:12px;font-weight:700;color:#0f766e;">Period: ${monthName} ${year}</div>
-                        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Generated on: ${new Date().toLocaleDateString()}</div>
+                        <div style="font-size:16px;font-weight:900;color:#1e293b;letter-spacing:-0.3px;">MONTHLY TUITION &amp; FINANCIAL REPORT</div>
+                        <div style="font-size:13px;font-weight:800;color:#0f766e;margin-top:2px;">Period: ${monthName} ${year}</div>
+                        <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Generated: ${new Date().toLocaleString()}</div>
                     </div>
                 </div>
 
@@ -187,7 +183,7 @@ export default function MonthlyReportPage() {
                     <div class="stat-card" style="border-left:4px solid #16a34a;">
                         <div class="stat-label">Tuition Collected</div>
                         <div class="stat-val" style="color:#16a34a;">${fmtPKR(summary.total_collected)}</div>
-                        <div style="font-size:9px;color:#15803d;">Rate: ${summary.collection_rate}%</div>
+                        <div style="font-size:9px;color:#15803d;font-weight:700;">Rate: ${summary.collection_rate}%</div>
                     </div>
                     <div class="stat-card" style="border-left:4px solid #dc2626;">
                         <div class="stat-label">Remaining Dues</div>
@@ -199,22 +195,22 @@ export default function MonthlyReportPage() {
                     </div>
                 </div>
 
-                <div style="display:flex;gap:15px;margin-bottom:15px;background:#f1f5f9;padding:10px;border-radius:8px;">
+                <div style="display:flex;gap:12px;margin-bottom:15px;background:#f1f5f9;padding:12px;border-radius:10px;border:1px solid #cbd5e1;">
                     <div style="flex:1;">
-                        <span style="font-size:10px;font-weight:700;color:#475569;">EXPECTED OPERATING SURPLUS (Billed - Expenses):</span>
-                        <span style="font-size:13px;font-weight:800;color:${summary.expected_surplus >= 0 ? '#0f766e' : '#dc2626'};margin-left:8px;">
+                        <span style="font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;">Expected Operating Surplus (Billed - Expenses):</span>
+                        <span style="font-size:14px;font-weight:900;color:${summary.expected_surplus >= 0 ? '#0f766e' : '#dc2626'};margin-left:8px;">
                             ${fmtPKR(summary.expected_surplus)}
                         </span>
                     </div>
                     <div style="flex:1;">
-                        <span style="font-size:10px;font-weight:700;color:#475569;">NET CASH BALANCE (Collected - Expenses):</span>
-                        <span style="font-size:13px;font-weight:800;color:${summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626'};margin-left:8px;">
+                        <span style="font-size:9px;font-weight:700;color:#475569;text-transform:uppercase;">Net Realized Cash Balance (Collected - Expenses):</span>
+                        <span style="font-size:14px;font-weight:900;color:${summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626'};margin-left:8px;">
                             ${fmtPKR(summary.net_cash_balance)}
                         </span>
                     </div>
                 </div>
 
-                <h3 style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:6px;text-transform:uppercase;">
+                <h3 style="font-size:11px;font-weight:800;color:#1e293b;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">
                     Family Tuition Fee Status Breakdown (${filteredFamilies.length} Records)
                 </h3>
                 <table>
@@ -222,8 +218,8 @@ export default function MonthlyReportPage() {
                         <tr>
                             <th style="width:30px;text-align:center;">#</th>
                             <th>Family ID</th>
-                            <th>Student & Father Details</th>
-                            <th>Class & Sec</th>
+                            <th>Student &amp; Father Details</th>
+                            <th>Class &amp; Sec</th>
                             <th style="text-align:right;">Tuition Billed</th>
                             <th style="text-align:right;">Tuition Paid</th>
                             <th style="text-align:right;">Remaining Dues</th>
@@ -245,7 +241,7 @@ export default function MonthlyReportPage() {
     // Export Excel
     const doExportExcel = () => {
         const ths = ['#', 'Family ID', 'Student Name', 'Father Name', 'Father Phone', 'Class', 'Section', 'Tuition Billed', 'Tuition Paid', 'Remaining Dues', 'Status']
-            .map(h => `<th style="background:#0f766e;color:#fff;padding:6px;font-size:11px">${h}</th>`).join('');
+            .map(h => `<th style="background:#0f766e;color:#fff;padding:8px;font-size:11px">${h}</th>`).join('');
         
         const trs = filteredFamilies.map((f, i) => `
             <tr>
@@ -289,66 +285,103 @@ export default function MonthlyReportPage() {
 
     return (
         <div className="container-fluid p-4 bg-light min-vh-100">
-            {/* Header Banner */}
-            <div className="d-flex justify-content-between align-items-center mb-4 p-4 rounded-4 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-teal) 100%)', color: 'white' }}>
-                <div>
-                    <h2 className="mb-1 fw-bold text-white" style={{ letterSpacing: '-0.5px' }}>
-                        <i className="bi bi-pie-chart-fill me-2"></i>Monthly Tuition &amp; Expense Report
+            {/* Header Banner - Executive Gradient */}
+            <div className="d-flex justify-content-between align-items-center mb-4 p-4 rounded-4 shadow-lg position-relative overflow-hidden"
+                style={{
+                    background: 'linear-gradient(135deg, #1b2e3b 0%, #0f766e 60%, #047857 100%)',
+                    color: 'white',
+                    borderLeft: '5px solid #14b8a6'
+                }}>
+                <div style={{ position: 'relative', zIndex: 2 }}>
+                    <div className="d-flex align-items-center gap-2 mb-1">
+                        <span className="badge px-3 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>
+                            <i className="bi bi-shield-check me-1"></i>EXECUTIVE FINANCIAL AUDIT
+                        </span>
+                    </div>
+                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: '1.75rem' }}>
+                        Monthly Tuition &amp; Expense Financial Report
                     </h2>
-                    <p className="text-white-50 mb-0">Senior Accounting &amp; Cash Flow Analysis for {monthName} {year}</p>
+                    <p className="text-white-50 mb-0 small">
+                        Comprehensive Cash Flow, Operating Surplus &amp; Family Fee Analysis for <strong>{monthName} {year}</strong>
+                    </p>
                 </div>
-                <div className="d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-light" onClick={doExportPDF} title="Export PDF Report">
-                        <i className="bi bi-file-earmark-pdf me-1"></i>PDF
+                
+                <div className="d-flex gap-2" style={{ position: 'relative', zIndex: 2 }}>
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2"
+                        onClick={doExportPDF} title="Export PDF Report"
+                        style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}>
+                        <i className="bi bi-file-earmark-pdf-fill text-danger fs-6"></i>
+                        <span className="fw-semibold">PDF Report</span>
                     </button>
-                    <button className="btn btn-sm btn-outline-light" onClick={doExportExcel} title="Export Excel">
-                        <i className="bi bi-file-earmark-spreadsheet me-1"></i>Excel
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2"
+                        onClick={doExportExcel} title="Export Excel"
+                        style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}>
+                        <i className="bi bi-file-earmark-spreadsheet-fill text-success fs-6"></i>
+                        <span className="fw-semibold">Excel</span>
                     </button>
-                    <button className="btn btn-sm btn-outline-light" onClick={doExportCSV} title="Export CSV">
-                        <i className="bi bi-filetype-csv me-1"></i>CSV
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2"
+                        onClick={doExportCSV} title="Export CSV"
+                        style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.25)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}>
+                        <i className="bi bi-filetype-csv text-info fs-6"></i>
+                        <span className="fw-semibold">CSV</span>
                     </button>
                 </div>
             </div>
 
-            {/* Filter Bar */}
-            <div className="card shadow-sm border-0 rounded-4 mb-4">
-                <div className="card-body p-3 bg-white rounded-4">
+            {/* Smart Filter Bar */}
+            <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
+                <div className="card-body p-3">
                     <div className="row g-3 align-items-center">
                         <div className="col-md-2">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1">Month</label>
-                            <select className="form-select form-select-sm fw-semibold" value={month} onChange={e => setMonth(Number(e.target.value))}>
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-calendar3 me-1 text-primary"></i>Month
+                            </label>
+                            <select className="form-select form-select-sm fw-bold border-0 bg-light rounded-3" value={month} onChange={e => setMonth(Number(e.target.value))}>
                                 {MONTHS.map(m => <option key={m.num} value={m.num}>{m.name}</option>)}
                             </select>
                         </div>
                         <div className="col-md-2">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1">Year</label>
-                            <select className="form-select form-select-sm fw-semibold" value={year} onChange={e => setYear(e.target.value)}>
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-calendar-event me-1 text-primary"></i>Year
+                            </label>
+                            <select className="form-select form-select-sm fw-bold border-0 bg-light rounded-3" value={year} onChange={e => setYear(e.target.value)}>
                                 {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
                         <div className="col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1">Class</label>
-                            <select className="form-select form-select-sm" value={classId} onChange={e => setClassId(e.target.value)}>
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-building me-1 text-primary"></i>Class Filter
+                            </label>
+                            <select className="form-select form-select-sm border-0 bg-light rounded-3" value={classId} onChange={e => setClassId(e.target.value)}>
                                 <option value="">All Classes</option>
                                 {classes.map((c: any) => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
                         <div className="col-md-2">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1">Section</label>
-                            <select className="form-select form-select-sm" value={sectionId} onChange={e => setSectionId(e.target.value)} disabled={!classId}>
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-diagram-3 me-1 text-primary"></i>Section
+                            </label>
+                            <select className="form-select form-select-sm border-0 bg-light rounded-3" value={sectionId} onChange={e => setSectionId(e.target.value)} disabled={!classId}>
                                 <option value="">All Sections</option>
                                 {sections.map((s: any) => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
                             </select>
                         </div>
                         <div className="col-md-3 ms-auto text-end">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1 d-block">Search</label>
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1 d-block" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                Instant Search
+                            </label>
                             <div className="input-group input-group-sm">
-                                <span className="input-group-text bg-white"><i className="bi bi-search text-muted"></i></span>
-                                <input type="text" className="form-control" placeholder="Search student / father..."
+                                <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
+                                <input type="text" className="form-control border-0 bg-light" placeholder="Search student / father / ID..."
                                     value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
                                 {searchKeyword && (
-                                    <button className="btn btn-outline-secondary" onClick={() => setSearchKeyword('')}><i className="bi bi-x"></i></button>
+                                    <button className="btn btn-light border-0" onClick={() => setSearchKeyword('')}><i className="bi bi-x text-danger"></i></button>
                                 )}
                             </div>
                         </div>
@@ -360,59 +393,64 @@ export default function MonthlyReportPage() {
             <div className="row g-3 mb-4">
                 {/* 1. Billed Tuition */}
                 <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #0f766e' }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold">Tuition Fee Billed</span>
-                            <div className="rounded-circle p-2" style={{ backgroundColor: 'rgba(15,118,110,0.1)', color: 'var(--primary-teal)' }}>
-                                <i className="bi bi-file-text-fill"></i>
+                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Tuition Fee Billed</span>
+                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(15,118,110,0.1)', color: '#0f766e' }}>
+                                <i className="bi bi-piggy-bank-fill fs-5"></i>
                             </div>
                         </div>
-                        <h4 className="fw-bold mb-0 text-dark">{fmtPKR(summary.total_billed)}</h4>
-                        <span className="text-muted small">Expected Tuition Revenue</span>
+                        <h3 className="fw-black mb-1 text-dark" style={{ letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_billed)}</h3>
+                        <span className="text-muted small" style={{ fontSize: 11 }}>Expected Tuition Revenue</span>
                     </div>
                 </div>
 
                 {/* 2. Collected Tuition */}
                 <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #16a34a' }}>
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #16a34a' }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold">Tuition Collected</span>
-                            <div className="rounded-circle p-2" style={{ backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
-                                <i className="bi bi-check-circle-fill"></i>
+                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Tuition Collected</span>
+                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>
+                                <i className="bi bi-cash-coin fs-5"></i>
                             </div>
                         </div>
-                        <h4 className="fw-bold mb-0 text-success">{fmtPKR(summary.total_collected)}</h4>
-                        <span className="badge bg-success bg-opacity-10 text-success mt-1" style={{ width: 'fit-content' }}>
-                            {summary.collection_rate}% Collected
-                        </span>
+                        <h3 className="fw-black mb-1 text-success" style={{ letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_collected)}</h3>
+                        <div className="d-flex align-items-center gap-2 mt-1">
+                            <div className="progress flex-grow-1" style={{ height: 6, borderRadius: 10, background: '#e2e8f0' }}>
+                                <div className="progress-bar bg-success rounded-pill" role="progressbar" style={{ width: `${Math.min(100, summary.collection_rate)}%` }}></div>
+                            </div>
+                            <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: 10 }}>
+                                {summary.collection_rate}%
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 {/* 3. Remaining Dues */}
                 <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #dc2626' }}>
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #dc2626' }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold">Remaining Dues</span>
-                            <div className="rounded-circle p-2" style={{ backgroundColor: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
-                                <i className="bi bi-exclamation-triangle-fill"></i>
+                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Remaining Dues</span>
+                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
+                                <i className="bi bi-exclamation-octagon-fill fs-5"></i>
                             </div>
                         </div>
-                        <h4 className="fw-bold mb-0 text-danger">{fmtPKR(summary.total_remaining)}</h4>
-                        <span className="text-muted small">Uncollected Tuition</span>
+                        <h3 className="fw-black mb-1 text-danger" style={{ letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_remaining)}</h3>
+                        <span className="text-muted small" style={{ fontSize: 11 }}>Uncollected Tuition Balance</span>
                     </div>
                 </div>
 
                 {/* 4. Monthly Expenses */}
                 <div className="col-md-3">
-                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #ea580c' }}>
+                    <div className="card shadow-sm border-0 rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #ea580c' }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="text-muted small text-uppercase fw-bold">Monthly Expenses</span>
-                            <div className="rounded-circle p-2" style={{ backgroundColor: 'rgba(234,88,12,0.1)', color: '#ea580c' }}>
-                                <i className="bi bi-receipt me-1"></i>
+                            <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Monthly Expenses</span>
+                            <div className="rounded-3 p-2" style={{ backgroundColor: 'rgba(234,88,12,0.1)', color: '#ea580c' }}>
+                                <i className="bi bi-receipt-cutoff fs-5"></i>
                             </div>
                         </div>
-                        <h4 className="fw-bold mb-0" style={{ color: '#ea580c' }}>{fmtPKR(summary.total_expenses)}</h4>
-                        <span className="text-muted small">Total Month Expenses</span>
+                        <h3 className="fw-black mb-1" style={{ color: '#ea580c', letterSpacing: '-0.5px' }}>{fmtPKR(summary.total_expenses)}</h3>
+                        <span className="text-muted small" style={{ fontSize: 11 }}>Total Month Expenses</span>
                     </div>
                 </div>
             </div>
@@ -420,66 +458,88 @@ export default function MonthlyReportPage() {
             {/* Net Surplus & Realized Cash Row */}
             <div className="row g-3 mb-4">
                 <div className="col-md-6">
-                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white" style={{ borderLeft: '5px solid #0284c7' }}>
+                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white" style={{ borderLeft: '5px solid #0284c7', background: 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)' }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-uppercase fw-bold small text-muted d-block">Expected Operating Surplus (Billed - Expenses)</span>
-                                <h3 className="fw-bold mb-0" style={{ color: summary.expected_surplus >= 0 ? '#0284c7' : '#dc2626' }}>
+                                <span className="text-uppercase fw-bold small text-muted d-block" style={{ fontSize: 10, letterSpacing: '0.06em' }}>
+                                    Expected Operating Surplus (Billed Tuition - Expenses)
+                                </span>
+                                <h3 className="fw-black mb-0 mt-1" style={{ color: summary.expected_surplus >= 0 ? '#0284c7' : '#dc2626', letterSpacing: '-0.5px' }}>
                                     {fmtPKR(summary.expected_surplus)}
                                 </h3>
                             </div>
-                            <i className="bi bi-calculator fs-1 text-primary opacity-25"></i>
+                            <div className="rounded-circle p-3" style={{ background: 'rgba(2,132,199,0.1)', color: '#0284c7' }}>
+                                <i className="bi bi-graph-up-arrow fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div className="col-md-6">
-                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white" style={{ borderLeft: '5px solid #16a34a' }}>
+                    <div className="card shadow-sm border-0 rounded-4 p-3 bg-white"
+                        style={{
+                            borderLeft: `5px solid ${summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626'}`,
+                            background: summary.net_cash_balance >= 0 ? 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)' : 'linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)'
+                        }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-uppercase fw-bold small text-muted d-block">Net Cash Balance (Collected - Expenses)</span>
-                                <h3 className="fw-bold mb-0" style={{ color: summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626' }}>
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="text-uppercase fw-bold small text-muted" style={{ fontSize: 10, letterSpacing: '0.06em' }}>
+                                        Net Realized Cash Balance (Collected Tuition - Expenses)
+                                    </span>
+                                    <span className={`badge rounded-pill ${summary.net_cash_balance >= 0 ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: 9 }}>
+                                        {summary.net_cash_balance >= 0 ? 'SURPLUS' : 'DEFICIT'}
+                                    </span>
+                                </div>
+                                <h3 className="fw-black mb-0 mt-1" style={{ color: summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626', letterSpacing: '-0.5px' }}>
                                     {fmtPKR(summary.net_cash_balance)}
                                 </h3>
                             </div>
-                            <i className="bi bi-cash-stack fs-1 text-success opacity-25"></i>
+                            <div className="rounded-circle p-3" style={{
+                                background: summary.net_cash_balance >= 0 ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
+                                color: summary.net_cash_balance >= 0 ? '#16a34a' : '#dc2626'
+                            }}>
+                                <i className="bi bi-wallet2 fs-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Main Family Table Card */}
-            <div className="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div className="card shadow-lg border-0 rounded-4 overflow-hidden bg-white">
                 <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
                     {/* Status Tabs */}
-                    <div className="btn-group btn-group-sm" role="group">
-                        <button type="button" className={`btn ${statusTab === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
+                    <div className="btn-group p-1 bg-light rounded-3" role="group" style={{ border: '1px solid #e2e8f0' }}>
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'all' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
                             onClick={() => setStatusTab('all')}>
                             All ({summary.total_families_count})
                         </button>
-                        <button type="button" className={`btn ${statusTab === 'paid' ? 'btn-success' : 'btn-outline-success'}`}
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'paid' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
                             onClick={() => setStatusTab('paid')}>
                             Fully Paid ({summary.paid_count})
                         </button>
-                        <button type="button" className={`btn ${statusTab === 'partial' ? 'btn-warning' : 'btn-outline-warning'}`}
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'partial' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
                             onClick={() => setStatusTab('partial')}>
                             Partial ({summary.partial_count})
                         </button>
-                        <button type="button" className={`btn ${statusTab === 'unpaid' ? 'btn-danger' : 'btn-outline-danger'}`}
+                        <button type="button" className={`btn btn-sm rounded-2 fw-semibold ${statusTab === 'unpaid' ? 'btn-danger text-white shadow-sm' : 'btn-light text-muted'}`}
                             onClick={() => setStatusTab('unpaid')}>
                             Unpaid Dues ({summary.unpaid_count})
                         </button>
                     </div>
 
-                    <span className="text-muted small fw-semibold">
-                        Showing {filteredFamilies.length} Records
-                    </span>
+                    <div className="d-flex align-items-center gap-2">
+                        <span className="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
+                            Showing {filteredFamilies.length} Records
+                        </span>
+                    </div>
                 </div>
 
                 <div className="card-body p-0">
                     {loading ? (
                         <div className="text-center p-5">
-                            <div className="spinner-border text-primary" role="status"></div>
-                            <p className="text-muted mt-2 small">Computing financial calculations...</p>
+                            <div className="spinner-border text-teal" role="status" style={{ color: '#0f766e' }}></div>
+                            <p className="text-muted mt-2 small fw-semibold">Computing financial calculations...</p>
                         </div>
                     ) : filteredFamilies.length === 0 ? (
                         <div className="text-center p-5 text-muted">
@@ -489,51 +549,61 @@ export default function MonthlyReportPage() {
                     ) : (
                         <div className="table-responsive">
                             <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-                                <thead className="text-uppercase small text-muted" style={{ backgroundColor: 'var(--primary-dark)', color: 'white' }}>
+                                <thead className="text-uppercase small" style={{ backgroundColor: '#1b2e3b', color: '#ffffff' }}>
                                     <tr>
-                                        <th className="ps-3" style={{ width: 40 }}>#</th>
-                                        <th>Family ID</th>
-                                        <th>Student &amp; Father Details</th>
-                                        <th>Class &amp; Section</th>
-                                        <th className="text-end">Tuition Billed</th>
-                                        <th className="text-end">Tuition Paid</th>
-                                        <th className="text-end">Remaining Dues</th>
-                                        <th className="text-center pe-3">Status</th>
+                                        <th className="ps-3" style={{ width: 40, padding: '12px 14px' }}>#</th>
+                                        <th style={{ padding: '12px 14px' }}>Family ID</th>
+                                        <th style={{ padding: '12px 14px' }}>Student &amp; Father Details</th>
+                                        <th style={{ padding: '12px 14px' }}>Class &amp; Section</th>
+                                        <th className="text-end" style={{ padding: '12px 14px' }}>Tuition Billed</th>
+                                        <th className="text-end" style={{ padding: '12px 14px' }}>Tuition Paid</th>
+                                        <th className="text-end" style={{ padding: '12px 14px' }}>Remaining Dues</th>
+                                        <th className="text-center pe-3" style={{ padding: '12px 14px' }}>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredFamilies.map((f, i) => (
-                                        <tr key={f.slip_id || i}>
-                                            <td className="ps-3 text-muted small">{i + 1}</td>
+                                        <tr key={f.slip_id || i} style={{ transition: 'background 0.15s' }}>
+                                            <td className="ps-3 text-muted small fw-semibold">{i + 1}</td>
                                             <td>
-                                                <span className="badge bg-light text-dark border fw-normal">{f.family_id || '—'}</span>
+                                                <span className="badge bg-light text-primary border fw-semibold" style={{ fontSize: 11 }}>
+                                                    {f.family_id || '—'}
+                                                </span>
                                             </td>
                                             <td>
-                                                <div className="fw-bold text-dark">{f.student_name}</div>
-                                                <div className="small text-muted">
-                                                    Father: {f.father_name || '—'} {f.father_phone ? `(${f.father_phone})` : ''}
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <div className="rounded-circle bg-teal text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                                        style={{ width: 32, height: 32, fontSize: 12, background: 'linear-gradient(135deg, #0f766e, #047857)' }}>
+                                                        {(f.student_name || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div className="fw-bold text-dark">{f.student_name}</div>
+                                                        <div className="small text-muted" style={{ fontSize: 11 }}>
+                                                            Father: {f.father_name || '—'} {f.father_phone ? `(${f.father_phone})` : ''}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className="fw-semibold">{f.class_name || '—'}</span>
+                                                <span className="fw-bold text-dark">{f.class_name || '—'}</span>
                                                 <span className="text-muted ms-1">({f.section_name || '—'})</span>
                                             </td>
                                             <td className="text-end fw-semibold text-dark">
                                                 {fmtPKR(f.tuition_billed)}
                                             </td>
-                                            <td className="text-end fw-semibold text-success">
+                                            <td className="text-end fw-bold text-success">
                                                 {fmtPKR(f.tuition_paid)}
                                             </td>
-                                            <td className={`text-end fw-bold ${f.tuition_remaining > 0 ? 'text-danger' : 'text-success'}`}>
+                                            <td className={`text-end fw-black ${f.tuition_remaining > 0 ? 'text-danger' : 'text-success'}`}>
                                                 {fmtPKR(f.tuition_remaining)}
                                             </td>
                                             <td className="text-center pe-3">
-                                                <span className={`badge rounded-pill ${
-                                                    f.payment_status === 'paid' ? 'bg-success' :
-                                                    f.payment_status === 'partial' ? 'bg-warning text-dark' : 'bg-danger'
-                                                }`}>
-                                                    {f.payment_status === 'paid' ? 'Fully Paid' :
-                                                     f.payment_status === 'partial' ? 'Partial' : 'Unpaid'}
+                                                <span className={`badge rounded-pill px-3 py-1 ${
+                                                    f.payment_status === 'paid' ? 'bg-success bg-opacity-15 text-success border border-success' :
+                                                    f.payment_status === 'partial' ? 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning' : 'bg-danger bg-opacity-15 text-danger border border-danger'
+                                                }`} style={{ fontSize: 10, fontWeight: 700 }}>
+                                                    {f.payment_status === 'paid' ? 'FULLY PAID' :
+                                                     f.payment_status === 'partial' ? 'PARTIAL' : 'UNPAID DUES'}
                                                 </span>
                                             </td>
                                         </tr>
@@ -544,9 +614,9 @@ export default function MonthlyReportPage() {
                     )}
                 </div>
 
-                <div className="card-footer bg-white p-3 text-center border-top">
-                    <span className="text-muted small">
-                        Monthly Tuition Financial Report • {monthName} {year} • {schoolInfo.name}
+                <div className="card-footer bg-light p-3 text-center border-top">
+                    <span className="text-muted small fw-semibold">
+                        Shaheen Public School • Monthly Financial Audit Report • {monthName} {year}
                     </span>
                 </div>
             </div>
