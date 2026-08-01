@@ -863,9 +863,9 @@ export function DailyFeeReceipts() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: '#f8fafc' }}>
-                        {['Student', 'Class', 'Month', 'Amount', 'Method', 'Status'].map(h => (
+                        {['Student', 'Class', 'Month', 'Amount', 'Method', 'Status', 'Action'].map(h => (
                           <th key={h} style={{
-                            padding: '9px 14px', textAlign: 'left', fontWeight: 700,
+                            padding: '9px 14px', textAlign: h === 'Action' ? 'center' : 'left', fontWeight: 700,
                             fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em',
                             color: '#64748b', borderBottom: '2px solid #f1f5f9', whiteSpace: 'nowrap',
                           }}>{h}</th>
@@ -916,6 +916,44 @@ export function DailyFeeReceipts() {
                               <i className={`bi ${p.is_printed ? 'bi-printer-fill' : 'bi-exclamation-circle'} me-1`} />
                               {p.is_printed ? 'Printed' : 'Not Printed'}
                             </span>
+                          </td>
+                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
+                            <Link
+                              href={`/fees/collect?search=${encodeURIComponent(p.admission_no || p.family_id || p.student_name || '')}`}
+                              title={`Collect Fee Payment for ${p.student_name || p.family_id}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 30,
+                                height: 30,
+                                borderRadius: '50%',
+                                backgroundColor: '#f1f5f9',
+                                color: C.orange,
+                                border: '1px solid #cbd5e1',
+                                textDecoration: 'none',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                                transition: 'all 0.2s ease',
+                              }}
+                              onMouseEnter={e => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.backgroundColor = C.orange;
+                                el.style.color = '#ffffff';
+                                el.style.borderColor = C.orange;
+                                el.style.transform = 'scale(1.15)';
+                                el.style.boxShadow = '0 4px 14px rgba(254,127,45,0.45)';
+                              }}
+                              onMouseLeave={e => {
+                                const el = e.currentTarget as HTMLElement;
+                                el.style.backgroundColor = '#f1f5f9';
+                                el.style.color = C.orange;
+                                el.style.borderColor = '#cbd5e1';
+                                el.style.transform = 'scale(1)';
+                                el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+                              }}
+                            >
+                              <i className="bi bi-arrow-right-circle-fill" style={{ fontSize: 16 }} />
+                            </Link>
                           </td>
                         </tr>
                       ))}

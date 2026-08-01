@@ -512,7 +512,7 @@ router.get('/daily-fee-receipts', async (req, res) => {
         
         const listQuery = pool.query(
             `SELECT fp.payment_id, fp.amount_paid, fp.payment_date, fp.payment_method, fp.is_printed,
-                    s.first_name||' '||COALESCE(s.last_name, '') AS student_name,
+                    s.student_id, s.admission_no, s.first_name||' '||COALESCE(s.last_name, '') AS student_name,
                     c.class_name, mfs.month, mfs.year, mfs.is_family_slip, mfs.family_id
              FROM fee_payments fp
              JOIN monthly_fee_slips mfs ON fp.slip_id=mfs.slip_id

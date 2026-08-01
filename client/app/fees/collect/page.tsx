@@ -110,6 +110,29 @@ export default function CollectFeePage() {
                 });
             }
         }).catch(() => { });
+
+        // Auto load slips if URL search parameter is provided
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const querySearch = urlParams.get('search') || urlParams.get('student') || urlParams.get('family_id') || urlParams.get('student_id');
+            if (querySearch) {
+                setSearch(querySearch);
+                // Trigger slips load automatically
+                const currentYear = new Date().getFullYear().toString();
+                setLoading(true);
+                fetch(`${API}/fee-slips?year=${currentYear}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.slips) {
+                            setSlips((data.slips || []).map((s: any) => s.category && s.category.trim().toLowerCase() === 'trusted' ? { ...s, status: 'satteled' } : s));
+                            setStats(data.stats || null);
+                            setLoaded(true);
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => setLoading(false));
+            }
+        }
     }, []);
 
     const loadSlips = async () => {
