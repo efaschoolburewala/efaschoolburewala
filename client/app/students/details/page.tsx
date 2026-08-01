@@ -71,6 +71,7 @@ const COL_DEFS: { key: string; label: string; defaultOn: boolean }[] = [
     { key: 'address', label: 'Address', defaultOn: false },
     { key: 'monthly_fee', label: 'Monthly Fee', defaultOn: false },
     { key: 'status', label: 'Status', defaultOn: true },
+    { key: 'remarks', label: 'Remarks / Notes (Blank)', defaultOn: false },
 ];
 
 // ── Plain-text value for exports ──────────────────────────────────────────
@@ -101,6 +102,7 @@ function exportText(key: string, s: Student, idx: number): string {
         case 'address': return [s.current_address, s.city].filter(Boolean).join(', ');
         case 'monthly_fee': return s.monthly_fee ?? '';
         case 'status': return s.status ?? '';
+        case 'remarks': return '';
         default: return '';
     }
 }
@@ -175,6 +177,12 @@ function renderCell(key: string, s: Student, idx: number) {
                         s.status === 'Left' ? 'bg-danger' :
                             'bg-secondary'
                     }`}>{s.status || 'Active'}</span>
+            );
+        case 'remarks':
+            return (
+                <div className="border-bottom border-secondary border-opacity-25" style={{ minWidth: 120, minHeight: 24, margin: '2px 0' }}>
+                    &nbsp;
+                </div>
             );
         default: return '—';
     }
@@ -372,7 +380,10 @@ export default function StudentDetails() {
         const win = window.open('', '_blank');
         if (!win) { notify.error('Popup blocked — allow popups to export PDF.'); return; }
         const ths = headers.map(h => `<th>${h}</th>`).join('');
-        const trs = rows.map(r => '<tr>' + r.map(v => `<td>${v}</td>`).join('') + '</tr>').join('');
+        const trs = rows.map(r => '<tr>' + r.map((v, i) => {
+            const isRemarks = headers[i]?.toLowerCase().includes('remarks') || headers[i]?.toLowerCase().includes('notes');
+            return isRemarks ? `<td style="border-bottom:1px dashed #777;min-width:120px">&nbsp;</td>` : `<td>${v}</td>`;
+        }).join('') + '</tr>').join('');
         win.document.write(
             `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Students</title>` +
             `<style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}` +
@@ -554,6 +565,16 @@ export default function StudentDetails() {
                                 </button>
                                 <button className="btn btn-sm btn-outline-secondary" onClick={doExportCSV} title="Export CSV">
                                     <i className="bi bi-filetype-csv"></i>
+                                </button>
+                                {/* Quick Blank Column Toggle */}
+                                <button
+                                    className={`btn btn-sm d-flex align-items-center gap-1 ${visibleCols.has('remarks') ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => toggleCol('remarks')}
+                                    title="Toggle Blank Remarks Column for Hand Writing when Printing"
+                                    style={{ borderRadius: 6, fontWeight: 500, fontSize: 12 }}
+                                >
+                                    <i className={`bi ${visibleCols.has('remarks') ? 'bi-pencil-square' : 'bi-journal-plus'}`}></i>
+                                    <span>{visibleCols.has('remarks') ? 'Blank Column ON' : '+ Blank Column'}</span>
                                 </button>
                                 <div className="vr" style={{ height: 24 }}></div>
                                 {/* Column picker */}
