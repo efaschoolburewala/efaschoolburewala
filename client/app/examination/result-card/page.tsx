@@ -400,7 +400,7 @@ export default function ResultCardPage() {
                 section_id: selectedSection
             });
 
-            const d = await fetchJson(`${API}/exams/students-list?${params.toString()}`);
+            const d = await fetchJson(`${API}/exams/result-card/students?${params.toString()}`);
             setStudents(Array.isArray(d.students) ? d.students : []);
             setSelectedIds(new Set());
         } catch (e: any) {

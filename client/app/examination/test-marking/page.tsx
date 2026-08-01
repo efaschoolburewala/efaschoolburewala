@@ -184,7 +184,7 @@ export default function TestMarkingPage() {
         setCreating(true);
         setMsg(null);
         try {
-            const d = await fetchJson(`${API}/exams/tests/create`, {
+            const d = await fetchJson(`${API}/exams/tests`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -219,8 +219,8 @@ export default function TestMarkingPage() {
         setLoadingSheet(true);
         setMsg(null);
         try {
-            const p = new URLSearchParams({ user_id: String(user.id), test_id: String(testId) });
-            const d: SheetData = await fetchJson(`${API}/exams/tests/sheet?${p}`);
+            const p = new URLSearchParams({ user_id: String(user.id) });
+            const d: SheetData = await fetchJson(`${API}/exams/tests/${testId}/sheet?${p}`);
             setSheet(d);
 
             const oMap: Record<number, string> = {};
@@ -268,12 +268,11 @@ export default function TestMarkingPage() {
         setSaving(true);
         setMsg(null);
         try {
-            const d = await fetchJson(`${API}/exams/tests/marks/save`, {
+            const d = await fetchJson(`${API}/exams/tests/${sheet.test.test_id}/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: user.id,
-                    test_id: sheet.test.test_id,
                     marks: payload,
                 })
             });
@@ -299,8 +298,8 @@ export default function TestMarkingPage() {
         setDeleting(true);
         setMsg(null);
         try {
-            const p = new URLSearchParams({ user_id: String(user.id), test_id: String(testId) });
-            const d = await fetchJson(`${API}/exams/tests?${p}`, { method: 'DELETE' });
+            const p = new URLSearchParams({ user_id: String(user.id) });
+            const d = await fetchJson(`${API}/exams/tests/${testId}?${p}`, { method: 'DELETE' });
             const succMsg = d.message || 'Test deleted successfully.';
             setMsg({ type: 'success', text: succMsg });
             showToast.success(succMsg);
