@@ -1240,39 +1240,78 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                 <th>Students & Applied Heads</th>
                                                                 <th className="text-end">Billed</th>
                                                                 <th className="text-end">Received</th>
+                                                                <th className="text-end">Remaining Balance</th>
+                                                                <th className="text-center">Submission Date</th>
                                                                 <th className="text-center pe-4">Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {familySlips.map((monthSlip, idx) => (
-                                                                <tr key={idx}>
-                                                                    <td className="ps-4 fw-bold text-dark">
-                                                                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthSlip.month - 1]} {monthSlip.year}
-                                                                    </td>
-                                                                    <td>
-                                                                        <div className="d-flex flex-column gap-2 py-2">
-                                                                            {monthSlip.students.map((st: any, i: number) => (
-                                                                                <div key={i} className="d-flex flex-column bg-light p-2 rounded-3 border">
-                                                                                    <div>
-                                                                                        <span className="fw-semibold text-dark mx-1 text-uppercase" style={{ fontSize: '0.8rem' }}>{st.admission_no}</span>
-                                                                                        <span className="fw-bold text-primary" style={{ fontSize: '0.8rem' }}>&bull; {st.name}</span>
-                                                                                    </div>
-                                                                                    <div className="text-muted mt-1" style={{ fontSize: '0.75rem' }}>
-                                                                                        {st.heads?.map((h: any) => `${h.head_name} (${fmt(h.amount)})`).join(' • ') || 'No specific heads'}
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="text-end fw-semibold" style={{ color: 'var(--primary-dark)' }}>{fmt(monthSlip.family_total_billed)}</td>
-                                                                    <td className="text-end fw-bold" style={{ color: '#0d9e6e' }}>{fmt(monthSlip.family_total_paid)}</td>
-                                                                    <td className="text-center pe-4">
-                                                                        <span className={`badge px-3 py-2 rounded-pill ${monthSlip.status === 'paid' ? 'bg-success bg-opacity-10 text-success border border-success' : monthSlip.status === 'partial' ? 'bg-warning bg-opacity-10 text-warning border border-warning' : 'bg-danger bg-opacity-10 text-danger border border-danger'}`}>
-                                                                            {monthSlip.status.toUpperCase()}
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
+                                                            {familySlips.map((monthSlip, idx) => {
+                                                                const remainingBalance = Math.max(0, Number(monthSlip.family_total_billed || 0) - Number(monthSlip.family_total_paid || 0));
+                                                                const subDate = monthSlip.last_submission_date 
+                                                                    ? new Date(monthSlip.last_submission_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                                    : '—';
+
+                                                                return (
+                                                                    <tr key={idx}>
+                                                                        <td className="ps-4 fw-bold text-dark">
+                                                                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthSlip.month - 1]} {monthSlip.year}
+                                                                        </td>
+                                                                        <td>
+                                                                            <div className="d-flex flex-column gap-2 py-2">
+                                                                                {monthSlip.students.map((st: any, i: number) => {
+                                                                                    const stRemaining = Math.max(0, Number(st.billed || 0) - Number(st.paid || 0));
+                                                                                    const stSubDate = st.last_payment_date
+                                                                                        ? new Date(st.last_payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                                                                        : '';
+                                                                                    return (
+                                                                                        <div key={i} className="d-flex flex-column bg-light p-2 rounded-3 border">
+                                                                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                                                                                <div>
+                                                                                                    <span className="fw-semibold text-dark mx-1 text-uppercase" style={{ fontSize: '0.8rem' }}>{st.admission_no}</span>
+                                                                                                    <span className="fw-bold text-primary" style={{ fontSize: '0.8rem' }}>&bull; {st.name}</span>
+                                                                                                </div>
+                                                                                                <div className="small">
+                                                                                                    <span className="text-muted me-2">Billed: {fmt(st.billed)}</span>
+                                                                                                    <span className="text-success fw-semibold me-2">Paid: {fmt(st.paid)}</span>
+                                                                                                    {stRemaining > 0 ? (
+                                                                                                        <span className="text-danger fw-bold">Rem: {fmt(stRemaining)}</span>
+                                                                                                    ) : (
+                                                                                                        <span className="text-muted">Rem: 0</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div className="text-muted mt-1 d-flex justify-content-between align-items-center" style={{ fontSize: '0.75rem' }}>
+                                                                                                <span>{st.heads?.map((h: any) => `${h.head_name} (${fmt(h.amount)})`).join(' • ') || 'No specific heads'}</span>
+                                                                                                {stSubDate && <span className="text-dark fw-semibold ms-2"><i className="bi bi-clock me-1 text-primary"></i>Submitted: {stSubDate}</span>}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="text-end fw-semibold" style={{ color: 'var(--primary-dark)' }}>{fmt(monthSlip.family_total_billed)}</td>
+                                                                        <td className="text-end fw-bold" style={{ color: '#0d9e6e' }}>{fmt(monthSlip.family_total_paid)}</td>
+                                                                        <td className="text-end fw-bold" style={{ color: remainingBalance > 0 ? '#dc3545' : '#6c757d' }}>
+                                                                            {fmt(remainingBalance)}
+                                                                        </td>
+                                                                        <td className="text-center small">
+                                                                            {subDate !== '—' ? (
+                                                                                <span className="badge bg-light text-dark border fw-normal px-2 py-1">
+                                                                                    <i className="bi bi-calendar-check me-1 text-success"></i>{subDate}
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="text-muted">—</span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="text-center pe-4">
+                                                                            <span className={`badge px-3 py-2 rounded-pill ${monthSlip.status === 'paid' ? 'bg-success bg-opacity-10 text-success border border-success' : monthSlip.status === 'partial' ? 'bg-warning bg-opacity-10 text-warning border border-warning' : 'bg-danger bg-opacity-10 text-danger border border-danger'}`}>
+                                                                                {monthSlip.status.toUpperCase()}
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                         </tbody>
                                                     </table>
                                                 </div>

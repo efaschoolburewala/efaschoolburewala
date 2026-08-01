@@ -1275,6 +1275,9 @@ router.get('/family-summary/:student_id', async (req, res) => {
                 mfs.slip_id, mfs.month, mfs.year, mfs.total_amount, mfs.paid_amount, mfs.status,
                 s.first_name, s.last_name, s.admission_no,
                 (
+                    SELECT MAX(fp.payment_date) FROM fee_payments fp WHERE fp.slip_id = mfs.slip_id
+                ) as last_payment_date,
+                (
                     SELECT json_agg(json_build_object('head_name', sli.head_name, 'amount', sli.amount))
                     FROM slip_line_items sli WHERE sli.slip_id = mfs.slip_id
                 ) as heads
@@ -1296,17 +1299,27 @@ router.get('/family-summary/:student_id', async (req, res) => {
                     family_total_billed: 0,
                     family_total_paid: 0,
                     status: 'unpaid',
+                    last_submission_date: null,
                     students: []
                 };
             }
             summary[myKey].family_total_billed += Number(row.total_amount);
             summary[myKey].family_total_paid += Number(row.paid_amount);
+
+            if (row.last_payment_date) {
+                if (!summary[myKey].last_submission_date || new Date(row.last_payment_date) > new Date(summary[myKey].last_submission_date)) {
+                    summary[myKey].last_submission_date = row.last_payment_date;
+                }
+            }
+
             summary[myKey].students.push({
+                slip_id: row.slip_id,
                 name: row.first_name + ' ' + row.last_name,
                 admission_no: row.admission_no,
                 billed: Number(row.total_amount),
                 paid: Number(row.paid_amount),
                 status: row.status,
+                last_payment_date: row.last_payment_date,
                 heads: row.heads || []
             });
         });
