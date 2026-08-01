@@ -516,13 +516,13 @@ router.get('/', async (req, res) => {
 // GET popup attendance details
 router.get('/attendance-details', async (req, res) => {
     try {
-        const { type, status } = req.query;
+        const { type, status, class_id, section_id } = req.query;
         if (!type || !status) return res.status(400).json({ error: 'Missing type or status' });
         
         const targetDate = new Date().toISOString().split('T')[0];
         
         if (type === 'student') {
-            const {rows} = await pool.query(`
+            let sql = `
                  SELECT s.first_name || ' ' || COALESCE(s.last_name, '') as name,
                         s.father_name as guardian,
                         c.class_name,
@@ -535,12 +535,22 @@ router.get('/attendance-details', async (req, res) => {
                  WHERE sa.attendance_date = $1 
                    AND sa.status ILIKE $2
                    AND s.status = 'Active'
-                 ORDER BY c.class_name, s.first_name`,
-                [targetDate, status]
-            );
+            `;
+            const params = [targetDate, status];
+            if (class_id) {
+                params.push(class_id);
+                sql += ` AND s.class_id = $${params.length}`;
+            }
+            if (section_id) {
+                params.push(section_id);
+                sql += ` AND s.section_id = $${params.length}`;
+            }
+            sql += ` ORDER BY c.class_name, s.first_name`;
+
+            const { rows } = await pool.query(sql, params);
             return res.json(rows);
         } else if (type === 'staff') {
-            const {rows} = await pool.query(`
+            const { rows } = await pool.query(`
                  SELECT e.first_name || ' ' || COALESCE(e.last_name, '') as name,
                         e.designation as guardian,
                         e.phone
@@ -554,11 +564,11 @@ router.get('/attendance-details', async (req, res) => {
             );
             return res.json(rows);
         } else {
-            return res.status(400).json({error: 'Invalid type'});
+            return res.status(400).json({ error: 'Invalid type' });
         }
     } catch (err) {
         console.error(err);
-        return res.status(500).json({error: err.message});
+        return res.status(500).json({ error: err.message });
     }
 });
 
