@@ -36,6 +36,39 @@ export default function LoginPage() {
         }
     }, [isLoading, isLoggedIn, router]);
 
+    // Dynamic School Settings State
+    const [schoolSettings, setSchoolSettings] = useState({
+        school_name: 'Smart School System',
+        logo_url: '',
+        tagline: 'Management Portal'
+    });
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-school-soxa.onrender.com";
+
+    // Fetch School Settings for Login Branding
+    useEffect(() => {
+        fetch(`${API_URL}/settings`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data === 'object') {
+                    const name = data.school_name || 'Smart School System';
+                    const logo = data.logo_url ? (
+                        data.logo_url.startsWith('data:') || data.logo_url.startsWith('http')
+                            ? data.logo_url
+                            : `${API_URL}${data.logo_url}`
+                    ) : '';
+                    const tagline = data.tagline || 'Management Portal';
+
+                    setSchoolSettings({
+                        school_name: name,
+                        logo_url: logo,
+                        tagline: tagline
+                    });
+                }
+            })
+            .catch(() => { });
+    }, []);
+
     // Fetch dynamic GitHub data for Umar
     useEffect(() => {
         fetch('https://api.github.com/users/UmarAjmal')
@@ -104,12 +137,22 @@ export default function LoginPage() {
                             </div> */}
 
                             <div className="brand-hero">
-                                <div className="brand-icon-halo">
-                                    <i className="bi bi-mortarboard-fill" />
+                                <div className="brand-icon-halo" style={{ overflow: 'hidden', padding: schoolSettings.logo_url ? 4 : 0 }}>
+                                    {schoolSettings.logo_url ? (
+                                        <img
+                                            src={schoolSettings.logo_url}
+                                            alt={schoolSettings.school_name}
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
+                                        />
+                                    ) : (
+                                        <i className="bi bi-mortarboard-fill" />
+                                    )}
                                 </div>
                                 <h1 className="brand-title">
-                                    Smart School <br />
-                                    <span className="text-gradient">System</span>
+                                    {schoolSettings.school_name} <br />
+                                    <span className="text-gradient" style={{ fontSize: '0.85em' }}>
+                                        {schoolSettings.tagline || 'Management Portal'}
+                                    </span>
                                 </h1>
                             </div>
                         </div>
