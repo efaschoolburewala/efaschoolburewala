@@ -29,6 +29,7 @@ export default function TeacherDashboard({ userId }: { userId: number }) {
   const [data, setData] = useState<TeacherData | null>(null);
   const [loading, setLoad] = useState(true);
   const [err, setErr] = useState('');
+  const [modal, setModal] = useState<{ isOpen: boolean; status: string; classId?: number }>({ isOpen: false, status: '' });
 
   useEffect(() => {
     fetch(API + '/dashboard/teacher?user_id=' + userId)
