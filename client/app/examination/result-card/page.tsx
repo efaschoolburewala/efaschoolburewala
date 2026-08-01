@@ -94,15 +94,23 @@ function esc(text: unknown) {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
 
 
-function buildPrintHtml(payload: CardPayload, autoPrint = false) {
-    const schoolName = payload.school.school_name || 'Smart School';
-    const schoolAddress = payload.school.school_address || '';
-    const schoolPhones = [payload.school.phone_number, payload.school.school_phone2, payload.school.school_phone3]
-        .filter(Boolean)
-        .join(' | ');
-    const logoUrl = payload.school.school_logo_url
-        ? (payload.school.school_logo_url.startsWith('http') ? payload.school.school_logo_url : `${API_BASE}${payload.school.school_logo_url}`)
-        : '';
+function getLogoUrl(rawLogo?: string): string {
+    if (!rawLogo || !rawLogo.trim()) return '';
+    const logoStr = rawLogo.trim();
+    if (logoStr.startsWith('http://') || logoStr.startsWith('https://') || logoStr.startsWith('data:')) {
+        return logoStr;
+    }
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+    const cleanPath = logoStr.replace(/^\/+/, '');
+    return `${baseUrl}/${cleanPath}`;
+}
+
+function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
+    const { meta, school, students } = payload;
+    const schoolName = school.school_name || 'Smart School';
+    const address = school.school_address || '';
+    const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' | ');
+    const logo = getLogoUrl(school.school_logo_url);
 
     const cardsHtml = payload.students
         .map((student) => {
@@ -123,12 +131,12 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false) {
                 <section class="result-card">
                     <div class="header-row">
                         <div class="logo-wrap">
-                            ${logoUrl ? `<img src="${esc(logoUrl)}" alt="School Logo" />` : ''}
+                            ${logo ? `<img src="${esc(logo)}" alt="School Logo" />` : ''}
                         </div>
                         <div class="title-wrap">
                             <h2>${esc(schoolName)}</h2>
-                            ${schoolAddress ? `<div class="sub">${esc(schoolAddress)}</div>` : ''}
-                            ${schoolPhones ? `<div class="sub">${esc(schoolPhones)}</div>` : ''}
+                            ${address ? `<div class="sub">${esc(address)}</div>` : ''}
+                            ${phones ? `<div class="sub">${esc(phones)}</div>` : ''}
                             <h3>Result Card</h3>
                         </div>
                     </div>
