@@ -218,15 +218,47 @@ router.get('/accountant', async (req, res) => {
                 WHERE payment_date >= CURRENT_DATE - INTERVAL '5 months'
                 GROUP BY DATE_TRUNC('month', payment_date)
                 ORDER BY DATE_TRUNC('month', payment_date) ASC`),
+
+            // Current Month Tuition Billed
+            pool.query(`
+                SELECT COALESCE(SUM(ms.total_amount), 0) AS total
+                FROM monthly_fee_slips ms
+                LEFT JOIN students s ON ms.student_id = s.student_id
+                WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE)
+                  AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
+            `),
+
+            // Current Month Remaining Dues
+            pool.query(`
+                SELECT COALESCE(SUM(GREATEST(0, ms.total_amount - ms.paid_amount)), 0) AS total
+                FROM monthly_fee_slips ms
+                LEFT JOIN students s ON ms.student_id = s.student_id
+                WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE)
+                  AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
+            `),
+
+            // Current Month Expenses
+            pool.query(`
+                SELECT COALESCE(SUM(amount), 0) AS total
+                FROM expenses
+                WHERE EXTRACT(MONTH FROM expense_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+                  AND EXTRACT(YEAR FROM expense_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND (status IS NULL OR LOWER(status) != 'cancelled')
+            `),
         ]);
 
         res.json({
             role: 'accountant',
             stats: {
-                today_collected:      parseFloat(todayRes.rows[0]?.collected)   || 0,
-                month_collected:      parseFloat(monthRes.rows[0]?.collected)   || 0,
-                pending_fees:         parseFloat(pendingRes.rows[0]?.pending)   || 0,
-                total_students:       parseInt(totalStudRes.rows[0]?.total)     || 0,
+                today_collected:          parseFloat(todayRes.rows[0]?.collected) || 0,
+                month_collected:          parseFloat(monthRes.rows[0]?.collected) || 0,
+                pending_fees:             parseFloat(pendingRes.rows[0]?.pending) || 0,
+                total_students:           parseInt(totalStudRes.rows[0]?.total) || 0,
+                this_month_tuition_billed: parseFloat(monthlyChartRes.length ? 0 : 0) || parseFloat((await pool.query(`SELECT COALESCE(SUM(ms.total_amount), 0) AS total FROM monthly_fee_slips ms LEFT JOIN students s ON ms.student_id = s.student_id WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE) AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE) AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')`)).rows[0]?.total || 0),
+                this_month_remaining_dues: parseFloat(pendingRes.rows[0]?.pending) || 0,
+                this_month_expenses:       parseFloat((await pool.query(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE EXTRACT(MONTH FROM expense_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM expense_date) = EXTRACT(YEAR FROM CURRENT_DATE) AND (status IS NULL OR LOWER(status) != 'cancelled')`)).rows[0]?.total || 0),
             },
             fee_chart:       feeChartRes.rows.map(r => ({ date: r.date, label: fmt(r.date), amount: parseFloat(r.amount)||0 })),
             monthly_chart:   monthlyChartRes.rows.map(r => ({ label: r.month_label, amount: parseFloat(r.amount)||0 })),
@@ -375,6 +407,35 @@ router.get('/', async (req, res) => {
                 ORDER BY fp.payment_date DESC, fp.payment_id DESC
                 LIMIT 8
             `),
+
+            // 13. Current month tuition billed
+            pool.query(`
+                SELECT COALESCE(SUM(ms.total_amount), 0) AS total
+                FROM monthly_fee_slips ms
+                LEFT JOIN students s ON ms.student_id = s.student_id
+                WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE)
+                  AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
+            `),
+
+            // 14. Current month remaining dues
+            pool.query(`
+                SELECT COALESCE(SUM(GREATEST(0, ms.total_amount - ms.paid_amount)), 0) AS total
+                FROM monthly_fee_slips ms
+                LEFT JOIN students s ON ms.student_id = s.student_id
+                WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE)
+                  AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
+            `),
+
+            // 15. Current month expenses
+            pool.query(`
+                SELECT COALESCE(SUM(amount), 0) AS total
+                FROM expenses
+                WHERE EXTRACT(MONTH FROM expense_date) = EXTRACT(MONTH FROM CURRENT_DATE)
+                  AND EXTRACT(YEAR FROM expense_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                  AND (status IS NULL OR LOWER(status) != 'cancelled')
+            `),
         ]);
 
         // ── Format chart dates ──────────────────────────────────────────────
@@ -411,14 +472,22 @@ router.get('/', async (req, res) => {
         const todayStudAtt = todayStudentAttRes.rows[0] || {};
         const todayStaffAtt = todayStaffAttRes.rows[0] || {};
 
+        const thisMonthTuitionBilledRes = arguments[0] || {}; // fallback
+        const thisMonthBilledVal = parseFloat(recentPaymentsRes[8]?.rows?.[0]?.total || 0) || parseFloat((await pool.query(`SELECT COALESCE(SUM(ms.total_amount), 0) AS total FROM monthly_fee_slips ms LEFT JOIN students s ON ms.student_id = s.student_id WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE) AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE) AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')`)).rows[0]?.total || 0);
+        const thisMonthRemainingVal = parseFloat((await pool.query(`SELECT COALESCE(SUM(GREATEST(0, ms.total_amount - ms.paid_amount)), 0) AS total FROM monthly_fee_slips ms LEFT JOIN students s ON ms.student_id = s.student_id WHERE ms.month = EXTRACT(MONTH FROM CURRENT_DATE) AND ms.year = EXTRACT(YEAR FROM CURRENT_DATE) AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')`)).rows[0]?.total || 0);
+        const thisMonthExpensesVal = parseFloat((await pool.query(`SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE EXTRACT(MONTH FROM expense_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM expense_date) = EXTRACT(YEAR FROM CURRENT_DATE) AND (status IS NULL OR LOWER(status) != 'cancelled')`)).rows[0]?.total || 0);
+
         res.json({
             stats: {
-                total_students:        parseInt(studentsRes.rows[0]?.total)   || 0,
-                total_staff:           parseInt(teachersRes.rows[0]?.total)   || 0,
-                total_classes:         parseInt(classesRes.rows[0]?.total)    || 0,
-                pending_fees:          parseFloat(pendingFeesRes.rows[0]?.pending)         || 0,
-                this_month_collected:  parseFloat(thisMonthFeeRes.rows[0]?.collected)      || 0,
-                today_collected:       parseFloat(todayFeeRes.rows[0]?.collected)          || 0,
+                total_students:            parseInt(studentsRes.rows[0]?.total)   || 0,
+                total_staff:               parseInt(teachersRes.rows[0]?.total)   || 0,
+                total_classes:             parseInt(classesRes.rows[0]?.total)    || 0,
+                pending_fees:              parseFloat(pendingFeesRes.rows[0]?.pending)         || 0,
+                this_month_collected:      parseFloat(thisMonthFeeRes.rows[0]?.collected)      || 0,
+                today_collected:           parseFloat(todayFeeRes.rows[0]?.collected)          || 0,
+                this_month_tuition_billed: thisMonthBilledVal,
+                this_month_remaining_dues: thisMonthRemainingVal,
+                this_month_expenses:       thisMonthExpensesVal,
             },
             today_student_att: {
                 present:  parseInt(todayStudAtt.present)  || 0,
