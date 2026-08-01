@@ -41,6 +41,43 @@ async function runEssentialMigrations() {
             ALTER TABLE school_settings ALTER COLUMN logo_url TYPE TEXT;
         `);
 
+        // 5. Student Academic Records (Promotion History Table)
+        console.log("   → Checking student_academic_records table...");
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS student_academic_records (
+                id SERIAL PRIMARY KEY,
+                student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+                academic_year_id INTEGER NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+                class_id INTEGER NOT NULL REFERENCES classes(class_id) ON DELETE CASCADE,
+                section_id INTEGER NOT NULL REFERENCES sections(section_id) ON DELETE CASCADE,
+                roll_no VARCHAR(50),
+                total_marks NUMERIC(10,2) DEFAULT 0,
+                obtained_marks NUMERIC(10,2) DEFAULT 0,
+                percentage NUMERIC(5,2) DEFAULT 0,
+                grade VARCHAR(10),
+                rank_in_class INTEGER,
+                status VARCHAR(20) DEFAULT 'active',
+                promotion_target_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
+                promotion_target_class_id INTEGER REFERENCES classes(class_id) ON DELETE SET NULL,
+                promoted_to_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
+                promoted_to_class_id INTEGER REFERENCES classes(class_id) ON DELETE SET NULL,
+                promoted_on DATE,
+                promoted_at TIMESTAMP,
+                promoted_by_user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                attendance_percentage NUMERIC(5,2),
+                remarks TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(student_id, academic_year_id)
+            );
+
+            ALTER TABLE student_academic_records 
+            ADD COLUMN IF NOT EXISTS promotion_target_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS promotion_target_class_id INTEGER REFERENCES classes(class_id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS promoted_by_user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL;
+        `);
+
         // 5. IMPORTANT: We do NOT use father_name to infer relation_type.
         //    Father name matching is unreliable in Pakistani naming conventions where
         //    cousins often share the same grandfather's name as their father name.
