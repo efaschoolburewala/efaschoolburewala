@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Smart School',
   webDir: 'public',
   server: {
-    url: 'https://demo-school-fawn.vercel.app',
+    url: 'https://shaheenschool.vercel.app',
     cleartext: true
   },
   plugins: {
