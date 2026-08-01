@@ -86,15 +86,6 @@ function buildPrintHtml(payload: SheetPayload): string {
     const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' | ');
     const logo = getLogoUrl(school.school_logo_url);
 
-    const subjectTotalMap = new Map<number, number>();
-    for (const student of students) {
-        for (const sm of student.subject_marks) {
-            if (sm.total_marks !== null && !subjectTotalMap.has(sm.subject_id)) {
-                subjectTotalMap.set(sm.subject_id, sm.total_marks);
-            }
-        }
-    }
-
     const theadCols = subjects.map(s => `<th>${esc(s.subject_name)}</th>`).join('');
     const tbodyRows = students.map((student, idx) => {
         const markCols = subjects.map(s => {
@@ -123,12 +114,12 @@ function buildPrintHtml(payload: SheetPayload): string {
   body { font-family: "Times New Roman", serif; color: #000; background: #fff; font-size: 11pt; }
   .toolbar {
     position: fixed; top: 0; left: 0; right: 0;
-    background: #0f766e; color: #fff;
+    background: #215E61; color: #fff;
     padding: 8px 16px; display: flex; align-items: center; gap: 12px;
     font-family: Arial, sans-serif; font-size: 13px; z-index: 9999;
   }
   .toolbar button {
-    background: #16a34a; color: #fff; border: none;
+    background: #FE7F2D; color: #fff; border: none;
     padding: 6px 20px; border-radius: 4px;
     font-size: 13px; font-weight: bold; cursor: pointer;
   }
@@ -339,91 +330,72 @@ export default function ClassMarksSheetPage() {
     }
 
     return (
-        <div className="container-fluid p-2 p-md-4 bg-light min-vh-100">
-            {/* Header Banner - Executive Gradient */}
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-lg position-relative overflow-hidden"
-                style={{
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f766e 60%, #047857 100%)',
-                    color: 'white',
-                    borderLeft: '5px solid #14b8a6'
-                }}>
+        <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '1.5rem' }}>
+            {/* Standard Theme Page Header */}
+            <div className="d-flex align-items-center justify-content-between mb-4">
                 <div>
-                    <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                            <i className="bi bi-file-earmark-spreadsheet me-1"></i>CLASS MARKS MATRIX
-                        </span>
-                        {activeYearName && (
-                            <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
-                                Year: {activeYearName}
-                            </span>
-                        )}
-                    </div>
-                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
-                        Class-wide Examination Marks Sheet
-                    </h2>
-                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
-                        Consolidated subject-wise marks, grand totals and student class ranks
-                    </p>
+                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-table me-2" style={{ color: 'var(--accent-orange)' }} />
+                        Class Marks Sheet
+                    </h4>
+                    <div className="text-muted small">Detailed marks sheet for selected term, class and section</div>
                 </div>
-
-                <div className="d-flex align-items-center gap-2">
-                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
-                        onClick={handlePrint} disabled={!ready || printing || loadingCtx}
-                        style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', borderRadius: 10 }}>
-                        {printing ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-printer-fill text-info fs-6"></i>}
-                        <span className="fw-semibold">Print Marks Sheet</span>
-                    </button>
-                </div>
+                <span className="badge rounded-pill bg-light text-dark border">
+                    Academic Year: {activeYearName || '—'}
+                </span>
             </div>
 
             {msg && (
-                <div className={`alert alert-${msg.type} alert-dismissible shadow-sm rounded-3 mb-4`} role="alert">
-                    <i className={`bi ${msg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+                <div className={`alert alert-${msg.type} alert-dismissible`} role="alert">
                     {msg.text}
                     <button type="button" className="btn-close" onClick={() => setMsg(null)} />
                 </div>
             )}
 
-            {/* Seamless Filter Bar */}
-            <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
-                <div className="card-body p-3">
-                    <div className="row g-2 g-md-3 align-items-center">
-                        <div className="col-12 col-sm-4 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-calendar-event me-1 text-primary"></i>Exam Term
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedTerm} onChange={e => setSelectedTerm(e.target.value)} disabled={loadingCtx}>
+            {/* Filters (Original Theme Structure) */}
+            <div className="card border-0 shadow-sm mb-4">
+                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-funnel-fill me-2" style={{ color: 'var(--primary-teal)' }} />
+                        Filter Marks Sheet
+                    </h6>
+                </div>
+                <div className="card-body">
+                    <div className="row g-3 align-items-end">
+                        <div className="col-12 col-sm-6 col-md-3">
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Term</label>
+                            <select className="form-select rounded-3" value={selectedTerm}
+                                onChange={e => setSelectedTerm(e.target.value)} disabled={loadingCtx}>
                                 <option value="">Select Term</option>
                                 {terms.map(t => <option key={t.id} value={t.id}>{t.term_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-12 col-sm-4 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-building me-1 text-primary"></i>Class
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedClass} onChange={e => setSelectedClass(e.target.value)} disabled={loadingCtx}>
+                        <div className="col-12 col-sm-6 col-md-3">
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Class</label>
+                            <select className="form-select rounded-3" value={selectedClass}
+                                onChange={e => setSelectedClass(e.target.value)} disabled={loadingCtx}>
                                 <option value="">Select Class</option>
                                 {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-12 col-sm-4 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-diagram-2 me-1 text-primary"></i>Section
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedSection} onChange={e => setSelectedSection(e.target.value)} disabled={!selectedClass || loadingCtx}>
+                        <div className="col-12 col-sm-6 col-md-3">
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Section</label>
+                            <select className="form-select rounded-3" value={selectedSection}
+                                onChange={e => setSelectedSection(e.target.value)}
+                                disabled={!selectedClass || loadingCtx}>
                                 <option value="">Select Section</option>
-                                {filteredSections.map(s => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
+                                {filteredSections.map(s => (
+                                    <option key={s.section_id} value={s.section_id}>{s.section_name}</option>
+                                ))}
                             </select>
                         </div>
-                        <div className="col-12 col-md-3 ms-auto">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1 d-block" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                Search Student
-                            </label>
-                            <div className="input-group input-group-sm">
-                                <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
-                                <input type="text" className="form-control border-0 bg-light" placeholder="Search name / roll..."
-                                    value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
-                            </div>
+                        <div className="col-12 col-sm-6 col-md-3">
+                            <button className="btn btn-outline-success fw-bold w-100 py-2 rounded-3" onClick={handlePrint}
+                                disabled={!ready || printing || loadingCtx}>
+                                {printing
+                                    ? <><span className="spinner-border spinner-border-sm me-2" />Opening...</>
+                                    : <><i className="bi bi-printer me-1" />Print Sheet</>}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -431,73 +403,70 @@ export default function ClassMarksSheetPage() {
 
             {/* Marks Sheet Table View */}
             {ready && (
-                <div className="card shadow-lg border-0 rounded-4 overflow-hidden bg-white mb-4">
-                    <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
-                        <div className="fw-bold text-dark d-flex align-items-center gap-2">
-                            <i className="bi bi-table text-teal" style={{ color: '#0f766e' }}></i>
-                            <span>Class Matrix ({sheet?.students?.length || 0} Students)</span>
+                <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 py-3" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
+                        <div className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
+                            Class Matrix ({sheet?.students?.length || 0} Students)
+                        </div>
+                        <div className="input-group input-group-sm" style={{ width: 200 }}>
+                            <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
+                            <input type="text" className="form-control border-0 bg-light" placeholder="Search name/roll..."
+                                value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
                         </div>
                     </div>
 
                     <div className="card-body p-0">
                         {loading ? (
                             <div className="text-center p-5">
-                                <div className="spinner-border text-teal" role="status" style={{ color: '#0f766e' }}></div>
+                                <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal)' }}></div>
                                 <p className="text-muted mt-2 small fw-semibold">Loading class marks sheet matrix...</p>
                             </div>
                         ) : !sheet || sheet.students.length === 0 ? (
                             <div className="text-center p-5 text-muted">
-                                <i className="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
                                 No student marks recorded for selected term &amp; section.
                             </div>
                         ) : (
                             <div className="table-responsive">
-                                <table className="table table-hover align-middle mb-0" style={{ fontSize: 12.5, minWidth: 750 }}>
-                                    <thead className="text-uppercase small" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>
+                                <table className="table table-hover align-middle mb-0">
+                                    <thead style={{ background: 'var(--primary-dark)', color: '#fff' }}>
                                         <tr>
-                                            <th className="ps-3" style={{ width: 50, padding: '10px 12px' }}>Roll</th>
-                                            <th style={{ minWidth: 160, padding: '10px 12px' }}>Student Name</th>
+                                            <th className="ps-3" style={{ width: 50 }}>Roll</th>
+                                            <th style={{ minWidth: 160 }}>Student Name</th>
                                             {sheet.subjects.map(s => (
-                                                <th key={s.subject_id} className="text-center" style={{ padding: '10px 12px' }}>{s.subject_name}</th>
+                                                <th key={s.subject_id} className="text-center">{s.subject_name}</th>
                                             ))}
-                                            <th className="text-center" style={{ width: 90, padding: '10px 12px' }}>Obtained</th>
-                                            <th className="text-center" style={{ width: 80, padding: '10px 12px' }}>Rank</th>
-                                            <th className="text-center pe-3" style={{ width: 70, padding: '10px 12px' }}>Grade</th>
+                                            <th className="text-center" style={{ width: 90 }}>Obtained</th>
+                                            <th className="text-center" style={{ width: 80 }}>Rank</th>
+                                            <th className="text-center pe-3" style={{ width: 70 }}>Grade</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredStudents.map((st, idx) => (
                                             <tr key={st.student_id}>
-                                                <td className="ps-3">
-                                                    <span className="badge bg-light text-dark border fw-bold" style={{ fontSize: 10.5 }}>
-                                                        {st.roll_no || idx + 1}
-                                                    </span>
-                                                </td>
-                                                <td className="fw-bold text-dark">{st.first_name} {st.last_name}</td>
+                                                <td className="ps-3 fw-semibold">{st.roll_no || idx + 1}</td>
+                                                <td className="fw-semibold">{st.first_name} {st.last_name}</td>
                                                 {sheet.subjects.map(sub => {
                                                     const sm = st.subject_marks.find(m => m.subject_id === sub.subject_id);
                                                     return (
-                                                        <td key={sub.subject_id} className="text-center font-monospace">
+                                                        <td key={sub.subject_id} className="text-center">
                                                             {sm && sm.obtained_marks !== null ? (
-                                                                <span className="fw-bold text-dark">{fmtN(sm.obtained_marks)}</span>
+                                                                <span className="fw-bold">{fmtN(sm.obtained_marks)}</span>
                                                             ) : (
                                                                 <span className="text-muted small">—</span>
                                                             )}
                                                         </td>
                                                     );
                                                 })}
-                                                <td className="text-center fw-black text-success" style={{ fontSize: 13 }}>
+                                                <td className="text-center fw-bold text-success">
                                                     {fmtN(st.grand_obtained)}
                                                 </td>
                                                 <td className="text-center">
                                                     {st.ordinal_position ? (
-                                                        <span className="badge bg-teal text-white fw-bold px-2 py-1" style={{ background: '#0f766e', fontSize: 10 }}>
-                                                            {st.ordinal_position}
-                                                        </span>
+                                                        <span className="badge bg-light text-primary border fw-bold">{st.ordinal_position}</span>
                                                     ) : <span className="text-muted">—</span>}
                                                 </td>
                                                 <td className="text-center pe-3">
-                                                    <span className={`badge ${st.grade === 'F' ? 'bg-danger' : st.grade === 'A+' ? 'bg-success' : 'bg-primary'}`} style={{ fontSize: 10 }}>
+                                                    <span className={`badge ${st.grade === 'F' ? 'bg-danger' : st.grade === 'A+' ? 'bg-success' : 'bg-primary'}`}>
                                                         {st.grade || '—'}
                                                     </span>
                                                 </td>

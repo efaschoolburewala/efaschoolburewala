@@ -121,7 +121,7 @@ export default function TestMarkingPage() {
             setSelSubject(String(filteredSubjects[0].subject_id));
     }, [filteredSubjects]);
 
-    // ── load tests list (Seamless Auto-Load) ──────────────────────────────────
+    // Seamless auto loading on filter selection
     const loadTests = async () => {
         if (!readyToList || !user?.id) return;
         setLoadingTests(true);
@@ -288,75 +288,59 @@ export default function TestMarkingPage() {
     }, [sheet, searchKeyword]);
 
     return (
-        <div className="container-fluid p-2 p-md-4 bg-light min-vh-100">
-            {/* Header Banner - Executive Gradient */}
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-lg position-relative overflow-hidden"
-                style={{
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f766e 60%, #047857 100%)',
-                    color: 'white',
-                    borderLeft: '5px solid #14b8a6'
-                }}>
+        <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '1.5rem' }}>
+            {/* Standard Theme Page Header */}
+            <div className="d-flex align-items-center justify-content-between mb-4">
                 <div>
-                    <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                            <i className="bi bi-journal-check me-1"></i>CLASS TEST EVALUATION
-                        </span>
-                    </div>
-                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
-                        Class Test Marking &amp; Assessment
-                    </h2>
-                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
-                        Create class tests, enter student marks and track ongoing test performance
-                    </p>
+                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-journal-check me-2" style={{ color: 'var(--accent-orange)' }} />
+                        Test Marking
+                    </h4>
+                    <div className="text-muted small">Create and mark class tests for selected subject</div>
                 </div>
 
                 {readyToList && hasPermission('academic', 'write') && (
-                    <div className="d-flex align-items-center gap-2">
-                        <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
-                            onClick={() => setShowCreateForm(p => !p)}
-                            style={{ background: showCreateForm ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', borderRadius: 10 }}>
-                            <i className={`bi ${showCreateForm ? 'bi-x-lg' : 'bi-plus-circle-fill'} fs-6`}></i>
-                            <span className="fw-semibold">{showCreateForm ? 'Cancel Form' : 'New Class Test'}</span>
-                        </button>
-                    </div>
+                    <button className="btn btn-primary-custom btn-sm fw-bold px-3" onClick={() => setShowCreateForm(p => !p)}>
+                        <i className={`bi ${showCreateForm ? 'bi-x-lg' : 'bi-plus-lg'} me-1`}></i>
+                        {showCreateForm ? 'Cancel' : 'New Test'}
+                    </button>
                 )}
             </div>
 
             {msg && (
-                <div className={`alert alert-${msg.type} alert-dismissible shadow-sm rounded-3 mb-4`} role="alert">
-                    <i className={`bi ${msg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+                <div className={`alert alert-${msg.type} alert-dismissible`} role="alert">
                     {msg.text}
                     <button type="button" className="btn-close" onClick={() => setMsg(null)} />
                 </div>
             )}
 
-            {/* Seamless Filter Bar */}
-            <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
-                <div className="card-body p-3">
-                    <div className="row g-2 g-md-3 align-items-center">
+            {/* Filters (Original Theme Structure) */}
+            <div className="card border-0 shadow-sm mb-4">
+                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-funnel-fill me-2" style={{ color: 'var(--primary-teal)' }} />
+                        Filter Test Marking
+                    </h6>
+                </div>
+                <div className="card-body">
+                    <div className="row g-3 align-items-end">
                         <div className="col-12 col-sm-4 col-md-4">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-building me-1 text-primary"></i>Class
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selClass} onChange={e => setSelClass(e.target.value)} disabled={loadingCtx}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Class</label>
+                            <select className="form-select rounded-3" value={selClass} onChange={e => setSelClass(e.target.value)} disabled={loadingCtx}>
                                 <option value="">Select Class</option>
                                 {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
                         <div className="col-12 col-sm-4 col-md-4">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-diagram-2 me-1 text-primary"></i>Section
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selSection} onChange={e => setSelSection(e.target.value)} disabled={!selClass || loadingCtx}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Section</label>
+                            <select className="form-select rounded-3" value={selSection} onChange={e => setSelSection(e.target.value)} disabled={!selClass || loadingCtx}>
                                 <option value="">Select Section</option>
                                 {filteredSections.map(s => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
                             </select>
                         </div>
                         <div className="col-12 col-sm-4 col-md-4">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-book me-1 text-primary"></i>Subject
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selSubject} onChange={e => setSelSubject(e.target.value)} disabled={!selSection || loadingCtx}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Subject</label>
+                            <select className="form-select rounded-3" value={selSubject} onChange={e => setSelSubject(e.target.value)} disabled={!selSection || loadingCtx}>
                                 <option value="">Select Subject</option>
                                 {filteredSubjects.map(s => <option key={s.subject_id} value={s.subject_id}>{s.subject_name}{s.subject_code ? ` (${s.subject_code})` : ''}</option>)}
                             </select>
@@ -365,27 +349,27 @@ export default function TestMarkingPage() {
                 </div>
             </div>
 
-            {/* Create New Test Collapse Form */}
+            {/* Create New Test Form */}
             {showCreateForm && readyToList && (
-                <div className="card shadow-md border-0 rounded-4 mb-4 bg-white" style={{ borderLeft: '4px solid #0f766e' }}>
-                    <div className="card-body p-3 p-md-4">
-                        <h6 className="fw-bold text-dark mb-3">Create New Class Test</h6>
+                <div className="card border-0 shadow-sm mb-4" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <div className="card-body">
+                        <h6 className="fw-bold mb-3" style={{ color: 'var(--primary-dark)' }}>Create New Class Test</h6>
                         <div className="row g-3">
                             <div className="col-12 col-md-6">
-                                <label className="form-label small fw-bold text-muted text-uppercase">Test Name / Title *</label>
-                                <input type="text" className="form-control rounded-3" placeholder="e.g. Weekly Quiz #1" value={formName} onChange={e => setFormName(e.target.value)} />
+                                <label className="form-label small fw-semibold text-muted text-uppercase">Test Name *</label>
+                                <input type="text" className="form-control rounded-3" placeholder="e.g. Test #1 - Chapter 1" value={formName} onChange={e => setFormName(e.target.value)} />
                             </div>
                             <div className="col-12 col-md-3">
-                                <label className="form-label small fw-bold text-muted text-uppercase">Total Marks *</label>
+                                <label className="form-label small fw-semibold text-muted text-uppercase">Total Marks *</label>
                                 <input type="number" className="form-control rounded-3 text-center fw-bold" placeholder="25" min={1} value={formTotal} onChange={e => setFormTotal(e.target.value)} />
                             </div>
                             <div className="col-12 col-md-3 d-flex align-items-end">
-                                <button className="btn btn-teal text-white fw-bold w-100 rounded-3 py-2" onClick={handleCreate} disabled={creating} style={{ background: '#0f766e' }}>
-                                    {creating ? 'Creating...' : 'Create Test Paper'}
+                                <button className="btn btn-primary-custom fw-bold w-100 py-2 rounded-3" onClick={handleCreate} disabled={creating}>
+                                    {creating ? 'Creating...' : 'Create Test'}
                                 </button>
                             </div>
                             <div className="col-12">
-                                <input type="text" className="form-control rounded-3" placeholder="Description / topics covered (optional)..." value={formDesc} onChange={e => setFormDesc(e.target.value)} />
+                                <input type="text" className="form-control rounded-3" placeholder="Description / topics (optional)..." value={formDesc} onChange={e => setFormDesc(e.target.value)} />
                             </div>
                         </div>
                     </div>
@@ -397,9 +381,11 @@ export default function TestMarkingPage() {
                 <div className="row g-3">
                     {/* Left Column: Test Papers List */}
                     <div className={sheet ? "col-12 col-lg-4" : "col-12"}>
-                        <div className="card shadow-lg border-0 rounded-4 bg-white overflow-hidden">
-                            <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
-                                <span className="fw-bold text-dark">Class Tests ({tests.length})</span>
+                        <div className="card border-0 shadow-sm">
+                            <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
+                                <div className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
+                                    Class Tests ({tests.length})
+                                </div>
                             </div>
                             <div className="card-body p-0">
                                 {loadingTests ? (
@@ -413,15 +399,15 @@ export default function TestMarkingPage() {
                                             return (
                                                 <button key={t.test_id}
                                                     className={`list-group-item list-group-item-action p-3 text-start border-bottom ${isActive ? 'bg-light border-start border-4 border-teal' : ''}`}
-                                                    style={{ borderLeftColor: isActive ? '#0f766e' : 'transparent' }}
+                                                    style={{ borderLeftColor: isActive ? 'var(--primary-teal)' : 'transparent' }}
                                                     onClick={() => openSheet(t.test_id)}>
                                                     <div className="d-flex justify-content-between align-items-start mb-1">
-                                                        <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>{t.test_name}</span>
+                                                        <span className="fw-bold text-dark">{t.test_name}</span>
                                                         <span className="badge bg-light text-dark border fw-bold">{t.total_marks} Marks</span>
                                                     </div>
-                                                    <div className="d-flex justify-content-between align-items-center mt-2" style={{ fontSize: 11 }}>
+                                                    <div className="d-flex justify-content-between align-items-center mt-2 small">
                                                         <span className="text-muted"><i className="bi bi-person me-1"></i>{t.created_by_name || 'Teacher'}</span>
-                                                        <span className={`badge rounded-pill ${t.marks_entered > 0 ? 'bg-success bg-opacity-15 text-success' : 'bg-warning bg-opacity-15 text-warning-emphasis'}`}>
+                                                        <span className={`badge ${t.marks_entered > 0 ? 'bg-success-subtle text-success-emphasis border' : 'bg-warning-subtle text-warning-emphasis border'}`}>
                                                             {t.marks_entered > 0 ? `${t.marks_entered} Entered` : 'Pending'}
                                                         </span>
                                                     </div>
@@ -437,29 +423,28 @@ export default function TestMarkingPage() {
                     {/* Right Column: Marking Sheet */}
                     {sheet && (
                         <div className="col-12 col-lg-8">
-                            <div className="card shadow-lg border-0 rounded-4 bg-white overflow-hidden">
-                                <div className="card-header bg-white p-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2">
+                            <div className="card border-0 shadow-sm">
+                                <div className="card-header bg-white border-bottom d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
                                     <div>
-                                        <h5 className="fw-bold text-dark mb-0">{sheet.test.test_name}</h5>
+                                        <h5 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>{sheet.test.test_name}</h5>
                                         <span className="text-muted small">Max Marks: {sheet.test.total_marks}</span>
                                     </div>
 
-                                    <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                                        <div className="input-group input-group-sm" style={{ maxWidth: 180 }}>
+                                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                                        <div className="input-group input-group-sm" style={{ width: 170 }}>
                                             <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
                                             <input type="text" className="form-control border-0 bg-light" placeholder="Search..."
-                                                value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
+                                                value={searchKeyword} onChange={e => setSearchKeyword(e.key || e.target.value)} />
                                         </div>
 
                                         {!sheet.readonly && hasPermission('academic', 'write') && (
-                                            <button className="btn btn-teal text-white btn-sm fw-bold px-3 py-1.5 rounded-3 shadow-sm"
-                                                onClick={handleSaveMarks} disabled={saving || loadingSheet} style={{ background: '#0f766e' }}>
-                                                {saving ? 'Saving...' : <><i className="bi bi-floppy-fill me-1"></i>Save Marks</>}
+                                            <button className="btn btn-primary-custom btn-sm fw-bold px-3" onClick={handleSaveMarks} disabled={saving || loadingSheet}>
+                                                {saving ? 'Saving...' : <><i className="bi bi-floppy me-1"></i>Save Marks</>}
                                             </button>
                                         )}
 
                                         {(isAdmin || hasPermission('academic', 'delete')) && (
-                                            <button className="btn btn-outline-danger btn-sm rounded-3 px-2.5 py-1.5"
+                                            <button className="btn btn-outline-danger btn-sm px-2.5"
                                                 onClick={() => handleDeleteTest(sheet.test.test_id, sheet.test.test_name)} disabled={deleting}>
                                                 <i className="bi bi-trash3"></i>
                                             </button>
@@ -470,18 +455,18 @@ export default function TestMarkingPage() {
                                 <div className="card-body p-0">
                                     {loadingSheet ? (
                                         <div className="text-center p-5">
-                                            <div className="spinner-border text-teal" role="status" style={{ color: '#0f766e' }}></div>
+                                            <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal)' }}></div>
                                             <p className="text-muted mt-2 small fw-semibold">Loading student test marks...</p>
                                         </div>
                                     ) : (
                                         <div className="table-responsive">
-                                            <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-                                                <thead className="text-uppercase small" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>
+                                            <table className="table table-hover align-middle mb-0">
+                                                <thead style={{ background: 'var(--primary-dark)', color: '#fff' }}>
                                                     <tr>
                                                         <th className="ps-3" style={{ width: 40 }}>#</th>
                                                         <th>Student Name</th>
                                                         <th style={{ width: 90 }}>Roll No</th>
-                                                        <th className="text-end" style={{ width: 140 }}>Obtained</th>
+                                                        <th className="text-end pe-3" style={{ width: 140 }}>Obtained</th>
                                                         <th style={{ width: 180 }}>Remarks</th>
                                                     </tr>
                                                 </thead>
@@ -495,8 +480,8 @@ export default function TestMarkingPage() {
                                                                     {s.roll_no || '—'}
                                                                 </span>
                                                             </td>
-                                                            <td className="text-end">
-                                                                <div className="input-group input-group-sm ms-auto" style={{ maxWidth: 130 }}>
+                                                            <td className="text-end pe-3">
+                                                                <div className="input-group input-group-sm ms-auto" style={{ width: 130 }}>
                                                                     <input
                                                                         type="number"
                                                                         className="form-control form-control-sm text-end fw-bold"
@@ -509,13 +494,13 @@ export default function TestMarkingPage() {
                                                                         disabled={sheet.readonly || saving}
                                                                         onChange={(e) => setObtainedMap(p => ({ ...p, [s.student_id]: e.target.value }))}
                                                                     />
-                                                                    <span className="input-group-text bg-light text-muted" style={{ fontSize: 10 }}>/ {sheet.test.total_marks}</span>
+                                                                    <span className="input-group-text text-muted" style={{ fontSize: 10 }}>/ {sheet.test.total_marks}</span>
                                                                 </div>
                                                             </td>
                                                             <td>
                                                                 <input
                                                                     type="text"
-                                                                    className="form-control form-control-sm border-light"
+                                                                    className="form-control form-control-sm"
                                                                     placeholder="Remarks..."
                                                                     value={remarksMap[s.student_id] ?? ''}
                                                                     disabled={sheet.readonly || saving}

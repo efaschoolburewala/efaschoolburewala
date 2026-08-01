@@ -193,7 +193,7 @@ export default function ExaminationMarksPage() {
         }
     }, [filteredSubjects, selectedSubject]);
 
-    // Seamless Auto-Load on Filter Selection
+    // Seamless Auto Load on selection (No manual "Load Students" button needed)
     useEffect(() => {
         if (readyToLoadSheet) {
             loadSheet();
@@ -301,91 +301,81 @@ export default function ExaminationMarksPage() {
         );
     }
 
-    const enteredCount = students.filter(s => obtainedMap[s.student_id] !== '' && obtainedMap[s.student_id] !== undefined).length;
-    const presentCount = students.filter(s => {
-        const n = Number(obtainedMap[s.student_id]);
-        return Number.isFinite(n) && n > 0;
-    }).length;
+    const presentCount = students.length
+        ? students.filter(s => {
+            const raw = obtainedMap[s.student_id];
+            const n = Number(raw);
+            return Number.isFinite(n) && n > 0;
+        }).length
+        : 0;
 
-    const avgMarks = students.length ? (() => {
-        const nums = students.map(s => Number(obtainedMap[s.student_id])).filter(n => Number.isFinite(n));
-        if (!nums.length) return 0;
-        return +(nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2);
-    })() : 0;
+    const avgMarks = students.length
+        ? (() => {
+            const nums = students
+                .map(s => Number(obtainedMap[s.student_id]))
+                .filter(n => Number.isFinite(n));
+            if (!nums.length) return 0;
+            return +(nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2);
+        })()
+        : 0;
 
     return (
-        <div className="container-fluid p-2 p-md-4 bg-light min-vh-100">
-            {/* Header Banner - Modern Executive Gradient */}
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-lg position-relative overflow-hidden"
-                style={{
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f766e 60%, #047857 100%)',
-                    color: 'white',
-                    borderLeft: '5px solid #14b8a6'
-                }}>
+        <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '1.5rem' }}>
+            {/* Standard Theme Page Header */}
+            <div className="d-flex align-items-center justify-content-between mb-4">
                 <div>
-                    <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                            <i className="bi bi-mortarboard me-1"></i>EXAMINATION MANAGEMENT
-                        </span>
-                        {activeYearName && (
-                            <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
-                                Year: {activeYearName}
-                            </span>
-                        )}
-                    </div>
-                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
-                        Subject Examination Marks Entry
-                    </h2>
-                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
-                        Seamless, real-time subject marks recording and exam evaluation for class sections
-                    </p>
+                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-journal-check me-2" style={{ color: 'var(--accent-orange)' }} />
+                        Examination Marks
+                    </h4>
+                    <div className="text-muted small">Enter and manage term-wise subject marks</div>
                 </div>
+                <span className="badge rounded-pill bg-light text-dark border">
+                    Academic Year: {activeYearName || '—'}
+                </span>
             </div>
 
             {msg && (
-                <div className={`alert alert-${msg.type} alert-dismissible shadow-sm rounded-3 mb-4`} role="alert">
-                    <i className={`bi ${msg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+                <div className={`alert alert-${msg.type} alert-dismissible`} role="alert">
                     {msg.text}
                     <button type="button" className="btn-close" onClick={() => setMsg(null)} />
                 </div>
             )}
 
-            {/* Seamless Smart Filter Bar */}
-            <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
-                <div className="card-body p-3">
-                    <div className="row g-2 g-md-3 align-items-center">
+            {/* Seamless Filter Bar (Original Theme Structure) */}
+            <div className="card border-0 shadow-sm mb-4">
+                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-funnel-fill me-2" style={{ color: 'var(--primary-teal)' }} />
+                        Filter Marking Sheet
+                    </h6>
+                </div>
+                <div className="card-body">
+                    <div className="row g-3 align-items-end">
                         <div className="col-12 col-sm-6 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-calendar-event me-1 text-primary"></i>Exam Term
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)} disabled={loadingContext}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Term</label>
+                            <select className="form-select rounded-3" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)} disabled={loadingContext}>
                                 <option value="">Select Term</option>
                                 {terms.map(t => <option key={t.id} value={t.id}>{t.term_name}</option>)}
                             </select>
                         </div>
                         <div className="col-12 col-sm-6 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-building me-1 text-primary"></i>Class
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={loadingContext}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Class</label>
+                            <select className="form-select rounded-3" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={loadingContext}>
                                 <option value="">Select Class</option>
                                 {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
                         <div className="col-12 col-sm-6 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-diagram-2 me-1 text-primary"></i>Section
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} disabled={!selectedClass || loadingContext}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Section</label>
+                            <select className="form-select rounded-3" value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} disabled={!selectedClass || loadingContext}>
                                 <option value="">Select Section</option>
                                 {filteredSections.map(s => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
                             </select>
                         </div>
                         <div className="col-12 col-sm-6 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-book me-1 text-primary"></i>Subject
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} disabled={!selectedSection || loadingContext}>
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Subject</label>
+                            <select className="form-select rounded-3" value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} disabled={!selectedSection || loadingContext}>
                                 <option value="">Select Subject</option>
                                 {filteredSubjects.map(s => <option key={s.subject_id} value={s.subject_id}>{s.subject_name}{s.subject_code ? ` (${s.subject_code})` : ''}</option>)}
                             </select>
@@ -394,61 +384,48 @@ export default function ExaminationMarksPage() {
                 </div>
             </div>
 
-            {/* Marking Sheet Card */}
+            {/* Marking Sheet View */}
             {readyToLoadSheet && (
-                <div className="card shadow-lg border-0 rounded-4 overflow-hidden bg-white mb-4">
-                    {/* Toolbar Header */}
-                    <div className="card-header bg-white p-3 border-bottom d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3">
-                        <div className="d-flex align-items-center gap-3">
-                            <div className="rounded-3 p-2 text-white" style={{ background: 'linear-gradient(135deg, #0f766e, #047857)' }}>
-                                <i className="bi bi-journal-check fs-5"></i>
-                            </div>
-                            <div>
-                                <h5 className="fw-bold mb-0 text-dark">Marking Sheet</h5>
-                                <span className="text-muted small">
-                                    Total {students.length} Student{students.length !== 1 ? 's' : ''} Enrolled
-                                </span>
-                            </div>
+                <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-header bg-white d-flex justify-content-between align-items-center border-bottom flex-wrap gap-2 py-3" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
+                        <div className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
+                            Marking Sheet ({students.length} students)
                         </div>
 
-                        <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
                             <div className="input-group input-group-sm" style={{ width: 170 }}>
-                                <span className="input-group-text bg-light border-0 fw-semibold text-muted" style={{ fontSize: 11 }}>Total Marks</span>
+                                <span className="input-group-text bg-light text-muted">Out of</span>
                                 <input
                                     type="number"
-                                    className="form-control border-0 bg-light fw-bold text-center"
+                                    className="form-control text-center fw-bold"
                                     onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                     value={totalMarks}
                                     min={1}
                                     onChange={(e) => setTotalMarks(e.target.value)}
                                     disabled={sheetReadonly || saving || loadingSheet}
-                                    style={{ fontSize: 13 }}
                                 />
                             </div>
 
-                            <div className="input-group input-group-sm ms-md-2" style={{ maxWidth: 200 }}>
+                            <div className="input-group input-group-sm" style={{ width: 180 }}>
                                 <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
                                 <input
                                     type="text"
                                     className="form-control border-0 bg-light"
-                                    placeholder="Search student..."
+                                    placeholder="Search..."
                                     value={searchKeyword}
                                     onChange={(e) => setSearchKeyword(e.target.value)}
                                 />
                             </div>
 
                             {!sheetReadonly && hasPermission('academic', 'write') && (
-                                <button className="btn btn-teal text-white btn-sm fw-bold px-3 py-1.5 rounded-3 shadow-sm d-flex align-items-center gap-1"
-                                    onClick={handleSave} disabled={saving || loadingSheet || students.length === 0}
-                                    style={{ background: '#0f766e' }}>
-                                    {saving ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-floppy-fill me-1" />}
-                                    Save Marks
+                                <button className="btn btn-primary-custom btn-sm fw-bold px-3" onClick={handleSave} disabled={saving || loadingSheet || students.length === 0}>
+                                    {saving ? (<><span className="spinner-border spinner-border-sm me-2" />Saving...</>) : <><i className="bi bi-floppy me-1"></i>Save Marks</>}
                                 </button>
                             )}
 
                             {isAdmin && sheetHasAnyMarks && hasPermission('academic', 'delete') && (
-                                <button className="btn btn-outline-danger btn-sm rounded-3 px-3 py-1.5 fw-semibold" onClick={handleDeleteSheet} disabled={deleting || loadingSheet}>
-                                    {deleting ? 'Deleting...' : <><i className="bi bi-trash3 me-1"></i>Delete</>}
+                                <button className="btn btn-outline-danger btn-sm px-3" onClick={handleDeleteSheet} disabled={deleting || loadingSheet}>
+                                    {deleting ? 'Deleting...' : 'Delete Sheet'}
                                 </button>
                             )}
                         </div>
@@ -456,30 +433,31 @@ export default function ExaminationMarksPage() {
 
                     <div className="card-body p-0">
                         {sheetReadonly && (
-                            <div className="alert alert-warning m-3 mb-0 rounded-3">
-                                <i className="bi bi-lock-fill me-2"></i>
-                                This sheet is locked for your account. You can only view marks.
+                            <div className="alert alert-warning m-3 mb-0">
+                                This sheet is locked for your account. You can only view marks now.
                             </div>
                         )}
 
                         {students.length > 0 && (
-                            <div className="p-3 bg-light border-bottom">
+                            <div className="px-3 px-md-4 py-3 border-bottom bg-light">
                                 <div className="row g-2 text-center text-md-start">
                                     <div className="col-6 col-md-3">
-                                        <span className="text-muted small d-block text-uppercase fw-bold" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Enrolled Students</span>
-                                        <span className="fw-black text-dark fs-6">{students.length}</span>
+                                        <div className="small text-muted">Students</div>
+                                        <div className="fw-bold" style={{ color: 'var(--primary-dark)' }}>{students.length}</div>
                                     </div>
                                     <div className="col-6 col-md-3">
-                                        <span className="text-muted small d-block text-uppercase fw-bold" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Marks Entered</span>
-                                        <span className="fw-black text-success fs-6">{enteredCount} / {students.length}</span>
+                                        <div className="small text-muted">Entered Marks</div>
+                                        <div className="fw-bold" style={{ color: 'var(--primary-teal)' }}>
+                                            {students.filter(s => obtainedMap[s.student_id] !== '' && obtainedMap[s.student_id] !== undefined).length}
+                                        </div>
                                     </div>
                                     <div className="col-6 col-md-3">
-                                        <span className="text-muted small d-block text-uppercase fw-bold" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Class Average</span>
-                                        <span className="fw-black text-primary fs-6">{avgMarks} / {totalMarks}</span>
+                                        <div className="small text-muted">Average</div>
+                                        <div className="fw-bold" style={{ color: 'var(--accent-orange)' }}>{avgMarks}</div>
                                     </div>
                                     <div className="col-6 col-md-3">
-                                        <span className="text-muted small d-block text-uppercase fw-bold" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Passed Students (&gt;0)</span>
-                                        <span className="fw-black text-teal fs-6" style={{ color: '#0f766e' }}>{presentCount}</span>
+                                        <div className="small text-muted">Above Zero</div>
+                                        <div className="fw-bold" style={{ color: 'var(--primary-dark)' }}>{presentCount}</div>
                                     </div>
                                 </div>
                             </div>
@@ -487,44 +465,35 @@ export default function ExaminationMarksPage() {
 
                         {loadingSheet ? (
                             <div className="text-center p-5">
-                                <div className="spinner-border text-teal" role="status" style={{ color: '#0f766e' }}></div>
-                                <p className="text-muted mt-2 small fw-semibold">Loading class marking sheet...</p>
+                                <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal)' }}></div>
+                                <p className="text-muted mt-2 small fw-semibold">Loading marking sheet...</p>
                             </div>
                         ) : filteredStudents.length === 0 ? (
-                            <div className="text-center p-5 text-muted">
-                                <i className="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
-                                {students.length === 0 ? 'No students enrolled in this section' : 'No student matching search query'}
+                            <div className="text-center py-5 text-muted">
+                                {students.length === 0 ? 'Load a valid term/class/section/subject to view students.' : 'No student matching search query.'}
                             </div>
                         ) : (
                             <div className="table-responsive">
-                                <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-                                    <thead className="text-uppercase small" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>
+                                <table className="table table-hover align-middle mb-0">
+                                    <thead style={{ background: 'var(--primary-dark)', color: '#fff' }}>
                                         <tr>
-                                            <th className="ps-3" style={{ width: 40, padding: '11px 12px' }}>#</th>
-                                            <th style={{ width: 100, padding: '11px 12px' }}>Roll No</th>
-                                            <th style={{ width: 120, padding: '11px 12px' }}>Admission No</th>
-                                            <th style={{ padding: '11px 12px' }}>Student Name</th>
-                                            <th className="text-end pe-4" style={{ width: 220, padding: '11px 12px' }}>Obtained Marks</th>
+                                            <th className="ps-4">Roll No</th>
+                                            <th>Admission No</th>
+                                            <th>Student Name</th>
+                                            <th className="text-end pe-4" style={{ width: 180 }}>Obtained Marks</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredStudents.map((s, idx) => (
+                                        {filteredStudents.map((s) => (
                                             <tr key={s.student_id}>
-                                                <td className="ps-3 text-muted small fw-semibold">{idx + 1}</td>
-                                                <td>
-                                                    <span className="badge bg-light text-dark border fw-bold" style={{ fontSize: 11 }}>
-                                                        {s.roll_no || '—'}
-                                                    </span>
-                                                </td>
-                                                <td className="text-muted small">{s.admission_no || '—'}</td>
-                                                <td>
-                                                    <div className="fw-bold text-dark">{s.first_name} {s.last_name}</div>
-                                                </td>
+                                                <td className="ps-4 fw-semibold">{s.roll_no || '—'}</td>
+                                                <td>{s.admission_no || '—'}</td>
+                                                <td className="fw-semibold">{s.first_name} {s.last_name}</td>
                                                 <td className="text-end pe-4">
-                                                    <div className="input-group input-group-sm ms-auto" style={{ maxWidth: 160 }}>
+                                                    <div className="input-group input-group-sm ms-auto" style={{ width: 140 }}>
                                                         <input
                                                             type="number"
-                                                            className="form-control form-control-sm text-end fw-bold border-1"
+                                                            className="form-control form-control-sm text-end fw-bold"
                                                             onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                                                             min={0}
                                                             max={Number(totalMarks) || undefined}
@@ -533,9 +502,8 @@ export default function ExaminationMarksPage() {
                                                             value={obtainedMap[s.student_id] ?? ''}
                                                             disabled={sheetReadonly || saving || loadingSheet}
                                                             onChange={(e) => handleObtainedChange(s.student_id, e.target.value)}
-                                                            style={{ border: '1px solid #cbd5e1', borderRadius: '6px 0 0 6px' }}
                                                         />
-                                                        <span className="input-group-text bg-light text-muted fw-semibold" style={{ fontSize: 11 }}>/ {totalMarks}</span>
+                                                        <span className="input-group-text text-muted" style={{ fontSize: 10 }}>/ {totalMarks}</span>
                                                     </div>
                                                 </td>
                                             </tr>

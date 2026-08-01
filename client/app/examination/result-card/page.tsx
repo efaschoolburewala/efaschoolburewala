@@ -203,7 +203,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
                 .print-toolbar {
                     position: fixed;
                     top: 0; left: 0; right: 0;
-                    background: #0f766e;
+                    background: #215E61;
                     color: #fff;
                     padding: 10px 20px;
                     display: flex;
@@ -214,7 +214,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
                     font-size: 14px;
                 }
                 .print-toolbar button {
-                    background: #16a34a;
+                    background: #FE7F2D;
                     color: #fff;
                     border: none;
                     padding: 7px 22px;
@@ -514,157 +514,142 @@ export default function ResultCardPage() {
     }
 
     return (
-        <div className="container-fluid p-2 p-md-4 bg-light min-vh-100">
-            {/* Header Banner - Executive Gradient */}
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-lg position-relative overflow-hidden"
-                style={{
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f766e 60%, #047857 100%)',
-                    color: 'white',
-                    borderLeft: '5px solid #14b8a6'
-                }}>
+        <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '1.5rem' }}>
+            {/* Standard Theme Page Header */}
+            <div className="d-flex align-items-center justify-content-between mb-4">
                 <div>
-                    <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                            <i className="bi bi-file-earmark-text me-1"></i>STUDENT RESULT CARDS
-                        </span>
-                        {activeYearName && (
-                            <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
-                                Year: {activeYearName}
-                            </span>
-                        )}
-                    </div>
-                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
-                        Individual &amp; Batch Result Card Printing
-                    </h2>
-                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
-                        Generate, review and print individual or batch student result cards with grades &amp; positions
-                    </p>
+                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-file-earmark-text me-2" style={{ color: 'var(--accent-orange)' }} />
+                        Result Card
+                    </h4>
+                    <div className="text-muted small">Select term, class and section to open student result cards</div>
                 </div>
-
-                <div className="d-flex align-items-center gap-2">
-                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
-                        onClick={handlePrintSelected} disabled={printing || selectedIds.size === 0 || students.length === 0}
-                        style={{ background: selectedIds.size > 0 ? '#16a34a' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}>
-                        {printing ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-printer-fill me-1"></i>}
-                        <span className="fw-semibold">Print Selected ({selectedIds.size})</span>
-                    </button>
-                </div>
+                <span className="badge rounded-pill bg-light text-dark border">
+                    Academic Year: {activeYearName || '—'}
+                </span>
             </div>
 
             {msg && (
-                <div className={`alert alert-${msg.type} alert-dismissible shadow-sm rounded-3 mb-4`} role="alert">
-                    <i className={`bi ${msg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+                <div className={`alert alert-${msg.type} alert-dismissible`} role="alert">
                     {msg.text}
                     <button type="button" className="btn-close" onClick={() => setMsg(null)} />
                 </div>
             )}
 
-            {/* Seamless Filter Bar */}
-            <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
-                <div className="card-body p-3">
-                    <div className="row g-2 g-md-3 align-items-center">
-                        <div className="col-12 col-sm-4 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-calendar-event me-1 text-primary"></i>Exam Term
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)} disabled={loadingContext}>
+            {/* Filters (Original Theme Structure) */}
+            <div className="card border-0 shadow-sm mb-4">
+                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-funnel-fill me-2" style={{ color: 'var(--primary-teal)' }} />
+                        Result Card Filters
+                    </h6>
+                </div>
+                <div className="card-body">
+                    <div className="row g-3 align-items-end">
+                        <div className="col-12 col-sm-6 col-md-4">
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Term</label>
+                            <select className="form-select rounded-3" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)} disabled={loadingContext}>
                                 <option value="">Select Term</option>
                                 {terms.map((t) => (
                                     <option key={t.id} value={t.id}>{t.term_name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 col-sm-4 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-building me-1 text-primary"></i>Class
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={loadingContext}>
+                        <div className="col-12 col-sm-6 col-md-4">
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Class</label>
+                            <select className="form-select rounded-3" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={loadingContext}>
                                 <option value="">Select Class</option>
                                 {classes.map((c) => (
                                     <option key={c.class_id} value={c.class_id}>{c.class_name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 col-sm-4 col-md-3">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                <i className="bi bi-diagram-2 me-1 text-primary"></i>Section
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} disabled={!selectedClass || loadingContext}>
+                        <div className="col-12 col-sm-6 col-md-4">
+                            <label className="form-label fw-semibold small text-muted text-uppercase">Section</label>
+                            <select
+                                className="form-select rounded-3"
+                                value={selectedSection}
+                                onChange={(e) => setSelectedSection(e.target.value)}
+                                disabled={!selectedClass || loadingContext}
+                            >
                                 <option value="">Select Section</option>
                                 {filteredSections.map((s) => (
                                     <option key={s.section_id} value={s.section_id}>{s.section_name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 col-md-3 ms-auto">
-                            <label className="form-label small text-muted text-uppercase fw-bold mb-1 d-block" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
-                                Search Student
-                            </label>
-                            <div className="input-group input-group-sm">
-                                <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
-                                <input type="text" className="form-control border-0 bg-light" placeholder="Search student name / roll..."
-                                    value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Students Table & Batch Selection */}
+            {/* Students Table Card */}
             {ready && (
-                <div className="card shadow-lg border-0 rounded-4 overflow-hidden bg-white mb-4">
-                    <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 py-3" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
                         <div className="d-flex align-items-center gap-2">
-                            <span className="fw-bold text-dark">Students List ({filteredStudents.length})</span>
-                            <span className="badge bg-light text-primary border px-2.5 py-1 rounded-pill" style={{ fontSize: 11 }}>
-                                {selectedIds.size} Selected for Batch Print
+                            <span className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
+                                Students ({filteredStudents.length})
+                            </span>
+                            <span className="badge bg-light text-primary border" style={{ fontSize: 11 }}>
+                                {selectedIds.size} Selected
                             </span>
                         </div>
 
-                        {filteredStudents.length > 0 && (
-                            <div className="form-check mb-0">
-                                <input
-                                    className="form-check-input"
-                                    type="checkbox"
-                                    id="selectAllStudents"
-                                    checked={allVisibleSelected}
-                                    onChange={(e) => {
-                                        if (e.target.checked) {
-                                            setSelectedIds(new Set(filteredStudents.map((s) => s.student_id)));
-                                        } else {
-                                            setSelectedIds(new Set());
-                                        }
-                                    }}
-                                />
-                                <label htmlFor="selectAllStudents" className="form-check-label small fw-bold text-dark" style={{ cursor: 'pointer' }}>Select All</label>
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <div className="input-group input-group-sm" style={{ width: 180 }}>
+                                <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
+                                <input type="text" className="form-control border-0 bg-light" placeholder="Search..."
+                                    value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
                             </div>
-                        )}
+
+                            <button className="btn btn-outline-primary btn-sm fw-bold px-3" onClick={handlePrintSelected} disabled={printing || selectedIds.size === 0 || students.length === 0}>
+                                {printing ? 'Printing...' : <><i className="bi bi-printer me-1"></i>Print Selected ({selectedIds.size})</>}
+                            </button>
+
+                            {filteredStudents.length > 0 && (
+                                <div className="form-check mb-0 ms-2">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        id="selectAllStudents"
+                                        checked={allVisibleSelected}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedIds(new Set(filteredStudents.map((s) => s.student_id)));
+                                            } else {
+                                                setSelectedIds(new Set());
+                                            }
+                                        }}
+                                    />
+                                    <label htmlFor="selectAllStudents" className="form-check-label small fw-semibold" style={{ cursor: 'pointer' }}>Select All</label>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="card-body p-0">
                         {loadingStudents ? (
                             <div className="text-center p-5">
-                                <div className="spinner-border text-teal" role="status" style={{ color: '#0f766e' }}></div>
-                                <p className="text-muted mt-2 small fw-semibold">Loading class students...</p>
+                                <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal)' }}></div>
+                                <p className="text-muted mt-2 small fw-semibold">Loading student list...</p>
                             </div>
                         ) : filteredStudents.length === 0 ? (
                             <div className="text-center p-5 text-muted">
-                                <i className="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
-                                {students.length === 0 ? 'No active students found for selected filters.' : 'No student matching search query'}
+                                {students.length === 0 ? 'No active students found for selected filters.' : 'No student matching search query.'}
                             </div>
                         ) : (
                             <div className="table-responsive">
-                                <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-                                    <thead className="text-uppercase small" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>
+                                <table className="table table-hover align-middle mb-0">
+                                    <thead style={{ background: 'var(--primary-dark)', color: '#fff' }}>
                                         <tr>
-                                            <th style={{ width: 45 }} className="text-center">Select</th>
-                                            <th>Student Details</th>
+                                            <th style={{ width: 50 }} className="text-center">Select</th>
+                                            <th>Student</th>
                                             <th style={{ width: 90 }}>Roll No</th>
                                             <th style={{ width: 80 }} className="text-center">Subjects</th>
                                             <th style={{ width: 90 }} className="text-center">Position</th>
                                             <th style={{ width: 80 }} className="text-center">%</th>
-                                            <th style={{ width: 70 }} className="text-center">Grade</th>
-                                            <th style={{ width: 100 }} className="text-end pe-4">Action</th>
+                                            <th style={{ width: 60 }} className="text-center">Grade</th>
+                                            <th style={{ width: 90 }} className="text-end pe-4">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -694,45 +679,33 @@ export default function ResultCardPage() {
                                                         />
                                                     </td>
                                                     <td>
-                                                        <div className="fw-bold text-dark d-flex align-items-center gap-2">
+                                                        <div className="fw-semibold d-flex align-items-center gap-2">
                                                             {s.first_name} {s.last_name}
-                                                            {isOpening && <span className="spinner-border spinner-border-sm text-teal" style={{ color: '#0f766e' }} />}
+                                                            {isOpening && <span className="spinner-border spinner-border-sm text-secondary" />}
                                                         </div>
                                                         <div className="small text-muted">Adm: {s.admission_no || '—'}</div>
                                                     </td>
-                                                    <td>
-                                                        <span className="badge bg-light text-dark border fw-semibold" style={{ fontSize: 10.5 }}>
-                                                            {s.roll_no || '—'}
+                                                    <td>{s.roll_no || '—'}</td>
+                                                    <td className="text-center">
+                                                        <span className={`badge ${s.marked_subjects > 0 ? 'bg-success-subtle text-success-emphasis border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}`}>
+                                                            {s.marked_subjects}
                                                         </span>
                                                     </td>
                                                     <td className="text-center">
-                                                        <span className={`badge rounded-pill ${s.marked_subjects > 0 ? 'bg-success bg-opacity-15 text-success border border-success' : 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning'}`} style={{ fontSize: 9.5 }}>
-                                                            {s.marked_subjects} Sub
-                                                        </span>
+                                                        {s.ordinal_position
+                                                            ? <span className="badge fw-bold" style={{ backgroundColor: 'var(--primary-teal)', color: '#fff', fontSize: '0.82rem' }}>{s.ordinal_position}</span>
+                                                            : <span className="text-muted small">—</span>}
                                                     </td>
                                                     <td className="text-center">
-                                                        {s.ordinal_position ? (
-                                                            <span className="badge text-white fw-bold px-2 py-1" style={{ background: '#0f766e', fontSize: 10 }}>
-                                                                {s.ordinal_position}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-muted small">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="text-center fw-bold text-dark">
                                                         {s.percentage !== null ? `${s.percentage}%` : '—'}
                                                     </td>
                                                     <td className="text-center">
-                                                        {s.grade ? (
-                                                            <span className={`badge ${s.grade === 'F' ? 'bg-danger' : s.grade === 'A+' ? 'bg-success' : 'bg-primary'}`} style={{ fontSize: 10 }}>
-                                                                {s.grade}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-muted small">—</span>
-                                                        )}
+                                                        {s.grade
+                                                            ? <span className={`badge ${s.grade === 'F' ? 'bg-danger' : s.grade === 'A+' ? 'bg-success' : 'bg-primary'}`}>{s.grade}</span>
+                                                            : <span className="text-muted small">—</span>}
                                                     </td>
                                                     <td className="text-end pe-4" onClick={(e) => e.stopPropagation()}>
-                                                        <button className="btn btn-sm btn-light border rounded-3 fw-semibold text-primary" onClick={() => openStudentCard(s.student_id)}>
+                                                        <button className="btn btn-sm btn-light border text-primary fw-semibold" onClick={() => openStudentCard(s.student_id)}>
                                                             <i className="bi bi-printer me-1"></i>Card
                                                         </button>
                                                     </td>
