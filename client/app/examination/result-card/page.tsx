@@ -73,8 +73,6 @@ type CardPayload = {
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
 
-
-
 function fmtNum(value: number | string | null | undefined) {
     if (value === null || value === undefined || value === '') return '';
     const n = Number(value);
@@ -91,9 +89,6 @@ function esc(text: unknown) {
         .replace(/'/g, '&#39;');
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
-
-
 function getLogoUrl(rawLogo?: string): string {
     if (!rawLogo || !rawLogo.trim()) return '';
     const logoStr = rawLogo.trim();
@@ -107,7 +102,7 @@ function getLogoUrl(rawLogo?: string): string {
 
 function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
     const { meta, school, students } = payload;
-    const schoolName = school.school_name || 'Smart School';
+    const schoolName = school.school_name || 'Shaheen Public School';
     const address = school.school_address || '';
     const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' | ');
     const logo = getLogoUrl(school.school_logo_url);
@@ -208,7 +203,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
                 .print-toolbar {
                     position: fixed;
                     top: 0; left: 0; right: 0;
-                    background: #215E61;
+                    background: #0f766e;
                     color: #fff;
                     padding: 10px 20px;
                     display: flex;
@@ -219,7 +214,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
                     font-size: 14px;
                 }
                 .print-toolbar button {
-                    background: #FE7F2D;
+                    background: #16a34a;
                     color: #fff;
                     border: none;
                     padding: 7px 22px;
@@ -228,7 +223,6 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
                     font-weight: bold;
                     cursor: pointer;
                 }
-                .print-toolbar button:hover { background: #d9651a; }
                 .cards-wrapper { padding-top: 52px; }
                 @media print {
                     .print-toolbar { display: none !important; }
@@ -329,6 +323,7 @@ export default function ResultCardPage() {
     const [selectedTerm, setSelectedTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('');
     const [selectedSection, setSelectedSection] = useState('');
+    const [searchKeyword, setSearchKeyword] = useState('');
 
     const [students, setStudents] = useState<StudentListRow[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -349,32 +344,23 @@ export default function ResultCardPage() {
             setLoadingContext(false);
             return;
         }
-
         setLoadingContext(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/context/class-teacher?user_id=${user.id}`);
+            const r = await fetch(`${API}/exams/context?user_id=${user.id}`);
             const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load context');
+            if (!r.ok) throw new Error(d.error || 'Failed to load examination context');
 
-            const nextTerms = Array.isArray(d.terms) ? d.terms : [];
-            const nextClasses = Array.isArray(d.classes) ? d.classes : [];
-            const nextSections = Array.isArray(d.sections) ? d.sections : [];
-
-            setTerms(nextTerms);
-            setClasses(nextClasses);
-            setSections(nextSections);
             setActiveYearName(d.active_year?.year_name || '');
+            setTerms(d.terms || []);
+            setClasses(d.classes || []);
+            setSections(d.sections || []);
 
-            setSelectedTerm((prev) => {
-                if (prev && nextTerms.some((t: Term) => String(t.id) === prev)) return prev;
-                return nextTerms.length > 0 ? String(nextTerms[0].id) : '';
-            });
+            const termList = d.terms || [];
+            const classList = d.classes || [];
 
-            setSelectedClass((prev) => {
-                if (prev && nextClasses.some((c: ClassItem) => String(c.class_id) === prev)) return prev;
-                return nextClasses.length > 0 ? String(nextClasses[0].class_id) : '';
-            });
+            setSelectedTerm((prev) => (prev && termList.some((t: Term) => String(t.id) === prev) ? prev : termList.length > 0 ? String(termList[0].id) : ''));
+            setSelectedClass((prev) => (prev && classList.some((c: ClassItem) => String(c.class_id) === prev) ? prev : classList.length > 0 ? String(classList[0].class_id) : ''));
         } catch (e: any) {
             setMsg({ type: 'danger', text: e.message || 'Failed to load context' });
         } finally {
@@ -394,9 +380,9 @@ export default function ResultCardPage() {
                 section_id: selectedSection
             });
 
-            const r = await fetch(`${API}/exams/result-card/students?${params.toString()}`);
+            const r = await fetch(`${API}/exams/students-list?${params.toString()}`);
             const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load students');
+            if (!r.ok) throw new Error(d.error || 'Failed to load student list');
 
             setStudents(Array.isArray(d.students) ? d.students : []);
             setSelectedIds(new Set());
@@ -500,13 +486,24 @@ export default function ResultCardPage() {
         }
     }, [filteredSections, selectedSection]);
 
+    // Seamless auto loading
     useEffect(() => {
         if (ready) {
             loadStudents();
         }
     }, [ready, selectedTerm, selectedClass, selectedSection]);
 
-    const allVisibleSelected = students.length > 0 && students.every((s) => selectedIds.has(s.student_id));
+    const filteredStudents = useMemo(() => {
+        if (!searchKeyword.trim()) return students;
+        const q = searchKeyword.toLowerCase().trim();
+        return students.filter(s =>
+            `${s.first_name} ${s.last_name}`.toLowerCase().includes(q) ||
+            (s.roll_no || '').toLowerCase().includes(q) ||
+            (s.admission_no || '').toLowerCase().includes(q)
+        );
+    }, [students, searchKeyword]);
+
+    const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every((s) => selectedIds.has(s.student_id));
 
     if (!canUsePage) {
         return (
@@ -517,88 +514,114 @@ export default function ResultCardPage() {
     }
 
     return (
-        <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
-            <div className="d-flex align-items-center justify-content-between mb-4">
+        <div className="container-fluid p-2 p-md-4 bg-light min-vh-100">
+            {/* Header Banner - Executive Gradient */}
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-lg position-relative overflow-hidden"
+                style={{
+                    background: 'linear-gradient(135deg, #1e293b 0%, #0f766e 60%, #047857 100%)',
+                    color: 'white',
+                    borderLeft: '5px solid #14b8a6'
+                }}>
                 <div>
-                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-file-earmark-text me-2" style={{ color: 'var(--accent-orange)' }} />
-                        Result Card
-                    </h4>
-                    <div className="text-muted small">Select term, class and section to open student result cards</div>
+                    <div className="d-flex align-items-center gap-2 mb-1">
+                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
+                            <i className="bi bi-file-earmark-text me-1"></i>STUDENT RESULT CARDS
+                        </span>
+                        {activeYearName && (
+                            <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
+                                Year: {activeYearName}
+                            </span>
+                        )}
+                    </div>
+                    <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
+                        Individual &amp; Batch Result Card Printing
+                    </h2>
+                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
+                        Generate, review and print individual or batch student result cards with grades &amp; positions
+                    </p>
                 </div>
-                <span className="badge rounded-pill bg-light text-dark border">
-                    Academic Year: {activeYearName || '—'}
-                </span>
+
+                <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
+                        onClick={handlePrintSelected} disabled={printing || selectedIds.size === 0 || students.length === 0}
+                        style={{ background: selectedIds.size > 0 ? '#16a34a' : 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}>
+                        {printing ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-printer-fill me-1"></i>}
+                        <span className="fw-semibold">Print Selected ({selectedIds.size})</span>
+                    </button>
+                </div>
             </div>
 
             {msg && (
-                <div className={`alert alert-${msg.type} alert-dismissible`} role="alert">
+                <div className={`alert alert-${msg.type} alert-dismissible shadow-sm rounded-3 mb-4`} role="alert">
+                    <i className={`bi ${msg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
                     {msg.text}
                     <button type="button" className="btn-close" onClick={() => setMsg(null)} />
                 </div>
             )}
 
-            <div className="card border-0 shadow-sm mb-4">
-                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
-                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-funnel-fill me-2" style={{ color: 'var(--primary-teal)' }} />
-                        Result Card Filters
-                    </h6>
-                </div>
-                <div className="card-body">
-                    <div className="row g-3 align-items-end">
-                        <div className="col-md-4">
-                            <label className="form-label fw-semibold">Term</label>
-                            <select className="form-select" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)} disabled={loadingContext}>
+            {/* Seamless Filter Bar */}
+            <div className="card shadow-sm border-0 rounded-4 mb-4" style={{ background: '#ffffff', border: '1px solid #f1f5f9' }}>
+                <div className="card-body p-3">
+                    <div className="row g-2 g-md-3 align-items-center">
+                        <div className="col-12 col-sm-4 col-md-3">
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-calendar-event me-1 text-primary"></i>Exam Term
+                            </label>
+                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedTerm} onChange={(e) => setSelectedTerm(e.target.value)} disabled={loadingContext}>
                                 <option value="">Select Term</option>
                                 {terms.map((t) => (
                                     <option key={t.id} value={t.id}>{t.term_name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-4">
-                            <label className="form-label fw-semibold">Class</label>
-                            <select className="form-select" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={loadingContext}>
+                        <div className="col-12 col-sm-4 col-md-3">
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-building me-1 text-primary"></i>Class
+                            </label>
+                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} disabled={loadingContext}>
                                 <option value="">Select Class</option>
                                 {classes.map((c) => (
                                     <option key={c.class_id} value={c.class_id}>{c.class_name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-4">
-                            <label className="form-label fw-semibold">Section</label>
-                            <select
-                                className="form-select"
-                                value={selectedSection}
-                                onChange={(e) => setSelectedSection(e.target.value)}
-                                disabled={!selectedClass || loadingContext}
-                            >
+                        <div className="col-12 col-sm-4 col-md-3">
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                <i className="bi bi-diagram-2 me-1 text-primary"></i>Section
+                            </label>
+                            <select className="form-select form-select-sm fw-semibold border-0 bg-light rounded-3" value={selectedSection} onChange={(e) => setSelectedSection(e.target.value)} disabled={!selectedClass || loadingContext}>
                                 <option value="">Select Section</option>
                                 {filteredSections.map((s) => (
                                     <option key={s.section_id} value={s.section_id}>{s.section_name}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-12 d-flex gap-2 flex-wrap">
-                            <button className="btn btn-primary-custom fw-bold" onClick={loadStudents} disabled={!ready || loadingStudents || loadingContext}>
-                                {loadingStudents ? (<><span className="spinner-border spinner-border-sm me-2" />Loading...</>) : 'Load Students'}
-                            </button>
-                            <button className="btn btn-secondary-custom" onClick={loadContext} disabled={loadingContext}>Refresh Context</button>
-                            <button className="btn btn-outline-primary" onClick={handlePrintSelected} disabled={printing || selectedIds.size === 0 || students.length === 0}>
-                                {printing ? 'Printing...' : `Print Selected (${selectedIds.size})`}
-                            </button>
+                        <div className="col-12 col-md-3 ms-auto">
+                            <label className="form-label small text-muted text-uppercase fw-bold mb-1 d-block" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
+                                Search Student
+                            </label>
+                            <div className="input-group input-group-sm">
+                                <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
+                                <input type="text" className="form-control border-0 bg-light" placeholder="Search student name / roll..."
+                                    value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
+            {/* Students Table & Batch Selection */}
             {ready && (
-                <div className="card border-0 shadow-sm mb-4">
-                    <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
-                        <div className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
-                            Students ({students.length})
+                <div className="card shadow-lg border-0 rounded-4 overflow-hidden bg-white mb-4">
+                    <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div className="d-flex align-items-center gap-2">
+                            <span className="fw-bold text-dark">Students List ({filteredStudents.length})</span>
+                            <span className="badge bg-light text-primary border px-2.5 py-1 rounded-pill" style={{ fontSize: 11 }}>
+                                {selectedIds.size} Selected for Batch Print
+                            </span>
                         </div>
-                        {students.length > 0 && (
+
+                        {filteredStudents.length > 0 && (
                             <div className="form-check mb-0">
                                 <input
                                     className="form-check-input"
@@ -607,39 +630,45 @@ export default function ResultCardPage() {
                                     checked={allVisibleSelected}
                                     onChange={(e) => {
                                         if (e.target.checked) {
-                                            setSelectedIds(new Set(students.map((s) => s.student_id)));
+                                            setSelectedIds(new Set(filteredStudents.map((s) => s.student_id)));
                                         } else {
                                             setSelectedIds(new Set());
                                         }
                                     }}
                                 />
-                                <label htmlFor="selectAllStudents" className="form-check-label small fw-semibold">Select All</label>
+                                <label htmlFor="selectAllStudents" className="form-check-label small fw-bold text-dark" style={{ cursor: 'pointer' }}>Select All</label>
                             </div>
                         )}
                     </div>
+
                     <div className="card-body p-0">
                         {loadingStudents ? (
-                            <div className="p-4 text-center text-muted">Loading students...</div>
-                        ) : students.length === 0 ? (
-                            <div className="p-4 text-center text-muted">No active students found for selected filters.</div>
+                            <div className="text-center p-5">
+                                <div className="spinner-border text-teal" role="status" style={{ color: '#0f766e' }}></div>
+                                <p className="text-muted mt-2 small fw-semibold">Loading class students...</p>
+                            </div>
+                        ) : filteredStudents.length === 0 ? (
+                            <div className="text-center p-5 text-muted">
+                                <i className="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+                                {students.length === 0 ? 'No active students found for selected filters.' : 'No student matching search query'}
+                            </div>
                         ) : (
                             <div className="table-responsive">
-                                <table className="table table-hover align-middle mb-0">
-                                    <thead className="table-dark">
+                                <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+                                    <thead className="text-uppercase small" style={{ backgroundColor: '#1e293b', color: '#ffffff' }}>
                                         <tr>
-                                            <th style={{ width: 50 }} className="text-center">Select</th>
-                                            <th>Student</th>
+                                            <th style={{ width: 45 }} className="text-center">Select</th>
+                                            <th>Student Details</th>
                                             <th style={{ width: 90 }}>Roll No</th>
                                             <th style={{ width: 80 }} className="text-center">Subjects</th>
                                             <th style={{ width: 90 }} className="text-center">Position</th>
                                             <th style={{ width: 80 }} className="text-center">%</th>
-                                            <th style={{ width: 60 }} className="text-center">Grade</th>
-                                            <th style={{ width: 110 }} className="text-end">Obtained</th>
-                                            <th style={{ width: 100 }} className="text-end">Total</th>
+                                            <th style={{ width: 70 }} className="text-center">Grade</th>
+                                            <th style={{ width: 100 }} className="text-end pe-4">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {students.map((s) => {
+                                        {filteredStudents.map((s) => {
                                             const checked = selectedIds.has(s.student_id);
                                             const isOpening = openingStudentId === s.student_id;
                                             return (
@@ -665,33 +694,48 @@ export default function ResultCardPage() {
                                                         />
                                                     </td>
                                                     <td>
-                                                        <div className="fw-semibold d-flex align-items-center gap-2">
+                                                        <div className="fw-bold text-dark d-flex align-items-center gap-2">
                                                             {s.first_name} {s.last_name}
-                                                            {isOpening && <span className="spinner-border spinner-border-sm text-secondary" />}
+                                                            {isOpening && <span className="spinner-border spinner-border-sm text-teal" style={{ color: '#0f766e' }} />}
                                                         </div>
                                                         <div className="small text-muted">Adm: {s.admission_no || '—'}</div>
                                                     </td>
-                                                    <td>{s.roll_no || '—'}</td>
-                                                    <td className="text-center">
-                                                        <span className={`badge ${s.marked_subjects > 0 ? 'bg-success-subtle text-success-emphasis border border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'}`}>
-                                                            {s.marked_subjects}
+                                                    <td>
+                                                        <span className="badge bg-light text-dark border fw-semibold" style={{ fontSize: 10.5 }}>
+                                                            {s.roll_no || '—'}
                                                         </span>
                                                     </td>
                                                     <td className="text-center">
-                                                        {s.ordinal_position
-                                                            ? <span className="badge fw-bold" style={{ backgroundColor: 'var(--primary-teal)', color: '#fff', fontSize: '0.82rem' }}>{s.ordinal_position}</span>
-                                                            : <span className="text-muted small">—</span>}
+                                                        <span className={`badge rounded-pill ${s.marked_subjects > 0 ? 'bg-success bg-opacity-15 text-success border border-success' : 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning'}`} style={{ fontSize: 9.5 }}>
+                                                            {s.marked_subjects} Sub
+                                                        </span>
                                                     </td>
                                                     <td className="text-center">
+                                                        {s.ordinal_position ? (
+                                                            <span className="badge text-white fw-bold px-2 py-1" style={{ background: '#0f766e', fontSize: 10 }}>
+                                                                {s.ordinal_position}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted small">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="text-center fw-bold text-dark">
                                                         {s.percentage !== null ? `${s.percentage}%` : '—'}
                                                     </td>
                                                     <td className="text-center">
-                                                        {s.grade
-                                                            ? <span className={`badge ${s.grade === 'F' ? 'bg-danger' : s.grade === 'A+' ? 'bg-success' : 'bg-primary'}`}>{s.grade}</span>
-                                                            : <span className="text-muted small">—</span>}
+                                                        {s.grade ? (
+                                                            <span className={`badge ${s.grade === 'F' ? 'bg-danger' : s.grade === 'A+' ? 'bg-success' : 'bg-primary'}`} style={{ fontSize: 10 }}>
+                                                                {s.grade}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted small">—</span>
+                                                        )}
                                                     </td>
-                                                    <td className="text-end">{fmtNum(s.obtained_marks)}</td>
-                                                    <td className="text-end">{fmtNum(s.total_marks)}</td>
+                                                    <td className="text-end pe-4" onClick={(e) => e.stopPropagation()}>
+                                                        <button className="btn btn-sm btn-light border rounded-3 fw-semibold text-primary" onClick={() => openStudentCard(s.student_id)}>
+                                                            <i className="bi bi-printer me-1"></i>Card
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
@@ -702,10 +746,6 @@ export default function ResultCardPage() {
                     </div>
                 </div>
             )}
-
-
         </div>
     );
 }
-
-
