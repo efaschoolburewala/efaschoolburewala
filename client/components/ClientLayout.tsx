@@ -89,7 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', href: '/' },
   {
     key: 'students', label: 'Students', icon: 'bi-people-fill', href: '/students/details', permission: 'students',
-    subs: [{ label: 'New Admission', href: '/students/admission' }, { label: 'Import Students', href: '/students/import' }, { label: 'Students Details', href: '/students/details' }]
+    subs: [{ label: 'New Admission', href: '/students/admission' }, { label: 'Import Students', href: '/students/import' }, { label: 'Students Details', href: '/students/details' }, { label: 'Family Directory', href: '/students/families' }]
   },
   {
     key: 'academic', label: 'Academic', icon: 'bi-mortarboard-fill', href: '/academic/classes', permission: 'academic',
@@ -116,8 +116,8 @@ const NAV_GROUPS: NavGroup[] = [
     subs: [{ label: 'Student Attendance', href: '/attendance/students' }, { label: 'Student History', href: '/attendance/students/history' }, { label: 'Staff Attendance', href: '/attendance/staff' }, { label: 'Staff History', href: '/attendance/staff/history' }]
   },
   {
-    key: 'reports', label: 'Reports', icon: 'bi-bar-chart-fill', href: '/reports/students', permission: 'reports',
-    subs: [{ label: 'Student Report', href: '/reports/students' }, { label: 'Results Report', href: '/reports/results' }, { label: 'Expense Report', href: '/reports/expenses' }, { label: 'Family Fee Report', href: '/reports/family-fee' }, { label: 'Admission Report', href: '/reports/admission' }]
+    key: 'reports', label: 'Reports', icon: 'bi-bar-chart-fill', href: '/reports/monthly', permission: 'reports',
+    subs: [{ label: 'Monthly Report', href: '/reports/monthly' }, { label: 'Student Report', href: '/reports/students' }, { label: 'Results Report', href: '/reports/results' }, { label: 'Expense Report', href: '/reports/expenses' }, { label: 'Family Fee Report', href: '/reports/family-fee' }, { label: 'Admission Report', href: '/reports/admission' }]
   },
   {
     key: 'settings', label: 'Settings', icon: 'bi-gear-fill', href: '/settings', permission: 'settings',
@@ -129,6 +129,7 @@ const NAV_PERMISSION_MAP: Record<string, string> = {
   '/students/admission': 'students.admission',
   '/students/import': 'students.import',
   '/students/details': 'students.details',
+  '/students/families': 'students.details',
   '/academic/classes': 'academic.classes',
   '/academic/sections': 'academic.sections',
   '/academic/subjects': 'academic.subjects',
@@ -156,6 +157,7 @@ const NAV_PERMISSION_MAP: Record<string, string> = {
   '/attendance/students/history': 'attendance.students.history',
   '/attendance/staff': 'attendance.staff',
   '/attendance/staff/history': 'attendance.staff.history',
+  '/reports/monthly': 'reports.students',
   '/reports/students': 'reports.students',
   '/reports/results': 'reports.results',
   '/reports/expenses': 'reports.expenses',
