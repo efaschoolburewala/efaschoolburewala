@@ -18,6 +18,7 @@ export interface AuthUser {
     role_id: number;
     role_name: string;
     role_level?: number;
+    dashboard_access?: string;
     is_active: boolean;
     permissions: Permission[];
     employee_id?: number;

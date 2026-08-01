@@ -72,10 +72,10 @@ router.post('/:id/clone', async (req, res) => {
         // STEP 2: Create new role (copy with " (copy)" suffix)
         const newRoleName = `${original.role_name} (copy)`;
         const newRoleRes = await client.query(
-            `INSERT INTO app_roles (role_name, description, role_level, is_system_default, is_custom)
-             VALUES ($1, $2, $3, false, true)
+            `INSERT INTO app_roles (role_name, description, role_level, dashboard_access, is_system_default, is_custom)
+             VALUES ($1, $2, $3, $4, false, true)
              RETURNING *`,
-            [newRoleName, original.description || '', original.role_level || 50]
+            [newRoleName, original.description || '', original.role_level || 50, original.dashboard_access || 'admin']
         );
         const newRoleId = newRoleRes.rows[0].id;
 
@@ -107,14 +107,14 @@ router.post('/:id/clone', async (req, res) => {
 // Create New Role
 router.post('/', async (req, res) => {
     try {
-        const { role_name, description, role_level, permissions } = req.body;
+        const { role_name, description, role_level, dashboard_access, permissions } = req.body;
         
-        // 1. Create Role with role_level
+        // 1. Create Role with role_level & dashboard_access
         const newRole = await pool.query(
-            `INSERT INTO app_roles (role_name, description, role_level, is_custom)
-             VALUES ($1, $2, $3, true)
+            `INSERT INTO app_roles (role_name, description, role_level, dashboard_access, is_custom)
+             VALUES ($1, $2, $3, $4, true)
              RETURNING *`,
-            [role_name, description, role_level || 50]
+            [role_name, description, role_level || 50, dashboard_access || 'admin']
         );
         const roleId = newRole.rows[0].id;
 
@@ -140,7 +140,7 @@ router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { apply_to_assigned } = req.query;
-        const { role_name, description, role_level, permissions } = req.body;
+        const { role_name, description, role_level, dashboard_access, permissions } = req.body;
 
         // Check if role exists
         const roleCheck = await pool.query("SELECT * FROM app_roles WHERE id = $1", [id]);
@@ -161,12 +161,12 @@ router.put('/:id', async (req, res) => {
             });
         }
 
-        // 1. Update Role Details (including role_level)
+        // 1. Update Role Details (including role_level & dashboard_access)
         await pool.query(
             `UPDATE app_roles 
-             SET role_name = $1, description = $2, role_level = $3
-             WHERE id = $4`,
-            [role_name, description, role_level || currentRole.role_level || 50, id]
+             SET role_name = $1, description = $2, role_level = $3, dashboard_access = $4
+             WHERE id = $5`,
+            [role_name, description, role_level || currentRole.role_level || 50, dashboard_access || currentRole.dashboard_access || 'admin', id]
         );
 
         // 2. Update Permissions (Delete all & Re-insert)

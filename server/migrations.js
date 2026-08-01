@@ -112,6 +112,36 @@ async function runEssentialMigrations() {
         `);
         console.log(`   ✓ Repaired ${repairResult.rowCount} incorrectly marked blood sibling rows.`);
 
+        // 6. Role Dashboard Access Migration
+        console.log("   → Checking app_roles dashboard_access column...");
+        await client.query(`
+            ALTER TABLE app_roles ADD COLUMN IF NOT EXISTS dashboard_access VARCHAR(50) DEFAULT 'admin';
+
+            UPDATE app_roles 
+            SET dashboard_access = 'admin' 
+            WHERE (dashboard_access IS NULL OR dashboard_access = '')
+              AND (LOWER(role_name) LIKE '%admin%' OR LOWER(role_name) LIKE '%principal%' OR LOWER(role_name) LIKE '%coordinator%');
+
+            UPDATE app_roles 
+            SET dashboard_access = 'teacher' 
+            WHERE (dashboard_access IS NULL OR dashboard_access = '')
+              AND (LOWER(role_name) LIKE '%teacher%' OR LOWER(role_name) LIKE '%assistant%');
+
+            UPDATE app_roles 
+            SET dashboard_access = 'accountant' 
+            WHERE (dashboard_access IS NULL OR dashboard_access = '')
+              AND LOWER(role_name) LIKE '%accountant%';
+
+            UPDATE app_roles 
+            SET dashboard_access = 'student' 
+            WHERE (dashboard_access IS NULL OR dashboard_access = '')
+              AND LOWER(role_name) LIKE '%student%';
+
+            UPDATE app_roles 
+            SET dashboard_access = 'admin' 
+            WHERE dashboard_access IS NULL OR dashboard_access = '';
+        `);
+
         await client.query('COMMIT');
         console.log("✅ All essential migrations completed successfully!");
     } catch (err) {

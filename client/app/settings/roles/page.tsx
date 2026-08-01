@@ -15,6 +15,7 @@ type Role = {
     role_name: string;
     description: string;
     role_level?: number;
+    dashboard_access?: string;
     is_system_default: boolean;
     is_custom?: boolean;
     permissions: Permission[];
@@ -32,6 +33,15 @@ const ROLE_LEVELS = [
     { value: 30, label: '30 - Accountant', desc: 'Finance features only' },
     { value: 20, label: '20 - Assistant', desc: 'Support staff (limited)' },
     { value: 10, label: '10 - Student', desc: 'Own data only' },
+];
+
+/* Assigned Dashboard Options */
+const DASHBOARD_OPTIONS = [
+    { value: 'admin', label: 'Admin Executive Dashboard', desc: 'Full school overview, financial KPIs, collection charts & admin stats', icon: 'bi-speedometer2', color: '#6366f1' },
+    { value: 'teacher', label: 'Teacher Academic Dashboard', desc: 'Assigned classes, student attendance & exam marks entry', icon: 'bi-journal-check', color: '#10b981' },
+    { value: 'accountant', label: 'Accountant Finance Dashboard', desc: 'Fee collection, receipt printing, fee slips & expense tracking', icon: 'bi-cash-coin', color: '#f59e0b' },
+    { value: 'student', label: 'Student Portal Dashboard', desc: 'Student fee slips, attendance history & result cards', icon: 'bi-mortarboard', color: '#0ea5e9' },
+    { value: 'generic', label: 'Generic Staff Dashboard', desc: 'Standard overview & quick action shortcuts for support staff', icon: 'bi-person-workspace', color: '#64748b' },
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -210,6 +220,11 @@ export default function RolesPage() {
         setFormData({
             ...role,
             role_level: role.role_level || 50,
+            dashboard_access: role.dashboard_access || (
+                (role.role_level || 50) >= 90 ? 'admin' :
+                (role.role_level || 50) >= 50 ? 'teacher' :
+                (role.role_level || 50) >= 20 ? 'accountant' : 'student'
+            ),
             permissions: buildFormPerms(role.permissions || [])
         });
         setExpanded(Object.fromEntries(Object.keys(PAGE_TREE).map(k => [k, true])));
@@ -230,7 +245,7 @@ export default function RolesPage() {
 
     const handleCreate = () => {
         setFormData({
-            id: 0, role_name: '', description: '', role_level: 50, is_system_default: false, is_custom: true,
+            id: 0, role_name: '', description: '', role_level: 50, dashboard_access: 'admin', is_system_default: false, is_custom: true,
             permissions: ALL_PAGES.map(p => ({ module_name: p.key, can_read: false, can_write: false, can_delete: false })),
         });
         setExpanded(Object.fromEntries(Object.keys(PAGE_TREE).map(k => [k, true])));
@@ -409,8 +424,17 @@ export default function RolesPage() {
                                         <div className="card-body p-4">
                                             <div className="d-flex justify-content-between align-items-start mb-3">
                                                 <div>
-                                                    <h5 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>{role.role_name}</h5>
-                                                    <p className="text-muted small mb-0" style={{ minHeight: 36 }}>{role.description || 'No description'}</p>
+                                                     <h5 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>{role.role_name}</h5>
+                                                     <p className="text-muted small mb-1" style={{ minHeight: 28 }}>{role.description || 'No description'}</p>
+                                                     {(() => {
+                                                         const dashInfo = DASHBOARD_OPTIONS.find(d => d.value === (role.dashboard_access || 'admin')) || DASHBOARD_OPTIONS[0];
+                                                         return (
+                                                             <span className="badge rounded-pill px-2.5 py-1 border text-dark shadow-sm mb-2" style={{ background: '#f8fafc', fontSize: '0.68rem', fontWeight: 700 }}>
+                                                                 <i className={`bi ${dashInfo.icon} me-1`} style={{ color: dashInfo.color }} />
+                                                                 {dashInfo.label}
+                                                             </span>
+                                                         );
+                                                     })()}
                                                 </div>
                                                 <div className="d-flex flex-column gap-1 ms-2 flex-shrink-0">
                                                     {role.is_system_default && (

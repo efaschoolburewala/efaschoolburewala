@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 u.id, u.username, u.password_hash, u.full_name, u.email, u.is_active, u.role_id,
-                r.role_name, r.role_level,
+                r.role_name, r.role_level, r.dashboard_access,
                 MAX(e.employee_id) as employee_id,
                 MAX(
                     (SELECT json_build_object('class_id', tca.class_id, 'section_id', tca.section_id)
@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
             LEFT JOIN role_permissions p ON r.id = p.role_id
             LEFT JOIN employees e ON u.id = e.app_user_id
             WHERE u.username = $1
-            GROUP BY u.id, u.username, u.password_hash, u.full_name, u.email, u.is_active, u.role_id, r.role_name, r.role_level
+            GROUP BY u.id, u.username, u.password_hash, u.full_name, u.email, u.is_active, u.role_id, r.role_name, r.role_level, r.dashboard_access
         `, [username]);
 
         if (result.rows.length === 0) {
