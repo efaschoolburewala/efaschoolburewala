@@ -35,7 +35,13 @@ async function runEssentialMigrations() {
             ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
         `);
 
-        // 4. IMPORTANT: We do NOT use father_name to infer relation_type.
+        // 4. School Settings logo_url Migration (allow storing Base64 image data in DB)
+        console.log("   → Checking school_settings logo_url column type...");
+        await client.query(`
+            ALTER TABLE school_settings ALTER COLUMN logo_url TYPE TEXT;
+        `);
+
+        // 5. IMPORTANT: We do NOT use father_name to infer relation_type.
         //    Father name matching is unreliable in Pakistani naming conventions where
         //    cousins often share the same grandfather's name as their father name.
         //
@@ -49,7 +55,7 @@ async function runEssentialMigrations() {
         //    relation_type = NULL which the frontend shows as "Family Member".
         //    These should be manually linked via the family management UI.
 
-        // 4. REPAIR: Fix any student_siblings rows incorrectly marked 'blood'
+        // 5. REPAIR: Fix any student_siblings rows incorrectly marked 'blood'
         //    where the two students have DIFFERENT father names.
         //    Blood siblings MUST share the same father — different father = cousin or unrelated.
         //    This repair corrects data corrupted by a previous migration that used DO UPDATE.

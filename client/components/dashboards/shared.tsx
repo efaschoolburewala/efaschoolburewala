@@ -1,8 +1,303 @@
-'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+
+// Quick Actions Dropdown Component
+export function QuickActionsDropdown() {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const items = [
+    { href: '/students/admission', label: 'New Admission', sub: 'Register a new student', icon: 'bi-person-plus-fill', color: '#FE7F2D' },
+    { href: '/fees/collect', label: 'Collect Fee', sub: 'Receive student fee payment', icon: 'bi-cash-coin', color: '#10b981' },
+    { href: '/fees/generate', label: 'Generate Slips', sub: 'Issue monthly fee vouchers', icon: 'bi-file-earmark-text-fill', color: '#6366f1' },
+    { href: '/attendance/students', label: 'Take Attendance', sub: 'Mark student attendance', icon: 'bi-calendar-check-fill', color: '#06b6d4' },
+    { href: '/academic/classes', label: 'Manage Classes', sub: 'Classes & sections setup', icon: 'bi-building', color: '#8b5cf6' },
+    { href: '/hrm/employees', label: 'Employees / Staff', sub: 'Manage staff & teachers', icon: 'bi-person-badge-fill', color: '#ec4899' },
+    { href: '/examination/marks', label: 'Exam Marks', sub: 'Record student exam marks', icon: 'bi-journal-check', color: '#14b8a6' },
+    { href: '/reports/students', label: 'Reports', sub: 'Financial & academic data', icon: 'bi-bar-chart-fill', color: '#f59e0b' },
+    { href: '/expenses/add', label: 'Add Expense', sub: 'Record operational expense', icon: 'bi-wallet2', color: '#ef4444' },
+    { href: '/settings/general', label: 'School Settings', sub: 'School info & logo setup', icon: 'bi-gear-fill', color: '#64748b' },
+  ];
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative', zIndex: 200 }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          background: 'linear-gradient(135deg, #FE7F2D 0%, #f97316 100%)',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: 14,
+          padding: '11px 22px',
+          fontWeight: 700,
+          fontSize: 13,
+          cursor: 'pointer',
+          boxShadow: '0 4px 16px rgba(254,127,45,0.4)',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-1px)')}
+        onMouseLeave={e => (e.currentTarget.style.transform = 'none')}
+      >
+        <i className="bi bi-lightning-charge-fill" style={{ fontSize: 14 }} />
+        <span>Quick Actions</span>
+        <i className={`bi bi-chevron-${open ? 'up' : 'down'}`} style={{ fontSize: 11, marginLeft: 2 }} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 10px)',
+          right: 0,
+          width: 290,
+          background: '#ffffff',
+          borderRadius: 16,
+          boxShadow: '0 12px 35px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.08)',
+          border: '1px solid #e2e8f0',
+          padding: '8px',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            padding: '6px 12px 6px',
+            fontSize: 10,
+            fontWeight: 800,
+            color: '#94a3b8',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            borderBottom: '1px solid #f1f5f9',
+            marginBottom: 4,
+          }}>
+            Quick Actions Menu
+          </div>
+
+          <div style={{ maxHeight: 360, overflowY: 'auto', paddingRight: 2 }}>
+            {items.map(item => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  textDecoration: 'none',
+                  transition: 'all 0.15s ease',
+                }}
+                className="quick-action-item"
+              >
+                <div style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 9,
+                  background: `${item.color}15`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <i className={`bi ${item.icon}`} style={{ color: item.color, fontSize: 15 }} />
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', lineHeight: 1.2 }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{item.sub}</div>
+                </div>
+                <i className="bi bi-chevron-right" style={{ fontSize: 11, color: '#cbd5e1' }} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Page Shell
+export function DashShell({
+  children, title, subtitle, actions, greeting,
+}: {
+  children: React.ReactNode; title: string;
+  subtitle?: string; actions?: React.ReactNode; greeting?: string;
+}) {
+  const [logoUrl, setLogoUrl] = useState<string>('');
+
+  useEffect(() => {
+    fetch(API + '/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.logo_url) {
+          const src = data.logo_url.startsWith('data:') || data.logo_url.startsWith('http')
+            ? data.logo_url
+            : `${API}${data.logo_url}?t=${Date.now()}`;
+          setLogoUrl(src);
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f4f7f6', padding: '0 0 48px' }}>
+      {/* Top Green Hero Header - Flush top, rounded bottom corners */}
+      <div className="dash-hero" style={{
+        background: 'linear-gradient(135deg, #1e3644 0%, #195053 100%)',
+        padding: '24px 28px',
+        borderRadius: '0 0 24px 24px',
+        position: 'relative' as const,
+        zIndex: 100,
+        overflow: 'visible',
+        boxShadow: '0 6px 20px rgba(33,94,97,0.18)',
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
+      }}>
+        {/* Background Ambient Accents Container */}
+        <div style={{ position: 'absolute' as const, inset: 0, overflow: 'hidden', borderRadius: '0 0 24px 24px', pointerEvents: 'none' as const }}>
+          <div style={{ position: 'absolute' as const, top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' as const }} />
+          <div style={{ position: 'absolute' as const, bottom: -60, right: 140, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' as const }} />
+        </div>
+
+        <div className="dash-hero-container" style={{ position: 'relative' as const, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 16 }}>
+
+          {/* Left Side: Standard Logo Avatar + Title + Subtitle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0, flex: 1 }}>
+            <div className="dash-header-logo-avatar" title="School Logo">
+              {logoUrl ? (
+                <img src={logoUrl} alt="School Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '3px' }} />
+              ) : (
+                <span style={{ fontSize: '1.6rem' }}>🏫</span>
+              )}
+            </div>
+
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{title}</h1>
+              {subtitle && (
+                <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <i className="bi bi-calendar3" style={{ fontSize: 11 }} />{subtitle}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Side: Quick Actions Dropdown */}
+          <div className="dash-actions-wrapper" style={{ flexShrink: 0 }}>
+            {actions || <QuickActionsDropdown />}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area - Cards positioned cleanly BELOW the header */}
+      <div className="dash-content" style={{ padding: '0 28px', marginTop: 24, position: 'relative' as const, zIndex: 1 }}>
+        {children}
+      </div>
+
+      <style jsx global>{`
+        @keyframes dashFadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes dashHeroFade {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .dash-hero {
+          animation: dashHeroFade 0.4s ease-out forwards;
+        }
+
+        .dash-stat-grid > div {
+          animation: dashFadeInUp 0.45s ease-out forwards;
+          animation-fill-mode: both;
+        }
+
+        .dash-stat-grid > div:nth-child(1) { animation-delay: 0.04s; }
+        .dash-stat-grid > div:nth-child(2) { animation-delay: 0.08s; }
+        .dash-stat-grid > div:nth-child(3) { animation-delay: 0.12s; }
+        .dash-stat-grid > div:nth-child(4) { animation-delay: 0.16s; }
+        .dash-stat-grid > div:nth-child(5) { animation-delay: 0.20s; }
+
+        .dash-panel-card-animated {
+          animation: dashFadeInUp 0.55s ease-out forwards;
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease !important;
+        }
+
+        .dash-panel-card-animated:hover {
+          transform: translateY(-3px) !important;
+          box-shadow: 0 10px 28px rgba(35,61,77,0.12) !important;
+          border-color: rgba(33,94,97,0.2) !important;
+        }
+
+        .dash-header-logo-avatar {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 3px solid rgba(255,255,255,0.95);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.18), 0 0 12px rgba(254,127,45,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          cursor: pointer;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .dash-header-logo-avatar:hover {
+          transform: scale(1.12) rotate(5deg) !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.25), 0 0 20px rgba(254,127,45,0.6) !important;
+          border-color: #FE7F2D !important;
+        }
+
+        .quick-action-item:hover {
+          background: #f8fafc !important;
+          transform: translateX(4px);
+        }
+
+        @media (max-width: 640px) {
+          .dash-hero {
+            padding: 18px 16px !important;
+            border-radius: 0 0 16px 16px !important;
+          }
+          .dash-content {
+            padding: 0 14px !important;
+            margin-top: 16px !important;
+          }
+          .dash-header-logo-avatar {
+            width: 44px !important;
+            height: 44px !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 // Constants
-export const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+export const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-school-soxa.onrender.com";
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function fmt(n: number) {
@@ -98,7 +393,7 @@ export function Panel({
   action?: React.ReactNode; noPad?: boolean;
 }) {
   return (
-    <div style={{
+    <div className="dash-panel-card-animated" style={{
       background: '#fff', borderRadius: 18,
       boxShadow: '0 1px 3px rgba(0,0,0,0.05),0 4px 20px rgba(35,61,77,0.06)',
       border: '1px solid #f1f5f9', overflow: 'hidden',
@@ -288,42 +583,7 @@ export function DonutRing({
 }
 
 
-// Page Shell
-export function DashShell({
-  children, title, subtitle, actions, greeting,
-}: {
-  children: React.ReactNode; title: string;
-  subtitle?: string; actions?: React.ReactNode; greeting?: string;
-}) {
-  return (
-    <div style={{ minHeight: '100vh', background: '#eef5ec', padding: '0 0 48px' }}>
-      <div className="dash-hero" style={{
-        background: 'linear-gradient(135deg,#233D4D 0%,#215E61 100%)',
-        padding: '30px 36px 88px',
-        position: 'relative' as const, overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute' as const, top: -70, right: -70, width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' as const }} />
-        <div style={{ position: 'absolute' as const, bottom: -90, right: 180, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' as const }} />
-        <div style={{ position: 'absolute' as const, top: 24, left: '42%', width: 140, height: 140, borderRadius: '50%', background: 'rgba(254,127,45,0.07)', pointerEvents: 'none' as const }} />
-        <div style={{ position: 'relative' as const, zIndex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: 16 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            {greeting && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: 5 }}>{greeting}</div>}
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>{title}</h1>
-            {subtitle && (
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <i className="bi bi-calendar3" style={{ fontSize: 11 }} />{subtitle}
-              </div>
-            )}
-          </div>
-          {actions && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>{actions}</div>}
-        </div>
-      </div>
-      <div className="dash-content" style={{ padding: '0 28px', marginTop: -58, position: 'relative' as const, zIndex: 2 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
+
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -420,7 +680,7 @@ export function RecentPaymentsTable({ rows }: { rows: any[] }) {
                   </div>
                 </div>
               </td>
-              <td style={{ padding: '11px 14px', color: '#475569' }}>{p.class_name || 'â€”'}</td>
+              <td style={{ padding: '11px 14px', color: '#475569' }}>{p.class_name || ''}</td>
               <td style={{ padding: '11px 14px', color: '#475569' }}>{MONTHS[(p.month || 1) - 1]} {p.year}</td>
               <td style={{ padding: '11px 14px' }}>
                 <span style={{ fontWeight: 800, color: '#16a34a' }}><MaskedAmount amount={p.amount_paid} /></span>
