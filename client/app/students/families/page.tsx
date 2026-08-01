@@ -63,7 +63,6 @@ export default function FamilyListPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedClass, setSelectedClass] = useState('');
-    const [selectedFamilyModal, setSelectedFamilyModal] = useState<FamilyData | null>(null);
 
     // Fetch families, classes, and school settings
     useEffect(() => {
@@ -109,7 +108,6 @@ export default function FamilyListPage() {
     // Filter families based on search term & class filter
     const filteredFamilies = useMemo(() => {
         return families.filter(fam => {
-            // Search matching
             const s = searchTerm.toLowerCase().trim();
             const matchesSearch = !s || (
                 fam.family_id.toLowerCase().includes(s) ||
@@ -122,7 +120,6 @@ export default function FamilyListPage() {
                 fam.members.some(m => m.admission_no.toLowerCase().includes(s))
             );
 
-            // Class matching
             const matchesClass = !selectedClass || fam.members.some(m => m.class_id?.toString() === selectedClass || m.class_name.toLowerCase() === selectedClass.toLowerCase());
 
             return matchesSearch && matchesClass;
@@ -148,36 +145,42 @@ export default function FamilyListPage() {
     const exportExcel = () => {
         if (filteredFamilies.length === 0) return;
 
-        const excelData = filteredFamilies.map((f, idx) => ({
-            "Sr.#": idx + 1,
-            "Family Name": f.family_name,
-            "Family ID": f.family_id,
-            "Children / Students": f.children_names.join(", "),
-            "Classes": f.classes_list.join(", "),
-            "Sections": f.sections_list.join(", "),
-            "Father Name": f.father_name || "N/A",
-            "Mother Name": f.mother_name || "N/A",
-            "Father Phone": f.father_phone || "N/A",
-            "Mother Phone": f.mother_phone || "N/A",
-            "Primary Phone": f.primary_phone || "N/A"
-        }));
+        const excelData: any[] = [];
+        let sr = 1;
+
+        filteredFamilies.forEach(f => {
+            f.members.forEach(m => {
+                excelData.push({
+                    "Sr.#": sr,
+                    "Family Name": f.family_name,
+                    "Family ID": f.family_id,
+                    "Student Name": m.full_name,
+                    "Admission No": m.admission_no,
+                    "Class": m.class_name,
+                    "Section": m.section_name,
+                    "Father Name": m.father_name || f.father_name || "N/A",
+                    "Mother Name": m.mother_name || f.mother_name || "N/A",
+                    "Father Phone": m.father_phone || f.father_phone || "N/A",
+                    "Mother Phone": m.mother_phone || f.mother_phone || "N/A"
+                });
+            });
+            sr++;
+        });
 
         const ws = XLSX.utils.json_to_sheet(excelData);
-        // Auto-width columns
-        const colWidths = [
+        ws['!cols'] = [
             { wch: 6 },  // Sr
             { wch: 22 }, // Family Name
             { wch: 16 }, // Family ID
-            { wch: 35 }, // Children
-            { wch: 20 }, // Classes
-            { wch: 15 }, // Sections
+            { wch: 25 }, // Student Name
+            { wch: 15 }, // Admission No
+            { wch: 14 }, // Class
+            { wch: 10 }, // Section
             { wch: 22 }, // Father Name
             { wch: 22 }, // Mother Name
             { wch: 16 }, // Father Phone
             { wch: 16 }, // Mother Phone
-            { wch: 16 }, // Primary Phone
         ];
-        ws['!cols'] = colWidths;
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Family Directory");
@@ -189,19 +192,28 @@ export default function FamilyListPage() {
     const exportCSV = () => {
         if (filteredFamilies.length === 0) return;
 
-        const headers = ["Sr.#", "Family Name", "Family ID", "Students", "Classes", "Sections", "Father Name", "Mother Name", "Father Phone", "Mother Phone"];
-        const rows = filteredFamilies.map((f, idx) => [
-            idx + 1,
-            `"${(f.family_name || '').replace(/"/g, '""')}"`,
-            `"${(f.family_id || '').replace(/"/g, '""')}"`,
-            `"${(f.children_names.join(', ') || '').replace(/"/g, '""')}"`,
-            `"${(f.classes_list.join(', ') || '').replace(/"/g, '""')}"`,
-            `"${(f.sections_list.join(', ') || '').replace(/"/g, '""')}"`,
-            `"${(f.father_name || '').replace(/"/g, '""')}"`,
-            `"${(f.mother_name || '').replace(/"/g, '""')}"`,
-            `"${(f.father_phone || '').replace(/"/g, '""')}"`,
-            `"${(f.mother_phone || '').replace(/"/g, '""')}"`
-        ]);
+        const headers = ["Sr.#", "Family Name", "Family ID", "Student Name", "Admission No", "Class", "Section", "Father Name", "Mother Name", "Father Phone", "Mother Phone"];
+        const rows: string[][] = [];
+        let sr = 1;
+
+        filteredFamilies.forEach(f => {
+            f.members.forEach(m => {
+                rows.push([
+                    sr.toString(),
+                    `"${(f.family_name || '').replace(/"/g, '""')}"`,
+                    `"${(f.family_id || '').replace(/"/g, '""')}"`,
+                    `"${(m.full_name || '').replace(/"/g, '""')}"`,
+                    `"${(m.admission_no || '').replace(/"/g, '""')}"`,
+                    `"${(m.class_name || '').replace(/"/g, '""')}"`,
+                    `"${(m.section_name || '').replace(/"/g, '""')}"`,
+                    `"${(m.father_name || f.father_name || '').replace(/"/g, '""')}"`,
+                    `"${(m.mother_name || f.mother_name || '').replace(/"/g, '""')}"`,
+                    `"${(m.father_phone || f.father_phone || '').replace(/"/g, '""')}"`,
+                    `"${(m.mother_phone || f.mother_phone || '').replace(/"/g, '""')}"`
+                ]);
+            });
+            sr++;
+        });
 
         const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -215,7 +227,7 @@ export default function FamilyListPage() {
         document.body.removeChild(link);
     };
 
-    // 3. Print / PDF Export
+    // 3. Print / PDF Export with Hierarchical Child Rows
     const exportPDF = () => {
         if (filteredFamilies.length === 0) return;
 
@@ -224,26 +236,46 @@ export default function FamilyListPage() {
 
         const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        const tableRowsHtml = filteredFamilies.map((f, idx) => `
-            <tr>
-                <td style="text-align: center; border: 1px solid #333; padding: 6px;">${idx + 1}</td>
-                <td style="border: 1px solid #333; padding: 6px; font-weight: bold;">${f.family_name}</td>
-                <td style="text-align: center; border: 1px solid #333; padding: 6px; font-weight: bold;">${f.family_id}</td>
-                <td style="border: 1px solid #333; padding: 6px;">
-                    ${f.members.map(m => `<div>• <strong>${m.full_name}</strong> <small>(${m.admission_no})</small></div>`).join('')}
-                </td>
-                <td style="text-align: center; border: 1px solid #333; padding: 6px;">${f.classes_list.join(', ')}</td>
-                <td style="text-align: center; border: 1px solid #333; padding: 6px;">${f.sections_list.join(', ')}</td>
-                <td style="border: 1px solid #333; padding: 6px;">
-                    <div><strong>Father:</strong> ${f.father_name || 'N/A'}</div>
-                    ${f.mother_name ? `<div style="font-size: 8pt; color: #555;"><strong>Mother:</strong> ${f.mother_name}</div>` : ''}
-                </td>
-                <td style="border: 1px solid #333; padding: 6px; white-space: nowrap;">
-                    <div>${f.father_phone ? `Father: ${f.father_phone}` : ''}</div>
-                    <div>${f.mother_phone ? `Mother: ${f.mother_phone}` : ''}</div>
-                </td>
-            </tr>
-        `).join('');
+        const tableRowsHtml = filteredFamilies.map((f, idx) => {
+            const M = f.members.length;
+            return f.members.map((m, mIdx) => {
+                if (mIdx === 0) {
+                    return `
+                        <tr style="border-top: 2px solid #215E61;">
+                            <td rowspan="${M}" style="text-align: center; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle; background-color: #fafafa;">${idx + 1}</td>
+                            <td rowspan="${M}" style="border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle;">
+                                <div style="font-size: 10pt; color: #233D4D;">${f.family_name}</div>
+                                <div style="font-size: 8pt; color: #666; font-weight: normal;">${f.total_children} Child${f.total_children > 1 ? 'ren' : ''}</div>
+                            </td>
+                            <td rowspan="${M}" style="text-align: center; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle; background-color: #f8f9fa;">${f.family_id}</td>
+                            <td style="border: 1px solid #333; padding: 6px; font-weight: bold; color: #111;">
+                                ${m.full_name} <span style="font-size: 8pt; color: #555; font-weight: normal;">(${m.admission_no})</span>
+                            </td>
+                            <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.class_name}</td>
+                            <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.section_name}</td>
+                            <td rowspan="${M}" style="border: 1px solid #333; padding: 6px; vertical-align: middle;">
+                                <div><strong>Father:</strong> ${f.father_name || 'N/A'}</div>
+                                ${f.mother_name ? `<div style="font-size: 8pt; color: #555;"><strong>Mother:</strong> ${f.mother_name}</div>` : ''}
+                            </td>
+                            <td rowspan="${M}" style="border: 1px solid #333; padding: 6px; vertical-align: middle; white-space: nowrap;">
+                                <div>${f.father_phone ? `Father: ${f.father_phone}` : ''}</div>
+                                <div>${f.mother_phone ? `Mother: ${f.mother_phone}` : ''}</div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    return `
+                        <tr>
+                            <td style="border: 1px solid #333; padding: 6px; font-weight: bold; color: #111;">
+                                ${m.full_name} <span style="font-size: 8pt; color: #555; font-weight: normal;">(${m.admission_no})</span>
+                            </td>
+                            <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.class_name}</td>
+                            <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.section_name}</td>
+                        </tr>
+                    `;
+                }
+            }).join('');
+        }).join('');
 
         const html = `
             <!DOCTYPE html>
@@ -251,14 +283,14 @@ export default function FamilyListPage() {
             <head>
                 <title>Family Directory Report - ${school.school_name || 'Shaheen School'}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; margin: 15mm 10mm; color: #000; background: #fff; }
-                    .header { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-                    .logo { width: 70px; height: 70px; object-fit: contain; margin-right: 15px; }
+                    body { font-family: Arial, sans-serif; margin: 12mm 10mm; color: #000; background: #fff; }
+                    .header { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+                    .logo { width: 65px; height: 65px; object-fit: contain; margin-right: 15px; }
                     .school-name { font-size: 18pt; font-weight: bold; text-transform: uppercase; color: #233D4D; text-align: center; }
-                    .school-sub { font-size: 10pt; text-align: center; margin-top: 3px; color: #444; }
-                    .title-bar { background-color: #215E61; color: #fff; text-align: center; padding: 6px; font-size: 12pt; font-weight: bold; text-transform: uppercase; margin: 10px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .meta-info { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-                    table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+                    .school-sub { font-size: 9.5pt; text-align: center; margin-top: 3px; color: #444; }
+                    .title-bar { background-color: #215E61; color: #fff; text-align: center; padding: 6px; font-size: 11.5pt; font-weight: bold; text-transform: uppercase; margin: 10px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .meta-info { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
                     th { background-color: #f0f4f5; border: 1px solid #333; padding: 6px; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     @page { size: A4 landscape; margin: 10mm; }
                 </style>
@@ -282,11 +314,11 @@ export default function FamilyListPage() {
                             <th style="width: 4%;">Sr.#</th>
                             <th style="width: 18%;">Family Name</th>
                             <th style="width: 12%;">Family ID</th>
-                            <th style="width: 24%;">Students / Children</th>
-                            <th style="width: 12%;">Classes</th>
-                            <th style="width: 8%;">Sections</th>
-                            <th style="width: 12%;">Parents Name</th>
-                            <th style="width: 10%;">Phone Numbers</th>
+                            <th style="width: 22%;">Student / Child Name</th>
+                            <th style="width: 10%;">Class</th>
+                            <th style="width: 8%;">Section</th>
+                            <th style="width: 14%;">Parents Name</th>
+                            <th style="width: 12%;">Phone Numbers</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -309,7 +341,7 @@ export default function FamilyListPage() {
 
     return (
         <div className="container-fluid p-4 animate__animated animate__fadeIn">
-            {/* Header Title */}
+            {/* Top Page Header */}
             <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
                 <div>
                     <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
@@ -317,24 +349,8 @@ export default function FamilyListPage() {
                         Family Directory
                     </h2>
                     <p className="text-muted small mb-0">
-                        Complete family units list with primary father names, children, classes, sections, and parent contact options.
+                        Complete family units directory with primary father names, child sub-rows, classes, sections, and parent contact options.
                     </p>
-                </div>
-
-                {/* Export Options Bar */}
-                <div className="d-flex flex-wrap gap-2 align-items-center">
-                    <button className="btn btn-outline-danger shadow-sm btn-sm px-3 fw-semibold" onClick={exportPDF} title="Export or Print as PDF">
-                        <i className="bi bi-file-earmark-pdf-fill me-1"></i> PDF
-                    </button>
-                    <button className="btn btn-outline-success shadow-sm btn-sm px-3 fw-semibold" onClick={exportExcel} title="Export to Excel Spreadsheet">
-                        <i className="bi bi-file-earmark-excel-fill me-1"></i> Excel
-                    </button>
-                    <button className="btn btn-outline-primary shadow-sm btn-sm px-3 fw-semibold" onClick={exportCSV} title="Export to CSV File">
-                        <i className="bi bi-file-earmark-text-fill me-1"></i> CSV
-                    </button>
-                    <button className="btn btn-outline-secondary shadow-sm btn-sm px-3 fw-semibold" onClick={exportPDF} title="Print Family Directory">
-                        <i className="bi bi-printer-fill me-1"></i> Print
-                    </button>
                 </div>
             </div>
 
@@ -376,55 +392,88 @@ export default function FamilyListPage() {
                 </div>
             )}
 
-            {/* Search & Filter Controls */}
-            <div className="card border-0 shadow-sm mb-4 rounded-3">
-                <div className="card-body p-3">
-                    <div className="row g-3 align-items-center">
-                        <div className="col-md-7 col-lg-8">
-                            <div className="input-group">
-                                <span className="input-group-text bg-white border-end-0">
-                                    <i className="bi bi-search text-muted"></i>
-                                </span>
-                                <input
-                                    type="text"
-                                    className="form-control border-start-0 ps-0"
-                                    placeholder="Search by Family Name, Family ID, Father/Mother Name, Child Name, Phone..."
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                />
-                                {searchTerm && (
-                                    <button className="btn btn-outline-secondary" type="button" onClick={() => setSearchTerm('')}>
-                                        <i className="bi bi-x"></i>
-                                    </button>
-                                )}
+            {/* Main Card with Table Header Actions */}
+            <div className="card border-0 shadow-sm rounded-3">
+                {/* Card Header with Integrated Search, Filter & Sleek Top-Right Icon Buttons */}
+                <div className="card-header bg-white border-bottom py-3 px-3">
+                    <div className="row g-3 align-items-center justify-content-between">
+                        {/* Search & Class Filter */}
+                        <div className="col-12 col-md-8 col-lg-7">
+                            <div className="d-flex flex-wrap gap-2">
+                                <div className="input-group flex-grow-1" style={{ minWidth: '220px' }}>
+                                    <span className="input-group-text bg-light border-end-0">
+                                        <i className="bi bi-search text-muted"></i>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        className="form-control border-start-0 ps-0 bg-light"
+                                        placeholder="Search Family Name, ID, Child Name, Phone..."
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                    />
+                                    {searchTerm && (
+                                        <button className="btn btn-light border border-start-0" type="button" onClick={() => setSearchTerm('')}>
+                                            <i className="bi bi-x text-muted"></i>
+                                        </button>
+                                    )}
+                                </div>
+                                <select
+                                    className="form-select bg-light"
+                                    style={{ width: 'auto', minWidth: '180px' }}
+                                    value={selectedClass}
+                                    onChange={e => setSelectedClass(e.target.value)}
+                                >
+                                    <option value="">All Classes</option>
+                                    {classes.map(c => (
+                                        <option key={c.class_id} value={c.class_id.toString()}>
+                                            {c.class_name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
-                        <div className="col-md-5 col-lg-4">
-                            <select
-                                className="form-select"
-                                value={selectedClass}
-                                onChange={e => setSelectedClass(e.target.value)}
-                            >
-                                <option value="">Filter by Class (All Classes)</option>
-                                {classes.map(c => (
-                                    <option key={c.class_id} value={c.class_id.toString()}>
-                                        {c.class_name}
-                                    </option>
-                                ))}
-                            </select>
+
+                        {/* Top-Right Sleek Export Icon Buttons */}
+                        <div className="col-12 col-md-4 col-lg-5 d-flex justify-content-md-end align-items-center gap-2">
+                            <div className="btn-group shadow-sm rounded-3" role="group" aria-label="Export Actions">
+                                <button
+                                    className="btn btn-sm btn-light border text-danger fw-semibold px-3 d-inline-flex align-items-center gap-1"
+                                    onClick={exportPDF}
+                                    title="Export or Save as PDF"
+                                >
+                                    <i className="bi bi-file-earmark-pdf-fill fs-6"></i>
+                                    <span className="d-none d-sm-inline">PDF</span>
+                                </button>
+                                <button
+                                    className="btn btn-sm btn-light border text-success fw-semibold px-3 d-inline-flex align-items-center gap-1"
+                                    onClick={exportExcel}
+                                    title="Export to Excel Spreadsheet"
+                                >
+                                    <i className="bi bi-file-earmark-excel-fill fs-6"></i>
+                                    <span className="d-none d-sm-inline">Excel</span>
+                                </button>
+                                <button
+                                    className="btn btn-sm btn-light border text-primary fw-semibold px-3 d-inline-flex align-items-center gap-1"
+                                    onClick={exportCSV}
+                                    title="Export to CSV File"
+                                >
+                                    <i className="bi bi-file-earmark-text-fill fs-6"></i>
+                                    <span className="d-none d-sm-inline">CSV</span>
+                                </button>
+                                <button
+                                    className="btn btn-sm btn-light border text-dark fw-semibold px-3 d-inline-flex align-items-center gap-1"
+                                    onClick={exportPDF}
+                                    title="Print Family Directory"
+                                >
+                                    <i className="bi bi-printer-fill fs-6"></i>
+                                    <span className="d-none d-sm-inline">Print</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Families Main Table */}
-            <div className="card border-0 shadow-sm rounded-3">
-                <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-journal-text me-2" style={{ color: 'var(--primary-teal)' }}></i>
-                        Family Directory Records ({filteredFamilies.length})
-                    </h6>
-                </div>
+                {/* Table Body with Hierarchical Child Rows */}
                 <div className="card-body p-0">
                     {loading ? (
                         <div className="text-center py-5">
@@ -434,152 +483,174 @@ export default function FamilyListPage() {
                     ) : filteredFamilies.length === 0 ? (
                         <div className="text-center py-5 text-muted">
                             <i className="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
-                            <p className="mb-0">No family records found matching your search query.</p>
+                            <p className="mb-0">No family records found matching your search criteria.</p>
                         </div>
                     ) : (
                         <div className="table-responsive">
-                            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.9rem' }}>
+                            <table className="table align-middle mb-0" style={{ fontSize: '0.88rem' }}>
                                 <thead style={{ backgroundColor: 'var(--primary-dark)', color: '#fff' }}>
                                     <tr>
-                                        <th className="text-center" style={{ width: '4%' }}>Sr.#</th>
-                                        <th style={{ width: '18%' }}>Family Name</th>
-                                        <th style={{ width: '12%' }}>Family ID</th>
-                                        <th style={{ width: '22%' }}>Children / Students</th>
-                                        <th style={{ width: '12%' }}>Classes</th>
-                                        <th style={{ width: '8%' }}>Sections</th>
-                                        <th style={{ width: '14%' }}>Father / Mother Name</th>
-                                        <th style={{ width: '10%' }}>Contact Numbers</th>
-                                        <th className="text-center" style={{ width: '6%' }}>WhatsApp</th>
+                                        <th className="text-center" style={{ width: '4%', padding: '10px 8px' }}>Sr.#</th>
+                                        <th style={{ width: '18%', padding: '10px 8px' }}>Family Name</th>
+                                        <th style={{ width: '12%', padding: '10px 8px' }}>Family ID</th>
+                                        <th style={{ width: '22%', padding: '10px 8px' }}>Student / Child Name</th>
+                                        <th style={{ width: '10%', padding: '10px 8px' }}>Class</th>
+                                        <th style={{ width: '8%', padding: '10px 8px' }}>Section</th>
+                                        <th style={{ width: '14%', padding: '10px 8px' }}>Parents Name</th>
+                                        <th style={{ width: '10%', padding: '10px 8px' }}>Contact Numbers</th>
+                                        <th className="text-center" style={{ width: '6%', padding: '10px 8px' }}>WhatsApp</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredFamilies.map((fam, idx) => {
+                                    {filteredFamilies.map((fam, famIdx) => {
                                         const waNumber = formatWhatsAppNumber(fam.primary_phone);
-                                        return (
-                                            <tr key={fam.family_id}>
-                                                <td className="text-center text-muted fw-semibold">{idx + 1}</td>
-                                                
-                                                {/* 1. Family Name (Majority Father Name) */}
-                                                <td>
-                                                    <div className="fw-bold text-dark d-flex align-items-center gap-1">
-                                                        <i className="bi bi-house-door-fill text-teal me-1" style={{ color: 'var(--primary-teal)' }}></i>
-                                                        {fam.family_name}
-                                                    </div>
-                                                    <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-                                                        {fam.total_children} child{fam.total_children > 1 ? 'ren' : ''} in family
-                                                    </small>
-                                                </td>
+                                        const M = fam.members.length;
 
-                                                {/* 2. Family ID */}
-                                                <td>
-                                                    <span className="badge rounded-pill text-dark border px-2 py-1" style={{ backgroundColor: '#f8f9fa', fontSize: '0.8rem' }}>
-                                                        <i className="bi bi-tag-fill me-1 text-secondary"></i>
-                                                        {fam.family_id}
-                                                    </span>
-                                                </td>
+                                        return fam.members.map((m, mIdx) => {
+                                            const isFirst = mIdx === 0;
 
-                                                {/* 3. Children / Students in Family */}
-                                                <td>
-                                                    <div className="d-flex flex-column gap-1">
-                                                        {fam.members.map(m => (
-                                                            <div key={m.student_id} className="d-flex align-items-center gap-1">
-                                                                <i className="bi bi-person-fill text-muted" style={{ fontSize: '0.8rem' }}></i>
-                                                                <span className="fw-semibold text-dark" style={{ fontSize: '0.85rem' }}>
+                                            return (
+                                                <tr
+                                                    key={`${fam.family_id}-${m.student_id}`}
+                                                    style={{
+                                                        backgroundColor: famIdx % 2 === 0 ? '#ffffff' : '#fafafa',
+                                                        borderTop: isFirst ? '2px solid #dee2e6' : '1px dashed #e9ecef'
+                                                    }}
+                                                >
+                                                    {/* 1. Sr.# (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td
+                                                            rowSpan={M}
+                                                            className="text-center text-muted fw-bold align-middle border-end bg-light bg-opacity-50"
+                                                        >
+                                                            {famIdx + 1}
+                                                        </td>
+                                                    )}
+
+                                                    {/* 2. Family Name (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td rowSpan={M} className="align-middle border-end">
+                                                            <div className="fw-bold text-dark d-flex align-items-center gap-1">
+                                                                <i className="bi bi-house-door-fill me-1" style={{ color: 'var(--primary-teal)' }}></i>
+                                                                {fam.family_name}
+                                                            </div>
+                                                            <small className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                {fam.total_children} child{fam.total_children > 1 ? 'ren' : ''} in family
+                                                            </small>
+                                                        </td>
+                                                    )}
+
+                                                    {/* 3. Family ID (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td rowSpan={M} className="align-middle border-end">
+                                                            <span className="badge rounded-pill text-dark border px-2 py-1" style={{ backgroundColor: '#f1f5f9', fontSize: '0.78rem' }}>
+                                                                <i className="bi bi-tag-fill me-1 text-secondary"></i>
+                                                                {fam.family_id}
+                                                            </span>
+                                                        </td>
+                                                    )}
+
+                                                    {/* 4. Student / Child Sub-Row Name */}
+                                                    <td>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <i className="bi bi-person-circle text-teal" style={{ color: 'var(--primary-teal)', fontSize: '0.9rem' }}></i>
+                                                            <div>
+                                                                <span className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
                                                                     {m.full_name}
                                                                 </span>
-                                                                <small className="text-muted" style={{ fontSize: '0.72rem' }}>({m.admission_no})</small>
+                                                                <span className="badge bg-light text-muted border ms-1" style={{ fontSize: '0.7rem' }}>
+                                                                    {m.admission_no}
+                                                                </span>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                {/* 4. Classes */}
-                                                <td>
-                                                    <div className="d-flex flex-wrap gap-1">
-                                                        {fam.members.map((m, i) => (
-                                                            <span key={i} className="badge bg-light text-dark border" style={{ fontSize: '0.75rem' }}>
-                                                                {m.class_name}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                {/* 5. Sections */}
-                                                <td>
-                                                    <div className="d-flex flex-wrap gap-1">
-                                                        {fam.members.map((m, i) => (
-                                                            <span key={i} className="badge bg-secondary bg-opacity-10 text-dark border" style={{ fontSize: '0.75rem' }}>
-                                                                {m.section_name}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                {/* 6. Father Name / Mother Name */}
-                                                <td>
-                                                    <div className="small">
-                                                        <div className="fw-semibold text-dark">
-                                                            <i className="bi bi-person-badge me-1 text-primary"></i>
-                                                            {fam.father_name || 'N/A'}
                                                         </div>
-                                                        {fam.mother_name && (
-                                                            <div className="text-muted" style={{ fontSize: '0.78rem' }}>
-                                                                <i className="bi bi-person me-1 text-secondary"></i>
-                                                                Mother: {fam.mother_name}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
+                                                    </td>
 
-                                                {/* 7. Father / Mother Phone Number */}
-                                                <td>
-                                                    <div className="small" style={{ whiteSpace: 'nowrap' }}>
-                                                        {fam.father_phone ? (
-                                                            <div>
-                                                                <a href={`tel:${fam.father_phone}`} className="text-decoration-none text-dark fw-semibold">
-                                                                    <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.75rem' }}></i>
-                                                                    {fam.father_phone}
-                                                                </a>
-                                                            </div>
-                                                        ) : fam.mother_phone ? (
-                                                            <div>
-                                                                <a href={`tel:${fam.mother_phone}`} className="text-decoration-none text-dark fw-semibold">
-                                                                    <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.75rem' }}></i>
-                                                                    {fam.mother_phone}
-                                                                </a>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted">—</span>
-                                                        )}
-                                                        {fam.mother_phone && fam.father_phone && (
-                                                            <div className="text-muted" style={{ fontSize: '0.72rem' }}>
-                                                                M: {fam.mother_phone}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
+                                                    {/* 5. Class */}
+                                                    <td>
+                                                        <span className="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.78rem' }}>
+                                                            {m.class_name}
+                                                        </span>
+                                                    </td>
 
-                                                {/* 8. WhatsApp Icon Action */}
-                                                <td className="text-center">
-                                                    {waNumber ? (
-                                                        <a
-                                                            href={`https://wa.me/${waNumber}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
-                                                            style={{ width: '34px', height: '34px', backgroundColor: '#25D366', borderColor: '#25D366' }}
-                                                            title={`Send WhatsApp message to ${fam.primary_phone}`}
-                                                        >
-                                                            <i className="bi bi-whatsapp fs-6 text-white"></i>
-                                                        </a>
-                                                    ) : (
-                                                        <button className="btn btn-sm btn-light text-muted rounded-circle" disabled style={{ width: '34px', height: '34px' }}>
-                                                            <i className="bi bi-whatsapp fs-6 opacity-50"></i>
-                                                        </button>
+                                                    {/* 6. Section */}
+                                                    <td>
+                                                        <span className="badge bg-secondary bg-opacity-10 text-dark border px-2 py-1" style={{ fontSize: '0.78rem' }}>
+                                                            {m.section_name}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 7. Father / Mother Name (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td rowSpan={M} className="align-middle border-start border-end">
+                                                            <div className="small">
+                                                                <div className="fw-semibold text-dark">
+                                                                    <i className="bi bi-person-badge me-1 text-primary"></i>
+                                                                    {fam.father_name || 'N/A'}
+                                                                </div>
+                                                                {fam.mother_name && (
+                                                                    <div className="text-muted mt-1" style={{ fontSize: '0.78rem' }}>
+                                                                        <i className="bi bi-person me-1 text-secondary"></i>
+                                                                        Mother: {fam.mother_name}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
                                                     )}
-                                                </td>
-                                            </tr>
-                                        );
+
+                                                    {/* 8. Contact Numbers (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td rowSpan={M} className="align-middle border-end" style={{ whiteSpace: 'nowrap' }}>
+                                                            <div className="small">
+                                                                {fam.father_phone ? (
+                                                                    <div>
+                                                                        <a href={`tel:${fam.father_phone}`} className="text-decoration-none text-dark fw-semibold">
+                                                                            <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.75rem' }}></i>
+                                                                            {fam.father_phone}
+                                                                        </a>
+                                                                    </div>
+                                                                ) : fam.mother_phone ? (
+                                                                    <div>
+                                                                        <a href={`tel:${fam.mother_phone}`} className="text-decoration-none text-dark fw-semibold">
+                                                                            <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.75rem' }}></i>
+                                                                            {fam.mother_phone}
+                                                                        </a>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-muted">—</span>
+                                                                )}
+                                                                {fam.mother_phone && fam.father_phone && (
+                                                                    <div className="text-muted mt-1" style={{ fontSize: '0.72rem' }}>
+                                                                        M: {fam.mother_phone}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    )}
+
+                                                    {/* 9. WhatsApp Icon Action (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td rowSpan={M} className="text-center align-middle">
+                                                            {waNumber ? (
+                                                                <a
+                                                                    href={`https://wa.me/${waNumber}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm"
+                                                                    style={{ width: '34px', height: '34px', backgroundColor: '#25D366', borderColor: '#25D366' }}
+                                                                    title={`Send WhatsApp message to ${fam.primary_phone}`}
+                                                                >
+                                                                    <i className="bi bi-whatsapp fs-6 text-white"></i>
+                                                                </a>
+                                                            ) : (
+                                                                <button className="btn btn-sm btn-light text-muted rounded-circle" disabled style={{ width: '34px', height: '34px' }}>
+                                                                    <i className="bi bi-whatsapp fs-6 opacity-50"></i>
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        });
                                     })}
                                 </tbody>
                             </table>
