@@ -35,11 +35,11 @@ async function addOPBHead() {
             if (existing.rows.length > 0) {
                 console.log(`ℹ️  Opening Balance head already exists (ID: ${existing.rows[0].head_id})`);
             } else {
-                console.log('⚠️  Duplicate head_name conflict — check fee_heads table manually');
+                console.log('⚠️  Duplicate head_name conflict check fee_heads table manually');
             }
         }
 
-        // 2. Clear old standalone OPB payment records (fresh start — payments now via fee slips)
+        // 2. Clear old standalone OPB payment records (fresh start payments now via fee slips)
         const del = await client.query('DELETE FROM family_opb_payments RETURNING payment_id');
         console.log(`🗑️  Cleared ${del.rowCount} old OPB payment record(s) from family_opb_payments`);
 
@@ -54,12 +54,12 @@ async function addOPBHead() {
         console.log('\n✅ OPB Head migration complete!');
         console.log('─────────────────────────────────────────────────────────');
         console.log('   Next steps:');
-        console.log('   1. Go to Fees → Fee Heads — you will see "Opening Balance" head');
+        console.log('   1. Go to Fees → Fee Heads you will see "Opening Balance" head');
         console.log('   2. Open each Fee Plan → add "Opening Balance" head (set amount = 0,');
         console.log('      system auto-uses the family\'s actual remaining OPB at generation time)');
-        console.log('   3. Generate slips — OPB will be added as a line item on any slip');
+        console.log('   3. Generate slips OPB will be added as a line item on any slip');
         console.log('      for families who still have remaining opening balance');
-        console.log('   4. Collect fee normally — OPB reduces automatically as slips are paid');
+        console.log('   4. Collect fee normally OPB reduces automatically as slips are paid');
         console.log('─────────────────────────────────────────────────────────');
 
     } catch (err) {

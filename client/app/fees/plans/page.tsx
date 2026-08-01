@@ -125,7 +125,7 @@ export default function FeePlansPage() {
 
     const isTuitionHead = (name: string) => name.toLowerCase().includes('tuition');
     const isOpbHead = (type: string) => type === 'prev_balance';
-    // Tuition (per-student) and Previous Balance (per-family) amounts are auto — exclude from plan fixed total
+    // Tuition (per-student) and Previous Balance (per-family) amounts are auto exclude from plan fixed total
     const totalAmount = form.heads
         .filter(h => !isTuitionHead(h.head_name) && !isOpbHead(h.head_type))
         .reduce((s, h) => s + (parseFloat(h.amount) || 0), 0);
@@ -385,8 +385,8 @@ export default function FeePlansPage() {
                                                                         <input type="checkbox" className="form-check-input mt-0" readOnly checked={!!sel} />
                                                                         <span className="fw-bold small">{head.head_name}</span>
                                                                         <span className={`badge rounded-pill ms-auto ${head.head_type === 'regular' ? 'bg-info text-dark' :
-                                                                                head.head_type === 'prev_balance' ? 'text-white' :
-                                                                                    'bg-warning text-dark'}`}
+                                                                            head.head_type === 'prev_balance' ? 'text-white' :
+                                                                                'bg-warning text-dark'}`}
                                                                             style={head.head_type === 'prev_balance' ? { background: '#6f42c1' } : {}}>
                                                                             {head.head_type === 'prev_balance' ? 'Prev. Balance' : head.head_type}
                                                                         </span>

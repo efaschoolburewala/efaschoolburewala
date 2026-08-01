@@ -383,7 +383,7 @@ export default function AdmissionFeePage() {
             Ledger
           </h2>
           <p className="text-muted small mb-0">
-            Track one-time admission fee outstanding per student — auto-linked
+            Track one-time admission fee outstanding per student auto-linked
             on admission.
           </p>
         </div>

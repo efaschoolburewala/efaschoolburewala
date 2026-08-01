@@ -105,7 +105,7 @@ export default function FeeGeneratePage() {
         setPlanInfo(plan || null);
     }, [selectedPlanId, matchingPlans]);
 
-    // viewMonth: first selected month — always defined so we can show combined slips after generation
+    // viewMonth: first selected month always defined so we can show combined slips after generation
     const sortedSelectedMonths = [...selectedMonths].sort((a, b) => parseInt(a) - parseInt(b));
     const viewMonth = sortedSelectedMonths[0] ?? null;
 
@@ -191,7 +191,7 @@ export default function FeeGeneratePage() {
         setGenerating(true);
         const sortedMonths = [...selectedMonths].sort((a, b) => parseInt(a) - parseInt(b));
         try {
-            // Send ONE request with all selected months — server creates a single combined slip
+            // Send ONE request with all selected months server creates a single combined slip
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/fee-slips/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -211,7 +211,7 @@ export default function FeeGeneratePage() {
             } else {
                 const monthLabels = sortedMonths.map(m => MONTHS[parseInt(m) - 1]).join(' + ');
                 const slipNote = sortedMonths.length > 1 ? ` (combined ${sortedMonths.length}-month slip per student)` : '';
-                notify.success(`Generated slips for ${monthLabels}${slipNote} — ${data.generated} created, ${data.skipped} skipped.`);
+                notify.success(`Generated slips for ${monthLabels}${slipNote} ${data.generated} created, ${data.skipped} skipped.`);
             }
             fetchSlips();
             fetchGeneratedMonths();
@@ -323,7 +323,7 @@ export default function FeeGeneratePage() {
                     <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-lightning-charge me-2"></i>Monthly Fee Generation
                     </h2>
-                    <p className="text-muted small mb-0">Select a class and month — regular heads auto-load from fee plan. Add extra charges if needed.</p>
+                    <p className="text-muted small mb-0">Select a class and month regular heads auto-load from fee plan. Add extra charges if needed.</p>
                 </div>
                 <div className="d-grid d-md-block">
                     <button className="btn btn-secondary-custom d-inline-flex align-items-center justify-content-center gap-2" onClick={() => router.push('/fees/print')}>
@@ -580,8 +580,8 @@ export default function FeeGeneratePage() {
                             <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                                 {className
                                     ? sortedSelectedMonths.length === 1
-                                        ? `${className} — ${MONTHS[parseInt(sortedSelectedMonths[0]) - 1]} ${selectedYear}`
-                                        : `${className} — ${MONTHS[parseInt(sortedSelectedMonths[0]) - 1]} + ${MONTHS[parseInt(sortedSelectedMonths[sortedSelectedMonths.length - 1]) - 1]} ${selectedYear} (combined)`
+                                        ? `${className} ${MONTHS[parseInt(sortedSelectedMonths[0]) - 1]} ${selectedYear}`
+                                        : `${className} ${MONTHS[parseInt(sortedSelectedMonths[0]) - 1]} + ${MONTHS[parseInt(sortedSelectedMonths[sortedSelectedMonths.length - 1]) - 1]} ${selectedYear} (combined)`
                                     : 'Select a class to view slips'}
                             </h6>
                             {slips.length > 0 && (
@@ -700,7 +700,7 @@ export default function FeeGeneratePage() {
                             <div className="modal-content border-0 shadow-lg">
                                 <div className="modal-header text-white" style={{ backgroundColor: 'var(--primary-dark)' }}>
                                     <h5 className="modal-title">
-                                        <i className="bi bi-pencil-square me-2"></i>Edit Slip — {editSlip.first_name} {editSlip.last_name}
+                                        <i className="bi bi-pencil-square me-2"></i>Edit Slip {editSlip.first_name} {editSlip.last_name}
                                     </h5>
                                     <button className="btn-close btn-close-white" onClick={() => setShowEdit(false)}></button>
                                 </div>

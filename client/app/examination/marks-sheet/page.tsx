@@ -446,7 +446,7 @@ export default function ClassMarksSheetPage() {
                         style={{ borderLeft: '4px solid var(--accent-orange)' }}>
                         <div className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
                             {loading ? 'Loading...' : sheet
-                                ? `${sheet.meta.class_name} meta.section_name} — ${sheet.meta.term_name}  (${sheet.students.length} students, ${sheet.subjects.length} subjects)`
+                                ? `${sheet.meta.class_name} meta.section_name} ${sheet.meta.term_name}  (${sheet.students.length} students, ${sheet.subjects.length} subjects)`
                                 : 'Marks Sheet'}
                         </div>
                         {sheet && !loading && (

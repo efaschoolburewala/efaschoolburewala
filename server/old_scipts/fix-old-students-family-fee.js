@@ -7,7 +7,7 @@
  *  1. Creates missing `families` records for every unique family_id in students
  *  2. For multi-member families where family_fee = 0, seeds it from SUM of members' monthly_fee
  *  3. Reports families that still need manual fee entry
- *  4. Reports solo-student families (no action needed — they use individual monthly_fee)
+ *  4. Reports solo-student families (no action needed they use individual monthly_fee)
  */
 
 const pool = require('./db');
@@ -65,7 +65,7 @@ async function fixOldStudentFamilyFees() {
             } else {
                 // All members have monthly_fee = 0; admin needs to set manually
                 noFeeCount++;
-                console.log(`   ⚠️  ${fam.family_id} (${fam.member_count} members): No fee data — set manually! [${fam.members_info}]`);
+                console.log(`   ⚠️  ${fam.family_id} (${fam.member_count} members): No fee data set manually! [${fam.members_info}]`);
             }
         }
 

@@ -105,7 +105,7 @@ export default function CollectFeePage() {
                     phone_number: data.contact_number || '',
                     school_phone2: '',
                     school_phone3: '',
-                    // logo_url is a relative path like /uploads/school_logo.png — prefix API host
+                    // logo_url is a relative path like /uploads/school_logo.png prefix API host
                     school_logo_url: data.logo_url ? `${API}${data.logo_url}` : ''
                 });
             }
@@ -129,7 +129,7 @@ export default function CollectFeePage() {
                             setLoaded(true);
                         }
                     })
-                    .catch(() => {})
+                    .catch(() => { })
                     .finally(() => setLoading(false));
             }
         }
@@ -154,7 +154,7 @@ export default function CollectFeePage() {
         finally { setLoading(false); }
     };
 
-    // Silent reload — re-fetches all slips in the background without clearing UI or spinner.
+    // Silent reload re-fetches all slips in the background without clearing UI or spinner.
     // Called after payment/reversal so waterfall-updated old slips also reflect their new state.
     const silentReload = async () => {
         if (!year) return;
@@ -312,7 +312,7 @@ export default function CollectFeePage() {
             setSlips(prev => prev.map(s => s.slip_id === activeSlip!.slip_id
                 ? { ...s, paid_amount: d.slip.paid_amount, status: d.slip.status } : s));
             setActiveSlip(prev => prev ? { ...prev, paid_amount: d.slip.paid_amount, status: d.slip.status } : null);
-            // Re-fetch all slips silently — OPB reversal may have updated older slips in DB
+            // Re-fetch all slips silently OPB reversal may have updated older slips in DB
             silentReload();
         } catch (e: any) { alert('Error: ' + e.message); }
         finally { setDeletingPaymentId(null); }
@@ -351,7 +351,7 @@ export default function CollectFeePage() {
             setHeadPayVals({});
             // Open receipt in new window after successful payment
             if (shouldPrint) openReceiptWindow(slipSnap, receivingSnap, payDateSnap, prevPaidSnap);
-            // Re-fetch all slips silently — waterfall may have updated older slips in DB
+            // Re-fetch all slips silently waterfall may have updated older slips in DB
             silentReload();
         } catch (e: any) { notify.error(e.message); }
         finally { setPaying(false); }
@@ -373,9 +373,9 @@ export default function CollectFeePage() {
         return true;
     });
 
-    // Group filtered slips by student/family — one row per student
+    // Group filtered slips by student/family one row per student
     // NOTE: Each slip already embeds previous months' unpaid balance as "Previous Balance" line item.
-    //       So we NEVER sum across slips — we only look at the LATEST slip per student.
+    //       So we NEVER sum across slips we only look at the LATEST slip per student.
     const groupedFiltered = (() => {
         const map = new Map<string, {
             key: string; student_id: number; first_name: string; last_name: string;
@@ -383,7 +383,7 @@ export default function CollectFeePage() {
             class_name: string; section_name?: string; family_id: string | null; is_family_slip: boolean;
             family_members?: any[];
             latest_slip: SlipRow;      // the most recent slip (highest year then month)
-            latest_unpaid: SlipRow;    // most recent unpaid/partial slip — collect THIS one
+            latest_unpaid: SlipRow;    // most recent unpaid/partial slip collect THIS one
             latest_paid: SlipRow | null;  // most recent slip with paid_amount > 0 (for Reverse)
             has_payments: boolean;     // any slip in this group has been paid at least partially
             balance: number;           // balance from latest_unpaid only
@@ -461,7 +461,7 @@ export default function CollectFeePage() {
                     </h6>
                 </div>
                 <div className="card-body p-4">
-                    {/* Row 1: Search bar — always visible */}
+                    {/* Row 1: Search bar always visible */}
                     <div className="mb-3">
                         <div className="input-group">
                             <span className="input-group-text bg-white">
@@ -872,7 +872,7 @@ export default function CollectFeePage() {
                                     )} 
                                     */}
 
-                                    {/* Payment history — always visible so Delete button is always accessible */}
+                                    {/* Payment history always visible so Delete button is always accessible */}
                                     <div className="mb-3">
                                         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-dark)', marginBottom: 4 }}>
                                             <i className="bi bi-clock-history me-1"></i>Payment History
@@ -1045,7 +1045,7 @@ export default function CollectFeePage() {
                                                                                 <span className="text-muted" style={{ fontSize: '0.7rem' }}>Billed: {combAmtB.toLocaleString('en-PK')} {combPaid > 0 ? ' • Paid: ' + combPaid.toLocaleString('en-PK') : ''}</span>
                                                                                 {(tItem && pbItem) && (
                                                                                     <span className="text-muted" style={{ fontSize: '0.65rem' }}>
-                                                                                        (Remaining — Tuition: {tRem.toLocaleString('en-PK')} | Prev: {pbRem.toLocaleString('en-PK')})
+                                                                                        (Remaining Tuition: {tRem.toLocaleString('en-PK')} | Prev: {pbRem.toLocaleString('en-PK')})
                                                                                     </span>
                                                                                 )}
                                                                             </div>

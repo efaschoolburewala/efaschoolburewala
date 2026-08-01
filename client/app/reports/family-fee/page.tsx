@@ -152,7 +152,7 @@ export default function FamilyFeeReportPage() {
             `<tr><td style="padding:7px 10px">${h.head_name}</td><td style="padding:7px 10px;text-align:right;font-weight:600">Rs.${h.total.toLocaleString()}</td></tr>`
         ).join('');
 
-        win.document.write(`<!DOCTYPE html><html><head><title>Family Fee Report — ${monthLabel} ${year}</title>
+        win.document.write(`<!DOCTYPE html><html><head><title>Family Fee Report ${monthLabel} ${year}</title>
         <style>
             * { box-sizing:border-box; margin:0; padding:0; }
             body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#222; }
@@ -175,7 +175,7 @@ export default function FamilyFeeReportPage() {
         <div class="header">
             <div>
                 <div class="school-name">School Management System</div>
-                <div class="report-title">Family Fee Collection Report — ${monthLabel} ${year}${classLabel ? ` &nbsp;|&nbsp; ${classLabel}${secLabel ? ' &rsaquo; ' + secLabel : ''}` : ''}</div>
+                <div class="report-title">Family Fee Collection Report ${monthLabel} ${year}${classLabel ? ` &nbsp;|&nbsp; ${classLabel}${secLabel ? ' &rsaquo; ' + secLabel : ''}` : ''}</div>
             </div>
             <div class="meta">Generated: ${new Date().toLocaleDateString('en-PK', { dateStyle: 'medium' })}<br/>Time: ${new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
@@ -200,7 +200,7 @@ export default function FamilyFeeReportPage() {
                 <td style="padding:8px 10px;text-align:right;font-weight:700">Rs.${(collective?.total_billed || 0).toLocaleString()}</td>
             </tr></tfoot>
         </table>
-        <div class="section-title">Student-wise Fee Detail — ${slips.length} Students</div>
+        <div class="section-title">Student-wise Fee Detail ${slips.length} Students</div>
         <table>
             <thead><tr>
                 <th style="width:26px;padding:8px 6px">#</th>
@@ -242,7 +242,7 @@ export default function FamilyFeeReportPage() {
                         <i className="bi bi-wallet2 me-2" style={{ color: 'var(--accent-orange)' }} />
                         Family Fee Report
                     </h4>
-                    <div className="text-muted small">Monthly fee collection — head-wise per student &amp; collective summary</div>
+                    <div className="text-muted small">Monthly fee collection head-wise per student &amp; collective summary</div>
                 </div>
             </div>
 
@@ -341,7 +341,7 @@ export default function FamilyFeeReportPage() {
                         <div className="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 py-3 px-3 px-md-4">
                             <div>
                                 <div className="fw-bold fs-5 text-white">
-                                    Fee Collection Report — {monthLabel} {year}
+                                    Fee Collection Report {monthLabel} {year}
                                     {classLabel && <span className="ms-2 opacity-75 fs-6">| {classLabel}{secLabel && ` › ${secLabel}`}</span>}
                                 </div>
                                 <div className="text-white-50 small mt-1">
@@ -433,7 +433,7 @@ export default function FamilyFeeReportPage() {
                         </div>
                     )}
 
-                    {/* ── Student-wise Detail — Dynamic Head Columns ── */}
+                    {/* ── Student-wise Detail Dynamic Head Columns ── */}
                     <div className="card border-0 shadow-sm mb-4">
                         <div className="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between"
                             style={{ borderLeft: '4px solid var(--primary-teal)' }}>
@@ -456,7 +456,7 @@ export default function FamilyFeeReportPage() {
                                             {['#', 'Adm#', 'Student Name', 'Class', 'Section'].map(h => (
                                                 <th key={h} style={{ background: '#233D4D', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap' }}>{h}</th>
                                             ))}
-                                            {/* Dynamic head columns — one per unique head */}
+                                            {/* Dynamic head columns one per unique head */}
                                             {uniqueHeads.map(h => (
                                                 <th key={h} style={{ background: '#1a4a5e', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>{h}</th>
                                             ))}

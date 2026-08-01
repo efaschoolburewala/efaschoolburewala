@@ -174,7 +174,7 @@ function getInitials(name: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SidebarInner — ALL sidebar state lives HERE so toggling never re-renders main
+// SidebarInner ALL sidebar state lives HERE so toggling never re-renders main
 // ─────────────────────────────────────────────────────────────────────────────
 type SidebarProps = {
   user: { full_name: string; role_name: string } | null;
@@ -184,7 +184,7 @@ type SidebarProps = {
 };
 
 const SidebarInner = memo(function SidebarInner({ user, isLoggedIn, logout, hasPermission }: SidebarProps) {
-  // pathname lives HERE — not passed as prop — so parent re-renders never break memo
+  // pathname lives HERE not passed as prop so parent re-renders never break memo
   const pathname = usePathname() || '/';
 
   // ── Navigation loading overlay (dots) ────────────────────────────────────
@@ -255,7 +255,7 @@ const SidebarInner = memo(function SidebarInner({ user, isLoggedIn, logout, hasP
     return permRef.current(permissionKey);
   }, []);
 
-  // Pre-compute which groups to show — only re-runs when permissions change
+  // Pre-compute which groups to show only re-runs when permissions change
   const visibleGroups = useMemo(
     () => NAV_GROUPS.map(g => {
       if (g.key === 'dashboard') return g;
@@ -420,7 +420,7 @@ const SidebarInner = memo(function SidebarInner({ user, isLoggedIn, logout, hasP
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AuthRedirect — the ONLY component allowed to call usePathname().
+// AuthRedirect the ONLY component allowed to call usePathname().
 // Returns null so reconciliation cost is zero on every navigation.
 // Isolates pathname subscription so ClientLayout never re-renders on navigation.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -439,10 +439,10 @@ function AuthRedirect() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Layout — never re-renders on navigation; only re-renders on login/logout
+// Main Layout never re-renders on navigation; only re-renders on login/logout
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
-  // NO usePathname() here — that's in AuthRedirect.
+  // NO usePathname() here that's in AuthRedirect.
   // useAuth() value is memoized → this component only re-renders when
   // user/isLoading changes (login / logout events only).
   const { user, isLoggedIn, isLoading, logout, hasPermission } = useAuth();
@@ -451,7 +451,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   useAutoBackup(isLoggedIn);
 
   useEffect(() => {
-    // Load Bootstrap JS once on mount — not on every navigation
+    // Load Bootstrap JS once on mount not on every navigation
     // @ts-ignore
     import('bootstrap/dist/js/bootstrap.bundle.min.js').catch(() => { });
   }, []);
@@ -473,7 +473,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     </>
   );
 
-  // Authenticated — full layout, AuthRedirect still mounted (handles logout redirect)
+  // Authenticated full layout, AuthRedirect still mounted (handles logout redirect)
   return (
     <div className="sl-layout">
       <AuthRedirect />

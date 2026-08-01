@@ -94,7 +94,7 @@ async function runEssentialMigrations() {
 
         // 5. REPAIR: Fix any student_siblings rows incorrectly marked 'blood'
         //    where the two students have DIFFERENT father names.
-        //    Blood siblings MUST share the same father — different father = cousin or unrelated.
+        //    Blood siblings MUST share the same father different father = cousin or unrelated.
         //    This repair corrects data corrupted by a previous migration that used DO UPDATE.
         //    It is safe to run repeatedly (idempotent).
         console.log("   → Repairing incorrectly marked blood siblings...");

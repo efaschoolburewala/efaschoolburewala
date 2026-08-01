@@ -35,7 +35,7 @@ const ROLE_LEVELS = [
 ];
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   PAGE TREE  —  every module maps to its sub-pages with page-level keys
+   PAGE TREE   every module maps to its sub-pages with page-level keys
    These page-level keys are stored in role_permissions.module_name column
 ───────────────────────────────────────────────────────────────────────────── */
 type PageDef = { key: string; label: string; icon: string; desc: string };
@@ -201,16 +201,16 @@ export default function RolesPage() {
                 if (parent) return { module_name: page.key, can_read: parent.can_read, can_write: parent.can_write, can_delete: parent.can_delete };
             }
 
-            // 3. Default — no access
+            // 3. Default no access
             return { module_name: page.key, can_read: false, can_write: false, can_delete: false };
         });
     };
 
     const handleEdit = (role: Role) => {
-        setFormData({ 
-            ...role, 
+        setFormData({
+            ...role,
             role_level: role.role_level || 50,
-            permissions: buildFormPerms(role.permissions || []) 
+            permissions: buildFormPerms(role.permissions || [])
         });
         setExpanded(Object.fromEntries(Object.keys(PAGE_TREE).map(k => [k, true])));
         setView('form');
@@ -248,13 +248,13 @@ export default function RolesPage() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // If editing existing role with assigned users, show confirmation modal
         if (formData.id !== 0 && (formData.assigned_count ?? 0) > 0) {
             setConfirmModal({ show: true, assignedCount: formData.assigned_count ?? 0, roleId: formData.id, originalLevel: formData.role_level });
             return;
         }
-        
+
         await performSave(true);
     };
 
@@ -374,9 +374,9 @@ export default function RolesPage() {
                     {/* Legend */}
                     <div className="d-flex flex-wrap gap-4 mb-4">
                         {[
-                            { icon: 'bi-eye-fill', color: '#0ea5e9', label: 'Read — View only access' },
-                            { icon: 'bi-pencil-fill', color: '#10b981', label: 'Write — Create & edit access' },
-                            { icon: 'bi-trash3-fill', color: '#ef4444', label: 'Delete — Remove records access' },
+                            { icon: 'bi-eye-fill', color: '#0ea5e9', label: 'Read View only access' },
+                            { icon: 'bi-pencil-fill', color: '#10b981', label: 'Write Create & edit access' },
+                            { icon: 'bi-trash3-fill', color: '#ef4444', label: 'Delete Remove records access' },
                         ].map(l => (
                             <span key={l.label} className="d-flex align-items-center gap-2 small fw-semibold" style={{ color: '#64748b' }}>
                                 <i className={`bi ${l.icon}`} style={{ color: l.color }} /> {l.label}
@@ -438,7 +438,7 @@ export default function RolesPage() {
                                                 </span>
                                             </div>
 
-                                            {/* Module dots — one dot per module showing how many pages enabled */}
+                                            {/* Module dots one dot per module showing how many pages enabled */}
                                             <div className="d-flex flex-wrap gap-2 mb-3">
                                                 {Object.entries(PAGE_TREE).map(([mk, mod]) => {
                                                     const modPages = mod.pages;
@@ -523,10 +523,10 @@ export default function RolesPage() {
                         </button>
                         <div>
                             <h3 className="h4 fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
-                                {formData.id === 0 ? 'Create New Role' : `Edit — ${formData.role_name}`}
+                                {formData.id === 0 ? 'Create New Role' : `Edit ${formData.role_name}`}
                             </h3>
                             <p className="text-muted small mb-0">
-                                Set per-page permissions — control exactly which pages this role can read, edit or delete
+                                Set per-page permissions control exactly which pages this role can read, edit or delete
                             </p>
                         </div>
                     </div>
@@ -804,7 +804,7 @@ export default function RolesPage() {
 
             {/* Confirmation Modal */}
             {confirmModal?.show && (
-                <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+                <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
                     style={{ background: 'rgba(0,0,0,0.5)', zIndex: 9999 }}>
                     <div className="card border-0 rounded-4 shadow-lg" style={{ maxWidth: 450, width: '90%' }}>
                         <div className="card-body p-4">

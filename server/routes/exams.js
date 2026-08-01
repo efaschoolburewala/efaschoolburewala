@@ -884,10 +884,10 @@ router.post('/result-card/data', async (req, res) => {
         const school = {};
         if (systemRes.rows.length > 0) {
             const r = systemRes.rows[0];
-            school.school_name    = r.school_name    || '';
-            school.school_address = r.address        || '';
-            school.phone_number   = r.contact_number || '';
-            school.school_logo_url = r.logo_url      || '';
+            school.school_name = r.school_name || '';
+            school.school_address = r.address || '';
+            school.phone_number = r.contact_number || '';
+            school.school_logo_url = r.logo_url || '';
         }
 
         const markMap = new Map();
@@ -1108,17 +1108,17 @@ router.get('/class-marks-sheet', async (req, res) => {
             markMap.set(`${mark.student_id}:${mark.subject_id}`, mark);
         }
 
-        // School info — from General Information settings (school_settings table)
+        // School info from General Information settings (school_settings table)
         const systemRes = await client.query(
             `SELECT school_name, address, contact_number, logo_url FROM school_settings LIMIT 1`
         );
         const school = {};
         if (systemRes.rows.length > 0) {
             const r = systemRes.rows[0];
-            school.school_name    = r.school_name    || '';
-            school.school_address = r.address        || '';
-            school.phone_number   = r.contact_number || '';
-            school.school_logo_url = r.logo_url      || '';
+            school.school_name = r.school_name || '';
+            school.school_address = r.address || '';
+            school.phone_number = r.contact_number || '';
+            school.school_logo_url = r.logo_url || '';
         }
 
         // Build student rows
@@ -1168,7 +1168,7 @@ router.get('/class-marks-sheet', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STUDENT ACADEMICS — Full Performance View for Profile Page
+// STUDENT ACADEMICS Full Performance View for Profile Page
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/student-academics/:student_id', async (req, res) => {
@@ -1251,13 +1251,13 @@ router.get('/student-academics/:student_id', async (req, res) => {
             }
             const pct = row.total_marks > 0 ? +((row.obtained_marks / row.total_marks) * 100).toFixed(1) : 0;
             termMap.get(key).subjects.push({
-                subject_id:    row.subject_id,
-                subject_name:  row.subject_name,
-                subject_code:  row.subject_code,
+                subject_id: row.subject_id,
+                subject_name: row.subject_name,
+                subject_code: row.subject_code,
                 obtained_marks: +Number(row.obtained_marks).toFixed(1),
-                total_marks:   +Number(row.total_marks).toFixed(1),
-                percentage:    pct,
-                grade:         gradeFromPct(pct)
+                total_marks: +Number(row.total_marks).toFixed(1),
+                percentage: pct,
+                grade: gradeFromPct(pct)
             });
         }
 
@@ -1287,15 +1287,15 @@ router.get('/student-academics/:student_id', async (req, res) => {
             }
             const pct = row.total_marks > 0 ? +((row.obtained_marks / row.total_marks) * 100).toFixed(1) : 0;
             testsBySubject.get(row.subject_id).tests.push({
-                test_id:        row.test_id,
-                test_name:      row.test_name,
-                description:    row.description,
-                total_marks:    +Number(row.total_marks).toFixed(1),
+                test_id: row.test_id,
+                test_name: row.test_name,
+                description: row.description,
+                total_marks: +Number(row.total_marks).toFixed(1),
                 obtained_marks: +Number(row.obtained_marks).toFixed(1),
-                remarks:        row.remarks,
-                percentage:     pct,
-                grade:          gradeFromPct(pct),
-                test_date:      row.test_date
+                remarks: row.remarks,
+                percentage: pct,
+                grade: gradeFromPct(pct),
+                test_date: row.test_date
             });
         }
         const testSubjects = Array.from(testsBySubject.values()).map(sub => {
@@ -1308,34 +1308,34 @@ router.get('/student-academics/:student_id', async (req, res) => {
         //   • term marks      → 65% weight
         //   • test/quiz marks → 25% weight
         //   • attendance      → 10% weight
-        const termPcts   = terms.map(t => t.term_percentage);
-        const testPcts   = testMarksRes.rows.map(r => r.total_marks > 0 ? (r.obtained_marks / r.total_marks) * 100 : 0);
-        const attPct     = att.total > 0 ? ((att.present + att.late * 0.5) / att.total) * 100 : null;
+        const termPcts = terms.map(t => t.term_percentage);
+        const testPcts = testMarksRes.rows.map(r => r.total_marks > 0 ? (r.obtained_marks / r.total_marks) * 100 : 0);
+        const attPct = att.total > 0 ? ((att.present + att.late * 0.5) / att.total) * 100 : null;
 
-        const termAvg  = termPcts.length  ? termPcts.reduce((a, b) => a + b, 0) / termPcts.length   : null;
-        const testAvg  = testPcts.length  ? testPcts.reduce((a, b) => a + b, 0) / testPcts.length   : null;
+        const termAvg = termPcts.length ? termPcts.reduce((a, b) => a + b, 0) / termPcts.length : null;
+        const testAvg = testPcts.length ? testPcts.reduce((a, b) => a + b, 0) / testPcts.length : null;
 
         // Weighted composite
         let composite = null;
         let compositeWeights = 0;
-        if (termAvg !== null)  { composite = (composite || 0) + termAvg  * 65; compositeWeights += 65; }
-        if (testAvg !== null)  { composite = (composite || 0) + testAvg  * 25; compositeWeights += 25; }
-        if (attPct  !== null)  { composite = (composite || 0) + attPct   * 10; compositeWeights += 10; }
+        if (termAvg !== null) { composite = (composite || 0) + termAvg * 65; compositeWeights += 65; }
+        if (testAvg !== null) { composite = (composite || 0) + testAvg * 25; compositeWeights += 25; }
+        if (attPct !== null) { composite = (composite || 0) + attPct * 10; compositeWeights += 10; }
         if (composite !== null && compositeWeights > 0) composite = +(composite / compositeWeights).toFixed(1);
 
-        // Trend analysis — linear regression slope on term percentages
+        // Trend analysis linear regression slope on term percentages
         let trend = 'insufficient_data';
         let trendSlope = 0;
         if (termPcts.length >= 2) {
             const n = termPcts.length;
             const xMean = (n - 1) / 2;
             const yMean = termPcts.reduce((a, b) => a + b, 0) / n;
-            const num   = termPcts.reduce((s, y, i) => s + (i - xMean) * (y - yMean), 0);
-            const den   = termPcts.reduce((s, _, i) => s + (i - xMean) ** 2, 0);
-            trendSlope  = den !== 0 ? +(num / den).toFixed(2) : 0;
-            if      (trendSlope >  3) trend = 'improving';
+            const num = termPcts.reduce((s, y, i) => s + (i - xMean) * (y - yMean), 0);
+            const den = termPcts.reduce((s, _, i) => s + (i - xMean) ** 2, 0);
+            trendSlope = den !== 0 ? +(num / den).toFixed(2) : 0;
+            if (trendSlope > 3) trend = 'improving';
             else if (trendSlope < -3) trend = 'declining';
-            else                      trend = 'stable';
+            else trend = 'stable';
         }
 
         // Next term prediction = last term pct + smoothed slope (capped 0-100)
@@ -1346,17 +1346,17 @@ router.get('/student-academics/:student_id', async (req, res) => {
         }
 
         const prediction = {
-            composite_score:  composite,
-            composite_grade:  composite !== null ? gradeFromPct(composite) : null,
-            level:            composite !== null ? levelFromPct(composite) : 'No Data',
+            composite_score: composite,
+            composite_grade: composite !== null ? gradeFromPct(composite) : null,
+            level: composite !== null ? levelFromPct(composite) : 'No Data',
             trend,
-            trend_slope:      trendSlope,
+            trend_slope: trendSlope,
             predicted_next,
-            predicted_grade:  predicted_next !== null ? gradeFromPct(predicted_next) : null,
-            term_avg:         termAvg   !== null ? +termAvg.toFixed(1)  : null,
-            test_avg:         testAvg   !== null ? +testAvg.toFixed(1)  : null,
-            attendance_pct:   attPct    !== null ? +attPct.toFixed(1)   : null,
-            data_points:      termPcts.length
+            predicted_grade: predicted_next !== null ? gradeFromPct(predicted_next) : null,
+            term_avg: termAvg !== null ? +termAvg.toFixed(1) : null,
+            test_avg: testAvg !== null ? +testAvg.toFixed(1) : null,
+            attendance_pct: attPct !== null ? +attPct.toFixed(1) : null,
+            data_points: termPcts.length
         };
 
         res.json({ terms, test_subjects: testSubjects, prediction, attendance: att });
@@ -1387,7 +1387,7 @@ function levelFromPct(pct) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEST MARKING — Tables + Routes
+// TEST MARKING Tables + Routes
 // ─────────────────────────────────────────────────────────────────────────────
 
 let ensureTestTablesPromise = null;
@@ -1450,7 +1450,7 @@ router.get('/tests/context', async (req, res) => {
 
         // Admin (>=90) and Supervisor (>=65) can see all classes
         if (ctx.isAdmin || ctx.isSupervisor) {
-            const classRes  = await client.query(`SELECT class_id, class_name FROM classes ORDER BY class_name ASC`);
+            const classRes = await client.query(`SELECT class_id, class_name FROM classes ORDER BY class_name ASC`);
             const sectionRes = await client.query(`SELECT section_id, section_name, class_id FROM sections ORDER BY class_id, section_name ASC`);
             const subjectRes = await client.query(
                 `SELECT s.subject_id, s.subject_name, s.subject_code,
@@ -1461,7 +1461,7 @@ router.get('/tests/context', async (req, res) => {
                  JOIN classes c ON c.class_id = sec.class_id
                  ORDER BY c.class_name, sec.section_name, s.subject_name`
             );
-            classes  = classRes.rows;
+            classes = classRes.rows;
             sections = sectionRes.rows;
             subjects = subjectRes.rows;
         } else {
@@ -1498,7 +1498,7 @@ router.get('/tests/context', async (req, res) => {
                 classMap.set(row.class_id, { class_id: row.class_id, class_name: row.class_name });
                 sectionMap.set(row.section_id, { section_id: row.section_id, section_name: row.section_name, class_id: row.class_id });
             }
-            classes  = Array.from(classMap.values());
+            classes = Array.from(classMap.values());
             sections = Array.from(sectionMap.values());
             subjects = scopeRes.rows.map(r => ({
                 subject_id: r.subject_id, subject_name: r.subject_name, subject_code: r.subject_code,
@@ -1521,8 +1521,8 @@ router.get('/tests', async (req, res) => {
     const client = await pool.connect();
     try {
         await ensureTestTables();
-        const userId    = parseUserId(req.query.user_id);
-        const classId   = Number(req.query.class_id);
+        const userId = parseUserId(req.query.user_id);
+        const classId = Number(req.query.class_id);
         const sectionId = Number(req.query.section_id);
         const subjectId = Number(req.query.subject_id);
 
@@ -1564,11 +1564,11 @@ router.post('/tests', async (req, res) => {
     const client = await pool.connect();
     try {
         await ensureTestTables();
-        const userId     = parseUserId(req.body.user_id);
-        const classId    = Number(req.body.class_id);
-        const sectionId  = Number(req.body.section_id);
-        const subjectId  = Number(req.body.subject_id);
-        const testName   = String(req.body.test_name || '').trim();
+        const userId = parseUserId(req.body.user_id);
+        const classId = Number(req.body.class_id);
+        const sectionId = Number(req.body.section_id);
+        const subjectId = Number(req.body.subject_id);
+        const testName = String(req.body.test_name || '').trim();
         const description = String(req.body.description || '').trim() || null;
         const totalMarks = Number(req.body.total_marks);
 
@@ -1670,7 +1670,7 @@ router.post('/tests/:test_id/save', async (req, res) => {
         await ensureTestTables();
         const userId = parseUserId(req.body.user_id);
         const testId = Number(req.params.test_id);
-        const marks  = Array.isArray(req.body.marks) ? req.body.marks : [];
+        const marks = Array.isArray(req.body.marks) ? req.body.marks : [];
 
         if (!userId || !testId) return res.status(400).json({ error: 'Valid user_id and test_id are required' });
         if (marks.length === 0) return res.status(400).json({ error: 'marks array is required' });
@@ -1724,9 +1724,9 @@ router.post('/tests/:test_id/save', async (req, res) => {
 
         for (const row of marks) {
             const studentId = Number(row.student_id);
-            const obtained  = (row.obtained_marks !== null && row.obtained_marks !== '' && row.obtained_marks !== undefined)
+            const obtained = (row.obtained_marks !== null && row.obtained_marks !== '' && row.obtained_marks !== undefined)
                 ? Number(row.obtained_marks) : null;
-            const remarks   = String(row.remarks || '').trim() || null;
+            const remarks = String(row.remarks || '').trim() || null;
 
             await client.query(
                 `INSERT INTO test_marks (test_id, student_id, obtained_marks, remarks)
@@ -1761,7 +1761,7 @@ router.post('/tests/:test_id/save', async (req, res) => {
     }
 });
 
-// DELETE /tests/:test_id — admin only
+// DELETE /tests/:test_id admin only
 router.delete('/tests/:test_id', async (req, res) => {
     const client = await pool.connect();
     try {

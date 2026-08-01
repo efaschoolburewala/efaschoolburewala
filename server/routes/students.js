@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs'); // Added for Password Hashing
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = 'uploads/students';
-        if (!fs.existsSync(dir)){
+        if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
         cb(null, dir);
@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB Limit per file
 });
@@ -54,7 +54,7 @@ async function generateFamilyId(client) {
 router.get('/search-siblings', async (req, res) => {
     try {
         const { query } = req.query;
-        
+
         if (!query || query.trim().length < 2) {
             return res.json([]);
         }
@@ -133,7 +133,7 @@ router.get('/search-siblings', async (req, res) => {
 router.get('/:id/siblings', async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Get student's family_id
         const student = await pool.query(`
             SELECT family_id FROM students WHERE student_id = $1
@@ -144,7 +144,7 @@ router.get('/:id/siblings', async (req, res) => {
         }
 
         const familyId = student.rows[0].family_id;
-        
+
         if (!familyId) {
             return res.json([]);
         }
@@ -275,7 +275,7 @@ router.post('/repair-sibling-relations', async (req, res) => {
 // student_siblings, insert the correct relation_type based on father_name:
 //   • Same father_name  → 'blood'  (real siblings)
 //   • Different father_name → 'cousin' (different fathers in merged family)
-// Safe to call repeatedly (idempotent — DO NOTHING on conflict).
+// Safe to call repeatedly (idempotent DO NOTHING on conflict).
 router.post('/repair-missing-blood-rows', async (req, res) => {
     const client = await pool.connect();
     try {
@@ -429,7 +429,7 @@ router.post('/families/merge', async (req, res) => {
         }
 
         // Move all secondary family members to primary family.
-        // Do NOT overwrite sibling_relation — blood siblings among themselves must stay 'blood'.
+        // Do NOT overwrite sibling_relation blood siblings among themselves must stay 'blood'.
         await client.query(
             `UPDATE students SET family_id = $1 WHERE family_id = $2`,
             [primaryFamilyId, secondaryFamilyId]
@@ -474,9 +474,9 @@ router.post('/families/merge', async (req, res) => {
         }
 
         await client.query('COMMIT');
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             message: `Merged ${family2.rows.length} students into ${primaryFamilyId}`,
             mergedFamily: primaryFamilyId,
             movedStudents: family2.rows.length
@@ -495,7 +495,7 @@ router.post('/families/merge', async (req, res) => {
 router.get('/families/search-for-link', async (req, res) => {
     try {
         const { query } = req.query;
-        
+
         if (!query || query.length < 2) {
             return res.json([]);
         }
@@ -569,8 +569,8 @@ router.post('/families/manual-link', async (req, res) => {
             );
 
             await client.query('COMMIT');
-            return res.json({ 
-                success: true, 
+            return res.json({
+                success: true,
                 message: 'Sibling relationship created',
                 action: 'relationship_only'
             });
@@ -593,7 +593,7 @@ router.post('/families/manual-link', async (req, res) => {
         );
 
         // Move all secondary family members to primary family.
-        // We do NOT touch sibling_relation here — blood siblings within each original
+        // We do NOT touch sibling_relation here blood siblings within each original
         // family must keep their 'blood' status among themselves.
         await client.query(
             `UPDATE students SET family_id = $1 WHERE family_id = $2`,
@@ -601,7 +601,7 @@ router.post('/families/manual-link', async (req, res) => {
         );
 
         // STEP A: Ensure all intra-primary-family blood rows exist in student_siblings.
-        // This guarantees blood siblings always have explicit rows (idempotent — DO NOTHING).
+        // This guarantees blood siblings always have explicit rows (idempotent DO NOTHING).
         for (let i = 0; i < primaryFamilyStudents.rows.length; i++) {
             for (let j = i + 1; j < primaryFamilyStudents.rows.length; j++) {
                 const pA = primaryFamilyStudents.rows[i].student_id;
@@ -637,7 +637,7 @@ router.post('/families/manual-link', async (req, res) => {
             for (let j = 0; j < secondaryFamilyStudents.rows.length; j++) {
                 const pId = primaryFamilyStudents.rows[i].student_id;
                 const sId = secondaryFamilyStudents.rows[j].student_id;
-                
+
                 const pairRelation = (
                     (pId === student1_id && sId === student2_id) ||
                     (pId === student2_id && sId === student1_id)
@@ -655,8 +655,8 @@ router.post('/families/manual-link', async (req, res) => {
 
         await client.query('COMMIT');
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: `Linked ${s2.first_name} to ${s1.first_name}'s family as ${relation_type}`,
             primaryFamily: primaryFamilyId,
             movedStudents: secondaryFamilyStudents.rows.length,
@@ -673,7 +673,7 @@ router.post('/families/manual-link', async (req, res) => {
 });
 
 
-// GET /students/families-directory — list all families with children, classes, sections, parents info
+// GET /students/families-directory list all families with children, classes, sections, parents info
 router.get('/families-directory', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -749,7 +749,7 @@ router.get('/families-directory', async (req, res) => {
 
         const familiesList = Object.values(familiesMap).map(fam => {
             const members = fam.members;
-            
+
             // Majority Father Name logic:
             // Counts occurrences of father_name among siblings in this family.
             // If 2 siblings have father "Ahmad Hassan" and 1 cousin has father "Waqas Hassan",
@@ -772,8 +772,8 @@ router.get('/families-directory', async (req, res) => {
 
             if (!primaryFatherName) {
                 primaryFatherName = members.find(m => m.father_name)?.father_name ||
-                                    members.find(m => m.guardian_name)?.guardian_name ||
-                                    `Family (${fam.family_id})`;
+                    members.find(m => m.guardian_name)?.guardian_name ||
+                    `Family (${fam.family_id})`;
             }
 
             // Majority Mother Name
@@ -845,7 +845,7 @@ router.get('/families-directory', async (req, res) => {
     }
 });
 
-// GET /students/families/:family_id — get family info including family_fee and members
+// GET /students/families/:family_id get family info including family_fee and members
 router.get('/families/:family_id', async (req, res) => {
     try {
         const { family_id } = req.params;
@@ -879,7 +879,7 @@ router.get('/families/:family_id', async (req, res) => {
     }
 });
 
-// PUT /students/families/:family_id/fee — update family fee
+// PUT /students/families/:family_id/fee update family fee
 router.put('/families/:family_id/fee', async (req, res) => {
     try {
         const { family_id } = req.params;
@@ -949,10 +949,10 @@ router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documen
         const month = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
         const day = String(dateObj.getDate()).padStart(2, '0');
         const year = dateObj.getFullYear();
-        
+
         // Format: MMMDDYYYY (e.g., FEB052026)
         const prefix = `${month}${day}${year}`;
-        
+
         // Find latest admission number with this prefix
         const lastStudent = await client.query(
             "SELECT admission_no FROM students WHERE admission_no LIKE $1 ORDER BY admission_no DESC LIMIT 1",
@@ -997,7 +997,7 @@ router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documen
 
             if (siblingResult.rows.length > 0) {
                 family_id = siblingResult.rows[0].family_id;
-                
+
                 // If sibling doesn't have family_id, generate one and update all siblings
                 if (!family_id) {
                     family_id = await generateFamilyId(client);
@@ -1050,17 +1050,17 @@ router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documen
         // USER CREDENTIALS GENERATION
         // ----------------------------------------------------
         let username = `STU-${auto_admission_no}`;
-        
+
         let uIdx = 1;
         let isUnique = false;
         while (!isUnique) {
-          const uCheck = await client.query('SELECT id FROM app_users WHERE username = $1', [username]);
-          if (uCheck.rows.length === 0) {
-            isUnique = true;
-          } else {
-            username = `STU-${auto_admission_no}-${uIdx}`;
-            uIdx++;
-          }
+            const uCheck = await client.query('SELECT id FROM app_users WHERE username = $1', [username]);
+            if (uCheck.rows.length === 0) {
+                isUnique = true;
+            } else {
+                username = `STU-${auto_admission_no}-${uIdx}`;
+                uIdx++;
+            }
         }
 
         // Default Password: 'student123' (Hashed)
@@ -1134,7 +1134,7 @@ router.post('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documen
         if (siblingsArray.length > 0) {
             for (const sibling of siblingsArray) {
                 const { sibling_id, relation_type } = sibling;
-                
+
                 // Create forward relationship
                 await client.query(
                     `INSERT INTO student_siblings (student_id, sibling_id, relation_type)
@@ -1199,10 +1199,10 @@ router.post('/bulk', async (req, res) => {
         }
 
         await client.query('BEGIN');
-        
-        const results = { 
-            success: 0, 
-            failed: 0, 
+
+        const results = {
+            success: 0,
+            failed: 0,
             errors: [],
             familyStats: {
                 newFamilies: 0,
@@ -1218,28 +1218,28 @@ router.post('/bulk', async (req, res) => {
 
         // Helper to find ID (Case Insensitive)
         const getClassId = (name) => {
-            if(!name) return null;
+            if (!name) return null;
             // If already numeric, return it
-            if(!isNaN(name)) return parseInt(name);
+            if (!isNaN(name)) return parseInt(name);
             const found = allClasses.rows.find(c => c.class_name.trim().toLowerCase() === String(name).trim().toLowerCase());
             return found ? found.class_id : null;
         };
 
         const getSectionId = (secName, clsId) => {
-            if(!secName || !clsId) return null;
-            if(!isNaN(secName)) return parseInt(secName);
-            const found = allSections.rows.find(s => 
-                s.class_id === clsId && 
+            if (!secName || !clsId) return null;
+            if (!isNaN(secName)) return parseInt(secName);
+            const found = allSections.rows.find(s =>
+                s.class_id === clsId &&
                 s.section_name.trim().toLowerCase() === String(secName).trim().toLowerCase()
             );
             return found ? found.section_id : null;
         };
-        
+
         let studentIdx = 0;
         for (const rawS of students) {
             studentIdx++;
             const spName = "sp_student_" + studentIdx;
-            try { await client.query("SAVEPOINT " + spName); } catch(e) {}
+            try { await client.query("SAVEPOINT " + spName); } catch (e) { }
 
             let s = {};
             try {
@@ -1288,12 +1288,12 @@ router.post('/bulk', async (req, res) => {
                     // Note: In high volume bulk, this sequential query might be slow. 
                     // Optimization: We could lock table or use a sequence. 
                     // For now, we trust the iterative select-insert.
-                    
+
                     const lastStudentResult = await client.query(
                         "SELECT admission_no FROM students WHERE admission_no LIKE $1 ORDER BY admission_no DESC LIMIT 1",
                         [`${prefix}%`]
                     );
-                    
+
                     let sequence = '001';
                     if (lastStudentResult.rows.length > 0) {
                         const lastAdm = lastStudentResult.rows[0].admission_no;
@@ -1424,39 +1424,39 @@ router.post('/bulk', async (req, res) => {
 
                 // Handle User Profile for Bulk Import
                 let username = 'STU-' + finalAdmissionNo;
-                  let uIdx = 1;
-                  let isUnique = false;
-                  while(!isUnique) {
-                      const existRes = await client.query('SELECT id FROM app_users WHERE username = $1', [username]);
-                      if (existRes.rows.length === 0) {
-                          isUnique = true;
-                      } else {
-                          username = 'STU-' + finalAdmissionNo + '-' + uIdx;
-                          uIdx++;
-                      }
-                  }
+                let uIdx = 1;
+                let isUnique = false;
+                while (!isUnique) {
+                    const existRes = await client.query('SELECT id FROM app_users WHERE username = $1', [username]);
+                    if (existRes.rows.length === 0) {
+                        isUnique = true;
+                    } else {
+                        username = 'STU-' + finalAdmissionNo + '-' + uIdx;
+                        uIdx++;
+                    }
+                }
                 const salt = await bcrypt.genSalt(10);
                 const password_hash = await bcrypt.hash('student123', salt);
-                
+
                 let roleRes = await client.query("SELECT id FROM app_roles WHERE role_name = 'Student'");
                 let role_id = roleRes.rows.length > 0 ? roleRes.rows[0].id : null;
                 if (!role_id) {
-                     const newRole = await client.query("INSERT INTO app_roles (role_name, description) VALUES ('Student', 'Standard Access') RETURNING id");
-                     role_id = newRole.rows[0].id;
+                    const newRole = await client.query("INSERT INTO app_roles (role_name, description) VALUES ('Student', 'Standard Access') RETURNING id");
+                    role_id = newRole.rows[0].id;
                 }
-                
+
                 const newUser = await client.query(
                     "INSERT INTO app_users (username, password_hash, plain_password, full_name, email, role_id, is_active) VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id",
                     [username, password_hash, 'student123', (s.first_name + ' ' + (s.last_name || '')).trim(), s.email || '', role_id]
                 );
                 const user_id = newUser.rows[0].id;
-                
+
                 await client.query("UPDATE students SET user_id = $1 WHERE student_id = $2", [user_id, newStudentId]);
 
                 results.success++;
                 results.familyStats.totalStudents++;
             } catch (err) {
-                try { await client.query("ROLLBACK TO SAVEPOINT " + spName); } catch (e) {}
+                try { await client.query("ROLLBACK TO SAVEPOINT " + spName); } catch (e) { }
 
                 // If collision on generated ID (race condition), retry logic could be added here
                 results.failed++;
@@ -1480,7 +1480,7 @@ router.post('/bulk', async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const { class_id, section_id, gender, keyword, category, status, blood_group, is_orphan, family_id, age, religion } = req.query;
-        
+
         let query = `
             SELECT s.*, c.class_name, sec.section_name, u.username, u.plain_password as system_pwd
             FROM students s
@@ -1567,9 +1567,9 @@ router.get('/', async (req, res) => {
         }
 
         if (religion && religion.trim() !== '') {
-             query += ` AND LOWER(TRIM(s.religion)) = LOWER($${paramCount})`;
-             params.push(religion.trim());
-             paramCount++;
+            query += ` AND LOWER(TRIM(s.religion)) = LOWER($${paramCount})`;
+            params.push(religion.trim());
+            paramCount++;
         }
 
         query += ` ORDER BY s.class_id NULLS LAST, s.section_id NULLS LAST, s.roll_no NULLS LAST, s.first_name`;
@@ -1601,7 +1601,7 @@ router.get('/:id', async (req, res) => {
             LEFT JOIN families f ON f.family_id = s.family_id
             WHERE s.student_id = $1
         `, [id]);
-        
+
         if (student.rows.length === 0) return res.status(404).json({ error: "Student not found" });
         res.json(student.rows[0]);
     } catch (err) {
@@ -1628,14 +1628,14 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
         } = req.body;
 
         // Handle Files
-        let image_url = req.body.existing_image_url || null; 
+        let image_url = req.body.existing_image_url || null;
         if (req.files['image'] && req.files['image'][0]) {
             image_url = req.files['image'][0].path.replace(/\\/g, "/");
         }
 
-        let documents = []; 
+        let documents = [];
         if (req.body.existing_documents) {
-            try { documents = JSON.parse(req.body.existing_documents); } catch(e) {}
+            try { documents = JSON.parse(req.body.existing_documents); } catch (e) { }
         }
         if (req.files['documents']) {
             const newDocs = req.files['documents'].map(f => f.path.replace(/\\/g, "/"));
@@ -1655,7 +1655,7 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
             monthly_fee=$34, admission_fee=$35, other_charges=$36,
             image_url=$37, documents=$38
             WHERE student_id=$39 RETURNING user_id, family_id`;
-        
+
         const vals = [
             roll_no, class_id, section_id, admission_date, category,
             first_name, last_name, gender, dob, cnic_bform,
@@ -1670,8 +1670,8 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
         ];
 
         const resUpd = await client.query(updateQ, vals);
-        
-         if (resUpd.rowCount === 0) {
+
+        if (resUpd.rowCount === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: "Student not found" });
         }
@@ -1690,7 +1690,7 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
 
         // Update User
         if (user_id) {
-             await client.query(
+            await client.query(
                 "UPDATE app_users SET full_name = $1, email = $2 WHERE id = $3",
                 [`${first_name} ${last_name}`, email, user_id]
             );
@@ -1722,7 +1722,7 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
         await client.query('COMMIT');
         res.json({ message: "Updated successfully" });
 
-    } catch(err) {
+    } catch (err) {
         await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: "Server Error: " + err.message });
@@ -1736,8 +1736,8 @@ router.patch('/:id/status', async (req, res) => {
     const client = await pool.connect();
     try {
         const { id } = req.params;
-        const { status } = req.body; 
-        
+        const { status } = req.body;
+
         if (!status) return res.status(400).json({ error: "Status is required" });
 
         await client.query('BEGIN');
@@ -1747,23 +1747,23 @@ router.patch('/:id/status', async (req, res) => {
             "UPDATE students SET status = $1 WHERE student_id = $2 RETURNING user_id",
             [status, id]
         );
-        
+
         if (studentRes.rowCount === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: "Student not found" });
         }
-        
+
         const user_id = studentRes.rows[0].user_id;
-        
+
         // Update User if linked
         if (user_id) {
             const isActive = (status === 'Active');
             await client.query("UPDATE app_users SET is_active = $1 WHERE id = $2", [isActive, user_id]);
         }
-        
+
         await client.query('COMMIT');
         res.json({ message: "Status updated successfully", status });
-    } catch(err) {
+    } catch (err) {
         await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: "Server Error" });
@@ -1781,10 +1781,10 @@ router.patch('/:id/generate-credentials', async (req, res) => {
 
         // 1. Get Student Info
         const sRes = await client.query("SELECT * FROM students WHERE student_id = $1", [id]);
-        if(sRes.rows.length === 0) return res.status(404).json({error: "Student not found"});
+        if (sRes.rows.length === 0) return res.status(404).json({ error: "Student not found" });
         const student = sRes.rows[0];
 
-        if(student.user_id) return res.status(400).json({error: "User already exists"});
+        if (student.user_id) return res.status(400).json({ error: "User already exists" });
 
         // 2. Generate Credentials
         const username = `STU-${student.admission_no}`;
@@ -1795,8 +1795,8 @@ router.patch('/:id/generate-credentials', async (req, res) => {
         let roleRes = await client.query("SELECT id FROM app_roles WHERE role_name = 'Student'");
         let role_id = roleRes.rows.length > 0 ? roleRes.rows[0].id : null;
         if (!role_id) {
-             const newRole = await client.query("INSERT INTO app_roles (role_name, description) VALUES ('Student', 'Standard Access') RETURNING id");
-             role_id = newRole.rows[0].id;
+            const newRole = await client.query("INSERT INTO app_roles (role_name, description) VALUES ('Student', 'Standard Access') RETURNING id");
+            role_id = newRole.rows[0].id;
         }
 
         // 4. Create User
@@ -1812,7 +1812,7 @@ router.patch('/:id/generate-credentials', async (req, res) => {
 
         await client.query('COMMIT');
         res.json({ message: "Credentials Generated", username });
-    } catch(err) {
+    } catch (err) {
         await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: "Server Error: " + err.message });
@@ -1827,7 +1827,7 @@ router.patch('/:id/change-password', async (req, res) => {
     try {
         const { id } = req.params;
         const { password } = req.body;
-        
+
         if (!password || password.length < 6) {
             return res.status(400).json({ error: "Password must be at least 6 characters" });
         }
@@ -1836,10 +1836,10 @@ router.patch('/:id/change-password', async (req, res) => {
 
         // Get User ID
         const sRes = await client.query("SELECT user_id FROM students WHERE student_id = $1", [id]);
-        if(sRes.rows.length === 0) return res.status(404).json({error: "Student not found"});
-        
+        if (sRes.rows.length === 0) return res.status(404).json({ error: "Student not found" });
+
         const user_id = sRes.rows[0].user_id;
-        if(!user_id) return res.status(400).json({error: "Student has no system login"});
+        if (!user_id) return res.status(400).json({ error: "Student has no system login" });
 
         // Hash Password
         const salt = await bcrypt.genSalt(10);
@@ -1850,7 +1850,7 @@ router.patch('/:id/change-password', async (req, res) => {
 
         await client.query('COMMIT');
         res.json({ message: "Password updated successfully" });
-    } catch(err) {
+    } catch (err) {
         await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ error: "Server Error" });

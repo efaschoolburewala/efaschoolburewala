@@ -6,7 +6,7 @@ async function createAdmissionFeeTables() {
         await client.query('BEGIN');
         console.log('Creating Admission Fee tables...');
 
-        // 1. Admission Fee Ledger — one row per student, tracks lifetime admission fee outstanding
+        // 1. Admission Fee Ledger one row per student, tracks lifetime admission fee outstanding
         await client.query(`
             CREATE TABLE IF NOT EXISTS admission_fee_ledger (
                 ledger_id   SERIAL PRIMARY KEY,
@@ -24,7 +24,7 @@ async function createAdmissionFeeTables() {
         `);
         console.log('✅ admission_fee_ledger created');
 
-        // 2. Admission Fee Payments — payment history against a ledger entry
+        // 2. Admission Fee Payments payment history against a ledger entry
         await client.query(`
             CREATE TABLE IF NOT EXISTS admission_fee_payments (
                 payment_id     SERIAL PRIMARY KEY,
@@ -62,8 +62,8 @@ async function createAdmissionFeeTables() {
         console.log('\n🎉 All admission fee tables created successfully!');
         console.log('');
         console.log('Tables created:');
-        console.log('  • admission_fee_ledger        — outstanding balance per student');
-        console.log('  • admission_fee_payments      — payment history per ledger entry');
+        console.log('  • admission_fee_ledger        outstanding balance per student');
+        console.log('  • admission_fee_payments      payment history per ledger entry');
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('❌ Error:', err.message);

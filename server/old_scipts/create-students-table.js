@@ -4,7 +4,7 @@ const createStudentsTable = async () => {
     try {
         console.log("Creating Students Table (safe - no DROP)...");
 
-        // SAFE: Use IF NOT EXISTS — never drops existing data
+        // SAFE: Use IF NOT EXISTS never drops existing data
         await pool.query(`
             CREATE TABLE IF NOT EXISTS students (
                 student_id SERIAL PRIMARY KEY,

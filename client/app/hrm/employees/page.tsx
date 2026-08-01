@@ -100,7 +100,7 @@ export default function EmployeesPage() {
         resetForm();
         setModalMode('edit');
         setSelectedId(emp.employee_id);
-        // setIsSysUser stays false — show toggle only if employee has no user
+        // setIsSysUser stays false show toggle only if employee has no user
         setFormData({
             first_name: emp.first_name || '',
             last_name: emp.last_name || '',

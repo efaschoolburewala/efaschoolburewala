@@ -18,7 +18,7 @@ function fmtPKR(val: number) {
 
 export default function MonthlyReportPage() {
     const { hasPermission } = useAuth();
-    
+
     // Filters
     const now = new Date();
     const [month, setMonth] = useState<number>(now.getMonth() + 1);
@@ -39,7 +39,7 @@ export default function MonthlyReportPage() {
 
     useEffect(() => {
         // Fetch classes
-        fetch(`${API}/academic`).then(r => r.json()).then(setClasses).catch(() => {});
+        fetch(`${API}/academic`).then(r => r.json()).then(setClasses).catch(() => { });
         // Fetch school info
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object') {
@@ -50,7 +50,7 @@ export default function MonthlyReportPage() {
                     logo: data.logo_url ? `${API}${data.logo_url}` : ''
                 });
             }
-        }).catch(() => {});
+        }).catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -118,7 +118,7 @@ export default function MonthlyReportPage() {
     // Export PDF
     const doExportPDF = () => {
         const win = window.open('', '_blank');
-        if (!win) { notify.error('Popup blocked — please allow popups to print.'); return; }
+        if (!win) { notify.error('Popup blocked please allow popups to print.'); return; }
 
         const rowsHtml = filteredFamilies.map((f, idx) => `
             <tr>
@@ -133,10 +133,9 @@ export default function MonthlyReportPage() {
                 <td style="text-align:right;padding:7px;color:#16a34a;font-weight:700;border-bottom:1px solid #e2e8f0;">${fmtPKR(f.tuition_paid)}</td>
                 <td style="text-align:right;padding:7px;color:${f.tuition_remaining > 0 ? '#dc2626' : '#16a34a'};font-weight:800;border-bottom:1px solid #e2e8f0;">${fmtPKR(f.tuition_remaining)}</td>
                 <td style="text-align:center;padding:7px;border-bottom:1px solid #e2e8f0;">
-                    <span style="padding:3px 10px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:0.04em;background:${
-                        f.payment_status === 'paid' ? '#dcfce7;color:#15803d;border:1px solid #bbf7d0' :
-                        f.payment_status === 'partial' ? '#ffedd5;color:#c2410c;border:1px solid #fed7aa' : '#fee2e2;color:#b91c1c;border:1px solid #fca5a5'
-                    };">
+                    <span style="padding:3px 10px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:0.04em;background:${f.payment_status === 'paid' ? '#dcfce7;color:#15803d;border:1px solid #bbf7d0' :
+                f.payment_status === 'partial' ? '#ffedd5;color:#c2410c;border:1px solid #fed7aa' : '#fee2e2;color:#b91c1c;border:1px solid #fca5a5'
+            };">
                         ${f.payment_status.toUpperCase()}
                     </span>
                 </td>
@@ -242,7 +241,7 @@ export default function MonthlyReportPage() {
     const doExportExcel = () => {
         const ths = ['#', 'Family ID', 'Student Name', 'Father Name', 'Father Phone', 'Class', 'Section', 'Tuition Billed', 'Tuition Paid', 'Remaining Dues', 'Status']
             .map(h => `<th style="background:#0f766e;color:#fff;padding:8px;font-size:11px">${h}</th>`).join('');
-        
+
         const trs = filteredFamilies.map((f, i) => `
             <tr>
                 <td>${i + 1}</td>
@@ -305,7 +304,7 @@ export default function MonthlyReportPage() {
                         Comprehensive Cash Flow, Operating Surplus &amp; Family Fee Analysis for <strong>{monthName} {year}</strong>
                     </p>
                 </div>
-                
+
                 <div className="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end" style={{ position: 'relative', zIndex: 2 }}>
                     <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
                         onClick={doExportPDF} title="Export PDF Report"
@@ -602,12 +601,11 @@ export default function MonthlyReportPage() {
                                                 {fmtPKR(f.tuition_remaining)}
                                             </td>
                                             <td className="text-center pe-3">
-                                                <span className={`badge rounded-pill px-2.5 py-1 ${
-                                                    f.payment_status === 'paid' ? 'bg-success bg-opacity-15 text-success border border-success' :
-                                                    f.payment_status === 'partial' ? 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning' : 'bg-danger bg-opacity-15 text-danger border border-danger'
-                                                }`} style={{ fontSize: 9.5, fontWeight: 700 }}>
+                                                <span className={`badge rounded-pill px-2.5 py-1 ${f.payment_status === 'paid' ? 'bg-success bg-opacity-15 text-success border border-success' :
+                                                        f.payment_status === 'partial' ? 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning' : 'bg-danger bg-opacity-15 text-danger border border-danger'
+                                                    }`} style={{ fontSize: 9.5, fontWeight: 700 }}>
                                                     {f.payment_status === 'paid' ? 'FULLY PAID' :
-                                                     f.payment_status === 'partial' ? 'PARTIAL' : 'UNPAID DUES'}
+                                                        f.payment_status === 'partial' ? 'PARTIAL' : 'UNPAID DUES'}
                                                 </span>
                                             </td>
                                         </tr>

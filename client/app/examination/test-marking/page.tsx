@@ -508,7 +508,7 @@ export default function TestMarkingPage() {
                                     {sheet.test.class_name} · {sheet.test.section_name} · {sheet.test.subject_name} &nbsp;|&nbsp;
                                     Total Marks: <strong>{sheet.test.total_marks}</strong>
                                     {sheet.readonly && <span className="ms-2 badge bg-danger">Locked</span>}
-                                    {isAdmin && <span className="ms-2 badge bg-warning text-dark">Admin — always editable</span>}
+                                    {isAdmin && <span className="ms-2 badge bg-warning text-dark">Admin always editable</span>}
                                 </div>
                             )}
                         </div>
@@ -630,7 +630,7 @@ export default function TestMarkingPage() {
 
                                     {sheet.readonly ? (
                                         <span className="badge bg-danger py-2 px-3">
-                                            <i className="bi bi-lock-fill me-1" />Locked — View Only
+                                            <i className="bi bi-lock-fill me-1" />Locked View Only
                                         </span>
                                     ) : (
                                         <button

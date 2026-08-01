@@ -47,7 +47,7 @@ export default function AcademicSetup() {
         };
     };
 
-    // Bug 3 Fix: Timezone-safe date display — DB returns UTC ISO string,
+    // Bug 3 Fix: Timezone-safe date display DB returns UTC ISO string,
     // but user entered local (PKT) date. Convert back to local before display.
     const formatDate = (dateStr: string | null | undefined): string => {
         if (!dateStr) return '—';
@@ -183,7 +183,7 @@ export default function AcademicSetup() {
         setSaving(true);
         setSaveError(null);
         try {
-            // Bug 2 Fix: check res.ok — server returns 403 for completed years
+            // Bug 2 Fix: check res.ok server returns 403 for completed years
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/academic/terms`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -250,7 +250,7 @@ export default function AcademicSetup() {
                             value={selectedYear?.id || ''}
                             onChange={handleYearChange}
                         >
-                            {/* Bug 6 Fix: filter to relevant years only — completed/active + upcoming within next 5 years */}
+                            {/* Bug 6 Fix: filter to relevant years only completed/active + upcoming within next 5 years */}
                             {years
                                 .filter(y => {
                                     if (y.status !== 'upcoming') return true; // always show active/completed
@@ -312,7 +312,7 @@ export default function AcademicSetup() {
                                     </div>
                                 )}
 
-                                {/* Bug 4 Fix: removed 'ongoing' — server never sets that status */}
+                                {/* Bug 4 Fix: removed 'ongoing' server never sets that status */}
                                 {selectedYear.status === 'upcoming' && !selectedYear.is_configured && (
                                     <div className="text-center py-4">
                                         <p className="lead text-muted mb-4">

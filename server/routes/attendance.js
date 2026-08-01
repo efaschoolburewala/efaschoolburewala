@@ -111,7 +111,7 @@ router.get('/students/daily', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /attendance/students/daily   — upsert bulk attendance
+// POST /attendance/students/daily   upsert bulk attendance
 // body: { class_id, date, records: [{student_id, status, remarks}] }
 router.post('/students/daily', async (req, res) => {
     const client = await pool.connect();
@@ -235,9 +235,9 @@ router.get('/students/history', async (req, res) => {
         const rows = students.rows.map(s => {
             const rec = attMap[s.student_id] || {};
             const present = Object.values(rec).filter(v => v === 'Present').length;
-            const late    = Object.values(rec).filter(v => v === 'Late').length;
-            const absent  = Object.values(rec).filter(v => v === 'Absent').length;
-            const leave   = Object.values(rec).filter(v => v === 'Leave').length;
+            const late = Object.values(rec).filter(v => v === 'Late').length;
+            const absent = Object.values(rec).filter(v => v === 'Absent').length;
+            const leave = Object.values(rec).filter(v => v === 'Leave').length;
             return { ...s, daily: rec, present, late, absent, leave, total_days: workingDates.length };
         });
 
@@ -272,10 +272,10 @@ router.get('/students/:student_id/history', async (req, res) => {
         const records = result.rows;
         const stats = {
             present: records.filter(r => r.status === 'Present').length,
-            absent:  records.filter(r => r.status === 'Absent').length,
-            late:    records.filter(r => r.status === 'Late').length,
-            leave:   records.filter(r => r.status === 'Leave').length,
-            total:   records.length,
+            absent: records.filter(r => r.status === 'Absent').length,
+            late: records.filter(r => r.status === 'Late').length,
+            leave: records.filter(r => r.status === 'Leave').length,
+            total: records.length,
         };
         res.json({ records, stats });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -393,9 +393,9 @@ router.get('/staff/history', async (req, res) => {
         const rows = employees.rows.map(e => {
             const rec = attMap[e.employee_id] || {};
             const present = Object.values(rec).filter(v => v === 'Present').length;
-            const late    = Object.values(rec).filter(v => v === 'Late').length;
-            const absent  = Object.values(rec).filter(v => v === 'Absent').length;
-            const leave   = Object.values(rec).filter(v => v === 'Leave').length;
+            const late = Object.values(rec).filter(v => v === 'Late').length;
+            const absent = Object.values(rec).filter(v => v === 'Absent').length;
+            const leave = Object.values(rec).filter(v => v === 'Leave').length;
             return { ...e, daily: rec, present, late, absent, leave, total_days: workingDates.length };
         });
 
@@ -428,16 +428,16 @@ router.get('/staff/:employee_id/history', async (req, res) => {
         const records = result.rows;
         const stats = {
             present: records.filter(r => r.status === 'Present').length,
-            absent:  records.filter(r => r.status === 'Absent').length,
-            late:    records.filter(r => r.status === 'Late').length,
-            leave:   records.filter(r => r.status === 'Leave').length,
-            total:   records.length,
+            absent: records.filter(r => r.status === 'Absent').length,
+            late: records.filter(r => r.status === 'Late').length,
+            leave: records.filter(r => r.status === 'Leave').length,
+            total: records.length,
         };
         res.json({ records, stats });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /attendance/departments  — helper for filter dropdown
+// GET /attendance/departments  helper for filter dropdown
 router.get('/departments', async (req, res) => {
     try {
         const result = await pool.query('SELECT department_id, department_name FROM departments ORDER BY department_name');

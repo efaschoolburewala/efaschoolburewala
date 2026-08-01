@@ -561,7 +561,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                     {p.composite_score !== null && (
                                                                         <div className="badge rounded-pill mt-1 px-3 py-2 fs-6 fw-bold"
                                                                             style={{ background: col.border, color: '#fff' }}>
-                                                                            {p.composite_grade} — {p.composite_score}%
+                                                                            {p.composite_grade} {p.composite_score}%
                                                                         </div>
                                                                     )}
                                                                     <div className="small text-muted mt-2">Weighted score (terms 65% · tests 25% · attendance 10%)</div>
@@ -598,7 +598,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                             style={{ background: 'rgba(255,255,255,0.6)', border: `1px solid ${col.border}` }}>
                                                                             <div className="small text-muted">Predicted Next Term</div>
                                                                             <div className="fw-bold fs-5" style={{ color: col.text }}>
-                                                                                {p.predicted_grade} — {p.predicted_next}%
+                                                                                {p.predicted_grade} {p.predicted_next}%
                                                                             </div>
                                                                         </div>
                                                                     )}
@@ -853,7 +853,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                         <div className="d-flex justify-content-between small mb-1">
                                                                                             <span className="fw-semibold text-muted">{term.term_name} <span className="fw-normal">({term.year_name})</span></span>
                                                                                             <span className="fw-bold" style={{ color: gradeColor(term.term_grade) }}>
-                                                                                                {term.term_percentage}% — {term.term_grade}
+                                                                                                {term.term_percentage}% {term.term_grade}
                                                                                             </span>
                                                                                         </div>
                                                                                         <div className="progress" style={{ height: 20, borderRadius: 6 }}>
@@ -872,7 +872,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                         <div className="d-flex justify-content-between small mb-1">
                                                                                             <span className="text-muted fst-italic"><i className="bi bi-stars me-1" />Predicted Next Term</span>
                                                                                             <span className="fw-bold" style={{ color: gradeColor(p.predicted_grade!) }}>
-                                                                                                {p.predicted_next}% — {p.predicted_grade}
+                                                                                                {p.predicted_next}% {p.predicted_grade}
                                                                                             </span>
                                                                                         </div>
                                                                                         <div className="progress" style={{ height: 20, borderRadius: 6, border: '2px dashed #ccc', background: 'transparent' }}>
@@ -1095,7 +1095,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                             <>
                                                                 <div className="text-muted small mt-1">Shared by {student.family_size} family members</div>
                                                                 <div className="badge bg-warning bg-opacity-10 text-warning border border-warning mt-3 text-wrap px-3 py-2" style={{ lineHeight: 1.4 }}>
-                                                                    <i className="bi bi-people-fill me-1"></i>Family Slip — 1 slip per family
+                                                                    <i className="bi bi-people-fill me-1"></i>Family Slip 1 slip per family
                                                                 </div>
                                                             </>
                                                         ) : (
@@ -1248,7 +1248,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                         <tbody>
                                                             {familySlips.map((monthSlip, idx) => {
                                                                 const remainingBalance = Math.max(0, Number(monthSlip.family_total_billed || 0) - Number(monthSlip.family_total_paid || 0));
-                                                                const subDate = monthSlip.last_submission_date 
+                                                                const subDate = monthSlip.last_submission_date
                                                                     ? new Date(monthSlip.last_submission_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                                                                     : '—';
 

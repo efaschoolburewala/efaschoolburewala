@@ -174,8 +174,8 @@ function renderCell(key: string, s: Student, idx: number) {
         case 'status':
             return (
                 <span className={`badge rounded-pill ${s.status === 'Active' ? 'bg-success' :
-                        s.status === 'Left' ? 'bg-danger' :
-                            'bg-secondary'
+                    s.status === 'Left' ? 'bg-danger' :
+                        'bg-secondary'
                     }`}>{s.status || 'Active'}</span>
             );
         case 'remarks':
@@ -378,7 +378,7 @@ export default function StudentDetails() {
     const doExportPDF = () => {
         const { headers, rows } = buildExportData();
         const win = window.open('', '_blank');
-        if (!win) { notify.error('Popup blocked — allow popups to export PDF.'); return; }
+        if (!win) { notify.error('Popup blocked allow popups to export PDF.'); return; }
         const ths = headers.map(h => `<th>${h}</th>`).join('');
         const trs = rows.map(r => '<tr>' + r.map((v, i) => {
             const isRemarks = headers[i]?.toLowerCase().includes('remarks') || headers[i]?.toLowerCase().includes('notes');
@@ -395,7 +395,7 @@ export default function StudentDetails() {
             `tr:nth-child(even) td{background:#f7f9fc}` +
             `@media print{@page{margin:10mm}}</style></head><body>` +
             `<h2>Student Directory</h2>` +
-            `<p class="sub">Generated: ${new Date().toLocaleDateString()} — Total: ${students.length}</p>` +
+            `<p class="sub">Generated: ${new Date().toLocaleDateString()} Total: ${students.length}</p>` +
             `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></body></html>`
         );
         win.document.close(); win.focus();
@@ -436,7 +436,7 @@ export default function StudentDetails() {
                 </div>
                 <div className="card-body p-4 bg-light">
                     <form onSubmit={(e) => e.preventDefault()}>
-                        {/* Row 1 — primary search */}
+                        {/* Row 1 primary search */}
                         <div className="row g-3 mb-3">
                             <div className="col-md-3">
                                 <div className="input-group">
@@ -478,7 +478,7 @@ export default function StudentDetails() {
                             </div>
                         </div>
 
-                        {/* Row 2 — advanced filters */}
+                        {/* Row 2 advanced filters */}
                         {showAdvancedFilters && (
                             <div className="row g-3 animate__animated animate__fadeIn">
                                 <div className="col-md-2">
@@ -677,7 +677,7 @@ export default function StudentDetails() {
                                                             {renderCell(col.key, s, idx)}
                                                         </td>
                                                     ))}
-                                                    {/* ACTION BUTTONS — temporarily hidden */}
+                                                    {/* ACTION BUTTONS temporarily hidden */}
                                                     {false && (
                                                         <td className="text-end pe-4" onClick={e => e.stopPropagation()}>
                                                             <button

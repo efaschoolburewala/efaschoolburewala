@@ -2,9 +2,9 @@
  * Migration: Add Opening Balance (OPB) system to families
  * 
  * Adds:
- *   - families.opening_balance       — original OPB amount set by admin
- *   - families.opening_balance_paid  — total amount paid towards OPB so far
- *   - family_opb_payments table      — ledger of all OPB payment transactions
+ *   - families.opening_balance       original OPB amount set by admin
+ *   - families.opening_balance_paid  total amount paid towards OPB so far
+ *   - family_opb_payments table      ledger of all OPB payment transactions
  */
 
 const pool = require('./db');

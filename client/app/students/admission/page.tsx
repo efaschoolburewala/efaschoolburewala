@@ -244,13 +244,13 @@ export default function NewAdmission() {
             // Append Text Fields - Handle optional date fields properly
             Object.keys(form).forEach(key => {
                 let value = (form as any)[key];
-                
+
                 // For date fields (dob), only append if not empty
                 // This prevents "invalid input syntax for type date" error
                 if (key === 'dob' && (!value || value.trim() === '')) {
                     return; // Skip empty date fields
                 }
-                
+
                 formData.append(key, value);
             });
 
@@ -262,7 +262,7 @@ export default function NewAdmission() {
                     selectedSiblings.map(s => {
                         const siblingFatherName = (s.father_name || '').trim().toLowerCase();
                         const dynamicRelation = (currentFatherName !== '' && siblingFatherName !== '' && currentFatherName === siblingFatherName) ? 'blood' : 'cousin';
-                        
+
                         return {
                             sibling_id: s.student_id,
                             relation_type: dynamicRelation
@@ -957,7 +957,7 @@ export default function NewAdmission() {
                             </div>
                             <div className="card-body p-4">
 
-                                {/* FAMILY FEE MODE — when sibling is selected */}
+                                {/* FAMILY FEE MODE when sibling is selected */}
                                 {hasSibling && selectedSiblings.length > 0 && selectedSiblings[0].family_id ? (
                                     <>
                                         <div className="alert alert-warning d-flex align-items-start gap-2 mb-3">
@@ -1019,7 +1019,7 @@ export default function NewAdmission() {
                                         </div>
                                     </>
                                 ) : (
-                                    /* INDIVIDUAL FEE MODE — normal student */
+                                    /* INDIVIDUAL FEE MODE normal student */
                                     <>
                                         <div className="alert alert-info">
                                             <i className="bi bi-info-circle me-2"></i> Set the initial fee obligations for this student.

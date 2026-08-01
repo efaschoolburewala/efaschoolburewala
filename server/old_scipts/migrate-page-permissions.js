@@ -18,7 +18,7 @@
 const db = require('./db');
 
 /* ─────────────────────────────────────────────────────────────────────────
-   PAGE TREE  — must mirror the PAGE_TREE constant in the frontend roles page
+   PAGE TREE  must mirror the PAGE_TREE constant in the frontend roles page
 ───────────────────────────────────────────────────────────────────────── */
 const PAGE_TREE = {
     dashboard: ['dashboard'],
@@ -85,7 +85,7 @@ async function migrate() {
     console.log(`Found ${roles.rows.length} role(s)\n`);
 
     let inserted = 0;
-    let skipped  = 0;
+    let skipped = 0;
 
     for (const role of roles.rows) {
         console.log(`\n── Role #${role.id}: ${role.role_name}`);

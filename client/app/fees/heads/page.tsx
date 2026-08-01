@@ -87,7 +87,7 @@ export default function FeeHeadsPage() {
                     <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-tags me-2"></i>Fee Heads
                     </h2>
-                    <p className="text-muted small mb-0">Manage all charge types — Tuition, Transport, Exam Fee, etc.</p>
+                    <p className="text-muted small mb-0">Manage all charge types Tuition, Transport, Exam Fee, etc.</p>
                 </div>
                 {hasPermission('fees', 'write') && (
                     <button className="btn btn-primary-custom shadow-sm d-flex align-items-center gap-2" onClick={openAdd}>
@@ -193,7 +193,7 @@ export default function FeeHeadsPage() {
                             <i className="bi bi-info-circle me-1" style={{ color: '#6f42c1' }} />
                             This head shows as <strong>"Previous Balance"</strong> on vouchers. It combines:
                             (1) Opening Balance (OPB) set on the family, and
-                            (2) All unpaid/partial previous months\u2019 fees — except admission fee.
+                            (2) All unpaid/partial previous months\u2019 fees except admission fee.
                             Add it to any Fee Plan; the actual amount per family is calculated automatically at slip generation.
                         </div>
                         <div className="table-responsive">
