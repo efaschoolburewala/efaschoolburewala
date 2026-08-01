@@ -673,6 +673,178 @@ router.post('/families/manual-link', async (req, res) => {
 });
 
 
+// GET /students/families-directory — list all families with children, classes, sections, parents info
+router.get('/families-directory', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                s.student_id,
+                s.family_id,
+                s.admission_no,
+                s.first_name,
+                s.last_name,
+                s.father_name,
+                s.father_phone,
+                s.father_cnic,
+                s.father_occupation,
+                s.mother_name,
+                s.mother_phone,
+                s.mother_cnic,
+                s.mother_occupation,
+                s.guardian_name,
+                s.guardian_phone,
+                s.guardian_relation,
+                s.current_address,
+                s.gender,
+                s.dob,
+                s.status,
+                c.class_id,
+                c.class_name,
+                sec.section_id,
+                sec.section_name,
+                f.family_fee,
+                f.opening_balance
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.class_id
+            LEFT JOIN sections sec ON s.section_id = sec.section_id
+            LEFT JOIN families f ON s.family_id = f.family_id
+            WHERE s.family_id IS NOT NULL AND TRIM(s.family_id) != ''
+            ORDER BY s.family_id, c.class_id DESC NULLS LAST, s.first_name
+        `);
+
+        const familiesMap = {};
+
+        for (const s of result.rows) {
+            const fid = s.family_id.trim();
+            if (!familiesMap[fid]) {
+                familiesMap[fid] = {
+                    family_id: fid,
+                    family_fee: parseFloat(s.family_fee || 0),
+                    opening_balance: parseFloat(s.opening_balance || 0),
+                    members: []
+                };
+            }
+            familiesMap[fid].members.push({
+                student_id: s.student_id,
+                admission_no: s.admission_no,
+                first_name: s.first_name || '',
+                last_name: s.last_name || '',
+                full_name: `${s.first_name || ''} ${s.last_name || ''}`.trim(),
+                father_name: (s.father_name || '').trim(),
+                father_phone: (s.father_phone || '').trim(),
+                father_cnic: (s.father_cnic || '').trim(),
+                mother_name: (s.mother_name || '').trim(),
+                mother_phone: (s.mother_phone || '').trim(),
+                mother_cnic: (s.mother_cnic || '').trim(),
+                guardian_name: (s.guardian_name || '').trim(),
+                guardian_phone: (s.guardian_phone || '').trim(),
+                current_address: (s.current_address || '').trim(),
+                class_id: s.class_id,
+                class_name: s.class_name || 'N/A',
+                section_id: s.section_id,
+                section_name: s.section_name || 'N/A',
+                status: s.status || 'Active'
+            });
+        }
+
+        const familiesList = Object.values(familiesMap).map(fam => {
+            const members = fam.members;
+            
+            // Majority Father Name logic:
+            // Counts occurrences of father_name among siblings in this family.
+            // If 2 siblings have father "Ahmad Hassan" and 1 cousin has father "Waqas Hassan",
+            // "Ahmad Hassan" has count=2 > count=1, so primaryFatherName = "Ahmad Hassan".
+            const fatherCounts = {};
+            members.forEach(m => {
+                if (m.father_name) {
+                    fatherCounts[m.father_name] = (fatherCounts[m.father_name] || 0) + 1;
+                }
+            });
+
+            let primaryFatherName = '';
+            let maxCount = 0;
+            for (const [fn, count] of Object.entries(fatherCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    primaryFatherName = fn;
+                }
+            }
+
+            if (!primaryFatherName) {
+                primaryFatherName = members.find(m => m.father_name)?.father_name ||
+                                    members.find(m => m.guardian_name)?.guardian_name ||
+                                    `Family (${fam.family_id})`;
+            }
+
+            // Majority Mother Name
+            const motherCounts = {};
+            members.forEach(m => {
+                if (m.mother_name) {
+                    motherCounts[m.mother_name] = (motherCounts[m.mother_name] || 0) + 1;
+                }
+            });
+            let primaryMotherName = '';
+            let maxMCount = 0;
+            for (const [mn, count] of Object.entries(motherCounts)) {
+                if (count > maxMCount) {
+                    maxMCount = count;
+                    primaryMotherName = mn;
+                }
+            }
+            if (!primaryMotherName) {
+                primaryMotherName = members.find(m => m.mother_name)?.mother_name || '—';
+            }
+
+            // Contact Phones
+            const fatherPhone = members.find(m => m.father_phone)?.father_phone || '';
+            const motherPhone = members.find(m => m.mother_phone)?.mother_phone || '';
+            const guardianPhone = members.find(m => m.guardian_phone)?.guardian_phone || '';
+            const primaryPhone = fatherPhone || motherPhone || guardianPhone || '';
+
+            // Children list, Classes, Sections
+            const childrenNames = members.map(m => m.full_name);
+            const classesList = members.map(m => m.class_name);
+            const sectionsList = members.map(m => m.section_name);
+
+            return {
+                family_id: fam.family_id,
+                family_name: primaryFatherName,
+                father_name: primaryFatherName,
+                mother_name: primaryMotherName,
+                father_phone: fatherPhone,
+                mother_phone: motherPhone,
+                guardian_phone: guardianPhone,
+                primary_phone: primaryPhone,
+                total_children: members.length,
+                children_names: childrenNames,
+                classes_list: classesList,
+                sections_list: sectionsList,
+                family_fee: fam.family_fee,
+                opening_balance: fam.opening_balance,
+                members: members
+            };
+        });
+
+        // Sort families by family_id
+        familiesList.sort((a, b) => a.family_id.localeCompare(b.family_id, undefined, { numeric: true }));
+
+        const totalStudents = result.rows.length;
+        const totalFamilies = familiesList.length;
+
+        res.json({
+            families: familiesList,
+            stats: {
+                total_families: totalFamilies,
+                total_students: totalStudents,
+                average_family_size: totalFamilies > 0 ? (totalStudents / totalFamilies).toFixed(1) : 0
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching families directory:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /students/families/:family_id — get family info including family_fee and members
 router.get('/families/:family_id', async (req, res) => {
     try {

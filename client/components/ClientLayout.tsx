@@ -89,7 +89,7 @@ const NAV_GROUPS: NavGroup[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'bi-speedometer2', href: '/' },
   {
     key: 'students', label: 'Students', icon: 'bi-people-fill', href: '/students/details', permission: 'students',
-    subs: [{ label: 'New Admission', href: '/students/admission' }, { label: 'Import Students', href: '/students/import' }, { label: 'Students Details', href: '/students/details' }]
+    subs: [{ label: 'New Admission', href: '/students/admission' }, { label: 'Import Students', href: '/students/import' }, { label: 'Students Details', href: '/students/details' }, { label: 'Family Directory', href: '/students/families' }]
   },
   {
     key: 'academic', label: 'Academic', icon: 'bi-mortarboard-fill', href: '/academic/classes', permission: 'academic',
@@ -129,6 +129,7 @@ const NAV_PERMISSION_MAP: Record<string, string> = {
   '/students/admission': 'students.admission',
   '/students/import': 'students.import',
   '/students/details': 'students.details',
+  '/students/families': 'students.details',
   '/academic/classes': 'academic.classes',
   '/academic/sections': 'academic.sections',
   '/academic/subjects': 'academic.subjects',
