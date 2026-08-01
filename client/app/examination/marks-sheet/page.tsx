@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { showToast } from '@/utils/toastHelper';
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
 
@@ -51,6 +52,26 @@ type SheetPayload = {
     subjects: SubjectCol[];
     students: StudentRow[];
 };
+
+async function fetchJson(url: string, options?: RequestInit) {
+    const r = await fetch(url, options);
+    const contentType = r.headers.get('content-type') || '';
+    let data: any = {};
+    if (contentType.includes('application/json')) {
+        try {
+            data = await r.json();
+        } catch {
+            data = {};
+        }
+    } else {
+        throw new Error(r.status === 404 ? 'API endpoint not found (404)' : `Server response error (${r.status})`);
+    }
+
+    if (!r.ok) {
+        throw new Error(data.error || data.message || `Request failed with status ${r.status}`);
+    }
+    return data;
+}
 
 function esc(text: unknown) {
     return String(text ?? '')
@@ -214,9 +235,7 @@ export default function ClassMarksSheetPage() {
         setLoadingCtx(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/context?user_id=${user.id}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load context');
+            const d = await fetchJson(`${API}/exams/context?user_id=${user.id}`);
 
             setActiveYearName(d.active_year?.year_name || '');
             setTerms(d.terms || []);
@@ -229,7 +248,9 @@ export default function ClassMarksSheetPage() {
             setSelectedTerm(prev => prev || (termList.length > 0 ? String(termList[0].id) : ''));
             setSelectedClass(prev => prev || (classList.length > 0 ? String(classList[0].class_id) : ''));
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to load context' });
+            const errText = e.message || 'Failed to load context';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingCtx(false);
         }
@@ -246,12 +267,12 @@ export default function ClassMarksSheetPage() {
                 class_id: selectedClass,
                 section_id: selectedSection
             });
-            const r = await fetch(`${API}/exams/class-marks-sheet?${params.toString()}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load marks sheet');
+            const d = await fetchJson(`${API}/exams/class-marks-sheet?${params.toString()}`);
             setSheet(d as SheetPayload);
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to load marks sheet' });
+            const errText = e.message || 'Failed to load marks sheet';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoading(false);
         }
@@ -268,22 +289,25 @@ export default function ClassMarksSheetPage() {
                 class_id: selectedClass,
                 section_id: selectedSection
             });
-            const r = await fetch(`${API}/exams/class-marks-sheet?${params.toString()}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load marks sheet');
+            const d = await fetchJson(`${API}/exams/class-marks-sheet?${params.toString()}`);
 
             const html = buildPrintHtml(d as SheetPayload);
             const win = window.open('', '_blank', 'width=1200,height=850');
             if (!win) {
-                setMsg({ type: 'danger', text: 'Popup blocked. Please allow popups and try again.' });
+                const txt = 'Popup blocked. Please allow popups and try again.';
+                setMsg({ type: 'danger', text: txt });
+                showToast.warning(txt);
                 return;
             }
             win.document.open();
             win.document.write(html);
             win.document.close();
             win.focus();
+            showToast.success('Marks sheet opened for printing');
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Print failed' });
+            const errText = e.message || 'Print failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setPrinting(false);
         }

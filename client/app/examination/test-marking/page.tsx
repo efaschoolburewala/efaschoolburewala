@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { showToast } from '@/utils/toastHelper';
 
 type ClassItem = { class_id: number; class_name: string };
 type SectionItem = { section_id: number; section_name: string; class_id: number };
@@ -29,6 +30,26 @@ type SheetData = {
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+
+async function fetchJson(url: string, options?: RequestInit) {
+    const r = await fetch(url, options);
+    const contentType = r.headers.get('content-type') || '';
+    let data: any = {};
+    if (contentType.includes('application/json')) {
+        try {
+            data = await r.json();
+        } catch {
+            data = {};
+        }
+    } else {
+        throw new Error(r.status === 404 ? 'API endpoint not found (404)' : `Server response error (${r.status})`);
+    }
+
+    if (!r.ok) {
+        throw new Error(data.error || data.message || `Request failed with status ${r.status}`);
+    }
+    return data;
+}
 
 export default function TestMarkingPage() {
     const { user, hasPermission } = useAuth();
@@ -90,15 +111,15 @@ export default function TestMarkingPage() {
         setLoadingCtx(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/tests/context?user_id=${user.id}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load context');
+            const d = await fetchJson(`${API}/exams/tests/context?user_id=${user.id}`);
             setIsAdmin(!!d.is_admin);
             setClasses(d.classes || []);
             setSections(d.sections || []);
             setSubjects(d.subjects || []);
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to load context' });
+            const errText = e.message || 'Failed to load context';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingCtx(false);
         }
@@ -128,12 +149,12 @@ export default function TestMarkingPage() {
         setMsg(null);
         try {
             const p = new URLSearchParams({ user_id: String(user.id), class_id: selClass, section_id: selSection, subject_id: selSubject });
-            const r = await fetch(`${API}/exams/tests?${p}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load tests');
+            const d = await fetchJson(`${API}/exams/tests?${p}`);
             setTests(d.tests || []);
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to load tests' });
+            const errText = e.message || 'Failed to load tests';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingTests(false);
         }
@@ -146,14 +167,24 @@ export default function TestMarkingPage() {
     // ── create test ───────────────────────────────────────────────────────────
     const handleCreate = async () => {
         if (!user?.id || !readyToList) return;
-        if (!formName.trim()) { setMsg({ type: 'warning', text: 'Test name is required.' }); return; }
+        if (!formName.trim()) {
+            const txt = 'Test name is required.';
+            setMsg({ type: 'warning', text: txt });
+            showToast.warning(txt);
+            return;
+        }
         const tm = Number(formTotal);
-        if (!Number.isFinite(tm) || tm <= 0) { setMsg({ type: 'warning', text: 'Total marks must be > 0.' }); return; }
+        if (!Number.isFinite(tm) || tm <= 0) {
+            const txt = 'Total marks must be > 0.';
+            setMsg({ type: 'warning', text: txt });
+            showToast.warning(txt);
+            return;
+        }
 
         setCreating(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/tests/create`, {
+            const d = await fetchJson(`${API}/exams/tests/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -166,14 +197,16 @@ export default function TestMarkingPage() {
                     total_marks: tm,
                 })
             });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to create test');
-            setMsg({ type: 'success', text: d.message || 'Test created successfully.' });
+            const succMsg = d.message || 'Test created successfully.';
+            setMsg({ type: 'success', text: succMsg });
+            showToast.success(succMsg);
             setFormName(''); setFormDesc(''); setFormTotal('');
             setShowCreateForm(false);
             await loadTests();
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Create failed' });
+            const errText = e.message || 'Create failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setCreating(false);
         }
@@ -187,9 +220,7 @@ export default function TestMarkingPage() {
         setMsg(null);
         try {
             const p = new URLSearchParams({ user_id: String(user.id), test_id: String(testId) });
-            const r = await fetch(`${API}/exams/tests/sheet?${p}`);
-            const d: SheetData = await r.json();
-            if (!r.ok) throw new Error((d as any).error || 'Failed to load test sheet');
+            const d: SheetData = await fetchJson(`${API}/exams/tests/sheet?${p}`);
             setSheet(d);
 
             const oMap: Record<number, string> = {};
@@ -202,7 +233,9 @@ export default function TestMarkingPage() {
             setRemarksMap(rMap);
         } catch (e: any) {
             setSheet(null);
-            setMsg({ type: 'danger', text: e.message || 'Failed to open sheet' });
+            const errText = e.message || 'Failed to open sheet';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingSheet(false);
         }
@@ -225,7 +258,9 @@ export default function TestMarkingPage() {
 
         for (const row of payload) {
             if (!Number.isFinite(row.obtained_marks) || row.obtained_marks < 0 || row.obtained_marks > tm) {
-                setMsg({ type: 'danger', text: `Marks for each student must be between 0 and ${tm}.` });
+                const errText = `Marks for each student must be between 0 and ${tm}.`;
+                setMsg({ type: 'danger', text: errText });
+                showToast.error(errText);
                 return;
             }
         }
@@ -233,7 +268,7 @@ export default function TestMarkingPage() {
         setSaving(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/tests/marks/save`, {
+            const d = await fetchJson(`${API}/exams/tests/marks/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -242,13 +277,15 @@ export default function TestMarkingPage() {
                     marks: payload,
                 })
             });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to save marks');
-            setMsg({ type: 'success', text: d.message || 'Test marks saved successfully.' });
+            const succMsg = d.message || 'Test marks saved successfully.';
+            setMsg({ type: 'success', text: succMsg });
+            showToast.success(succMsg);
             await loadTests();
             await openSheet(sheet.test.test_id);
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Save failed' });
+            const errText = e.message || 'Save failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setSaving(false);
         }
@@ -263,14 +300,16 @@ export default function TestMarkingPage() {
         setMsg(null);
         try {
             const p = new URLSearchParams({ user_id: String(user.id), test_id: String(testId) });
-            const r = await fetch(`${API}/exams/tests?${p}`, { method: 'DELETE' });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Delete failed');
-            setMsg({ type: 'success', text: d.message || 'Test deleted successfully.' });
+            const d = await fetchJson(`${API}/exams/tests?${p}`, { method: 'DELETE' });
+            const succMsg = d.message || 'Test deleted successfully.';
+            setMsg({ type: 'success', text: succMsg });
+            showToast.success(succMsg);
             if (selectedTest === testId) { setSelectedTest(null); setSheet(null); }
             await loadTests();
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Delete failed' });
+            const errText = e.message || 'Delete failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setDeleting(false);
         }

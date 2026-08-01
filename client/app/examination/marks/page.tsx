@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { showToast } from '@/utils/toastHelper';
 
 type Term = { id: number; term_name: string; start_date?: string | null; end_date?: string | null };
 type ClassItem = { class_id: number; class_name: string };
@@ -34,6 +35,26 @@ type SheetResponse = {
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+
+async function fetchJson(url: string, options?: RequestInit) {
+    const r = await fetch(url, options);
+    const contentType = r.headers.get('content-type') || '';
+    let data: any = {};
+    if (contentType.includes('application/json')) {
+        try {
+            data = await r.json();
+        } catch {
+            data = {};
+        }
+    } else {
+        throw new Error(r.status === 404 ? 'API endpoint not found (404)' : `Server response error (${r.status})`);
+    }
+
+    if (!r.ok) {
+        throw new Error(data.error || data.message || `Request failed with status ${r.status}`);
+    }
+    return data;
+}
 
 export default function ExaminationMarksPage() {
     const { user, hasPermission } = useAuth();
@@ -86,9 +107,7 @@ export default function ExaminationMarksPage() {
         setLoadingContext(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/context?user_id=${user.id}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load examination context');
+            const d = await fetchJson(`${API}/exams/context?user_id=${user.id}`);
 
             setIsAdmin(!!d.is_admin);
             setActiveYearName(d.active_year?.year_name || '');
@@ -110,7 +129,9 @@ export default function ExaminationMarksPage() {
                 return classList.length > 0 ? String(classList[0].class_id) : '';
             });
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to load context' });
+            const errText = e.message || 'Failed to load context';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingContext(false);
         }
@@ -128,9 +149,7 @@ export default function ExaminationMarksPage() {
                 section_id: selectedSection,
                 subject_id: selectedSubject
             });
-            const r = await fetch(`${API}/exams/marking-sheet?${params.toString()}`);
-            const d: SheetResponse | any = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load marking sheet');
+            const d: SheetResponse | any = await fetchJson(`${API}/exams/marking-sheet?${params.toString()}`);
 
             setSheetReadonly(!!d.readonly);
             setSheetHasAnyMarks(!!d.has_any_marks);
@@ -147,7 +166,9 @@ export default function ExaminationMarksPage() {
             setObtainedMap({});
             setSheetHasAnyMarks(false);
             setSheetReadonly(false);
-            setMsg({ type: 'danger', text: e.message || 'Failed to load sheet' });
+            const errText = e.message || 'Failed to load sheet';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingSheet(false);
         }
@@ -193,7 +214,7 @@ export default function ExaminationMarksPage() {
         }
     }, [filteredSubjects, selectedSubject]);
 
-    // Seamless Auto Load on selection (No manual "Load Students" button needed)
+    // Seamless Auto Load on selection
     useEffect(() => {
         if (readyToLoadSheet) {
             loadSheet();
@@ -207,7 +228,9 @@ export default function ExaminationMarksPage() {
     const handleSave = async () => {
         if (!user?.id || !readyToLoadSheet) return;
         if (!Number.isFinite(Number(totalMarks)) || Number(totalMarks) <= 0) {
-            setMsg({ type: 'danger', text: 'Total marks must be greater than 0.' });
+            const txt = 'Total marks must be greater than 0.';
+            setMsg({ type: 'danger', text: txt });
+            showToast.warning(txt);
             return;
         }
 
@@ -223,7 +246,9 @@ export default function ExaminationMarksPage() {
 
         for (const row of payloadMarks) {
             if (!Number.isFinite(row.obtained_marks) || row.obtained_marks < 0 || row.obtained_marks > tm) {
-                setMsg({ type: 'danger', text: `Invalid marks for one or more students. Must be between 0 and ${tm}.` });
+                const txt = `Invalid marks for one or more students. Must be between 0 and ${tm}.`;
+                setMsg({ type: 'danger', text: txt });
+                showToast.error(txt);
                 return;
             }
         }
@@ -231,7 +256,7 @@ export default function ExaminationMarksPage() {
         setSaving(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/marks/save`, {
+            const d = await fetchJson(`${API}/exams/marks/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -244,13 +269,14 @@ export default function ExaminationMarksPage() {
                     marks: payloadMarks
                 })
             });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to save marks');
-
-            setMsg({ type: 'success', text: d.message || 'Marks saved successfully.' });
+            const succMsg = d.message || 'Marks saved successfully.';
+            setMsg({ type: 'success', text: succMsg });
+            showToast.success(succMsg);
             await loadSheet();
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Save failed' });
+            const errText = e.message || 'Save failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setSaving(false);
         }
@@ -270,14 +296,15 @@ export default function ExaminationMarksPage() {
                 section_id: selectedSection,
                 subject_id: selectedSubject
             });
-            const r = await fetch(`${API}/exams/marks/sheet?${params.toString()}`, { method: 'DELETE' });
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Delete failed');
-
-            setMsg({ type: 'success', text: d.message || 'Marks deleted successfully.' });
+            const d = await fetchJson(`${API}/exams/marks/sheet?${params.toString()}`, { method: 'DELETE' });
+            const succMsg = d.message || 'Marks deleted successfully.';
+            setMsg({ type: 'success', text: succMsg });
+            showToast.success(succMsg);
             await loadSheet();
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Delete failed' });
+            const errText = e.message || 'Delete failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setDeleting(false);
         }
@@ -342,7 +369,7 @@ export default function ExaminationMarksPage() {
                 </div>
             )}
 
-            {/* Seamless Filter Bar (Original Theme Structure) */}
+            {/* Filters (Original Theme Structure) */}
             <div className="card border-0 shadow-sm mb-4">
                 <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
                     <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>

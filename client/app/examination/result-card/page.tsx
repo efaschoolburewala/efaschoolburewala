@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { showToast } from '@/utils/toastHelper';
 
 type Term = { id: number; term_name: string };
 type ClassItem = { class_id: number; class_name: string };
@@ -72,6 +73,26 @@ type CardPayload = {
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+
+async function fetchJson(url: string, options?: RequestInit) {
+    const r = await fetch(url, options);
+    const contentType = r.headers.get('content-type') || '';
+    let data: any = {};
+    if (contentType.includes('application/json')) {
+        try {
+            data = await r.json();
+        } catch {
+            data = {};
+        }
+    } else {
+        throw new Error(r.status === 404 ? 'API endpoint not found (404)' : `Server response error (${r.status})`);
+    }
+
+    if (!r.ok) {
+        throw new Error(data.error || data.message || `Request failed with status ${r.status}`);
+    }
+    return data;
+}
 
 function fmtNum(value: number | string | null | undefined) {
     if (value === null || value === undefined || value === '') return '';
@@ -347,10 +368,7 @@ export default function ResultCardPage() {
         setLoadingContext(true);
         setMsg(null);
         try {
-            const r = await fetch(`${API}/exams/context?user_id=${user.id}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load examination context');
-
+            const d = await fetchJson(`${API}/exams/context?user_id=${user.id}`);
             setActiveYearName(d.active_year?.year_name || '');
             setTerms(d.terms || []);
             setClasses(d.classes || []);
@@ -362,7 +380,9 @@ export default function ResultCardPage() {
             setSelectedTerm((prev) => (prev && termList.some((t: Term) => String(t.id) === prev) ? prev : termList.length > 0 ? String(termList[0].id) : ''));
             setSelectedClass((prev) => (prev && classList.some((c: ClassItem) => String(c.class_id) === prev) ? prev : classList.length > 0 ? String(classList[0].class_id) : ''));
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to load context' });
+            const errText = e.message || 'Failed to load context';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingContext(false);
         }
@@ -380,16 +400,15 @@ export default function ResultCardPage() {
                 section_id: selectedSection
             });
 
-            const r = await fetch(`${API}/exams/students-list?${params.toString()}`);
-            const d = await r.json();
-            if (!r.ok) throw new Error(d.error || 'Failed to load student list');
-
+            const d = await fetchJson(`${API}/exams/students-list?${params.toString()}`);
             setStudents(Array.isArray(d.students) ? d.students : []);
             setSelectedIds(new Set());
         } catch (e: any) {
             setStudents([]);
             setSelectedIds(new Set());
-            setMsg({ type: 'danger', text: e.message || 'Failed to load students' });
+            const errText = e.message || 'Failed to load students';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setLoadingStudents(false);
         }
@@ -398,7 +417,7 @@ export default function ResultCardPage() {
     const fetchCards = async (studentIds: number[]): Promise<CardPayload> => {
         if (!user?.id || !ready) throw new Error('Please select term, class and section first');
 
-        const r = await fetch(`${API}/exams/result-card/data`, {
+        const d = await fetchJson(`${API}/exams/result-card/data`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -410,15 +429,15 @@ export default function ResultCardPage() {
             })
         });
 
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'Failed to load result card data');
         return d as CardPayload;
     };
 
     const openInNewTab = (html: string) => {
         const win = window.open('', '_blank', 'width=1100,height=900');
         if (!win) {
-            setMsg({ type: 'danger', text: 'Popup blocked. Please allow popups for this site and try again.' });
+            const txt = 'Popup blocked. Please allow popups for this site and try again.';
+            setMsg({ type: 'danger', text: txt });
+            showToast.warning(txt);
             return;
         }
         win.document.open();
@@ -437,8 +456,11 @@ export default function ResultCardPage() {
                 throw new Error('No result data found for this student');
             }
             openInNewTab(buildPrintHtml(payload, false));
+            showToast.info('Result card opened');
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Failed to open result card' });
+            const errText = e.message || 'Failed to open result card';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setOpeningStudentId(null);
         }
@@ -446,7 +468,9 @@ export default function ResultCardPage() {
 
     const handlePrintSelected = async () => {
         if (selectedIds.size === 0) {
-            setMsg({ type: 'warning', text: 'Select one or more students to print.' });
+            const txt = 'Select one or more students to print.';
+            setMsg({ type: 'warning', text: txt });
+            showToast.warning(txt);
             return;
         }
 
@@ -458,8 +482,11 @@ export default function ResultCardPage() {
                 throw new Error('No cards found for selected students');
             }
             openInNewTab(buildPrintHtml(payload, true));
+            showToast.success(`Printing ${payload.students.length} result cards`);
         } catch (e: any) {
-            setMsg({ type: 'danger', text: e.message || 'Bulk print failed' });
+            const errText = e.message || 'Bulk print failed';
+            setMsg({ type: 'danger', text: errText });
+            showToast.error(errText);
         } finally {
             setPrinting(false);
         }
