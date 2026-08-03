@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     title: 'Smart School System',
     statusBarStyle: 'default',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export default function RootLayout({

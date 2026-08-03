@@ -158,7 +158,7 @@ async function runEssentialMigrations() {
                 term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
                 class_id INTEGER NOT NULL REFERENCES classes(class_id) ON DELETE CASCADE,
                 section_id INTEGER NOT NULL REFERENCES sections(section_id) ON DELETE CASCADE,
-                subject_id INTEGER NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
+                subject_id INTEGER REFERENCES subjects(subject_id) ON DELETE CASCADE,
                 test_id INTEGER REFERENCES test_papers(test_id) ON DELETE CASCADE,
                 status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'published')),
                 submitted_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
@@ -169,6 +169,8 @@ async function runEssentialMigrations() {
                 published_at TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            ALTER TABLE exam_sheet_approvals ALTER COLUMN subject_id DROP NOT NULL;
 
             CREATE UNIQUE INDEX IF NOT EXISTS idx_uniq_sheet_term_exam ON exam_sheet_approvals (sheet_type, term_id, class_id, section_id, subject_id) WHERE sheet_type = 'term_exam';
             CREATE UNIQUE INDEX IF NOT EXISTS idx_uniq_sheet_class_test ON exam_sheet_approvals (test_id) WHERE sheet_type = 'class_test';

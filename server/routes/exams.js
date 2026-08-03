@@ -2100,6 +2100,11 @@ router.post('/approvals/change-status', async (req, res) => {
             const sectionId = Number(section_id);
             const subjectId = Number(subject_id);
 
+            if (!termId || !classId || !sectionId || !subjectId || isNaN(termId) || isNaN(classId) || isNaN(sectionId) || isNaN(subjectId)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'Valid term_id, class_id, section_id, and subject_id are required for term_exam' });
+            }
+
             // Update exam_marks table status for this sheet
             await client.query(
                 `UPDATE exam_marks 
@@ -2115,6 +2120,9 @@ router.post('/approvals/change-status', async (req, res) => {
                 [termId, classId, sectionId, subjectId]
             );
 
+            const approvedByVal = (action === 'approve' || action === 'publish') ? userId : null;
+            const publishedByVal = action === 'publish' ? userId : null;
+
             if (checkRes.rows.length === 0) {
                 await client.query(
                     `INSERT INTO exam_sheet_approvals (
@@ -2123,14 +2131,14 @@ router.post('/approvals/change-status', async (req, res) => {
                      ) VALUES ('term_exam', $1, $2, $3, $4, $5, $6,
                                $7, CASE WHEN $5 IN ('approved','published') THEN NOW() ELSE NULL END,
                                $8, CASE WHEN $5 = 'published' THEN NOW() ELSE NULL END, NOW())`,
-                    [termId, classId, sectionId, subjectId, targetStatus, userId, action === 'approve' ? userId : null, action === 'publish' ? userId : null]
+                    [termId, classId, sectionId, subjectId, targetStatus, userId, approvedByVal, publishedByVal]
                 );
             } else {
                 await client.query(
                     `UPDATE exam_sheet_approvals
                      SET status = $1,
-                         approved_by = CASE WHEN $1 IN ('approved','published') THEN $2 ELSE approved_by END,
-                         approved_at = CASE WHEN $1 IN ('approved','published') THEN NOW() ELSE approved_at END,
+                         approved_by = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_by, $2) ELSE approved_by END,
+                         approved_at = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
                          published_by = CASE WHEN $1 = 'published' THEN $2 ELSE published_by END,
                          published_at = CASE WHEN $1 = 'published' THEN NOW() ELSE published_at END,
                          updated_at = NOW()
@@ -2140,12 +2148,16 @@ router.post('/approvals/change-status', async (req, res) => {
             }
         } else if (sheet_type === 'class_test') {
             const testId = Number(test_id);
+            if (!testId || isNaN(testId)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'Valid test_id is required for class_test' });
+            }
 
             // Update test_papers table status
             await client.query(
                 `UPDATE test_papers 
                  SET status = $1,
-                     approved_by = CASE WHEN $1 IN ('approved','published') THEN $2 ELSE approved_by END,
+                     approved_by = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_by, $2) ELSE approved_by END,
                      published_by = CASE WHEN $1 = 'published' THEN $2 ELSE published_by END
                  WHERE test_id = $3`,
                 [targetStatus, userId, testId]
@@ -2153,11 +2165,17 @@ router.post('/approvals/change-status', async (req, res) => {
 
             const testRowRes = await client.query(`SELECT class_id, section_id, subject_id FROM test_papers WHERE test_id = $1`, [testId]);
             const testRow = testRowRes.rows[0] || {};
+            const testClassId = Number(testRow.class_id || class_id || 0);
+            const testSectionId = Number(testRow.section_id || section_id || 0);
+            const testSubjectId = testRow.subject_id ? Number(testRow.subject_id) : (subject_id ? Number(subject_id) : null);
 
             const checkRes = await client.query(
                 `SELECT id FROM exam_sheet_approvals WHERE sheet_type = 'class_test' AND test_id = $1`,
                 [testId]
             );
+
+            const approvedByVal = (action === 'approve' || action === 'publish') ? userId : null;
+            const publishedByVal = action === 'publish' ? userId : null;
 
             if (checkRes.rows.length === 0) {
                 await client.query(
@@ -2167,14 +2185,14 @@ router.post('/approvals/change-status', async (req, res) => {
                      ) VALUES ('class_test', $1, $2, $3, $4, $5, $6,
                                $7, CASE WHEN $5 IN ('approved','published') THEN NOW() ELSE NULL END,
                                $8, CASE WHEN $5 = 'published' THEN NOW() ELSE NULL END, NOW())`,
-                    [testId, testRow.class_id, testRow.section_id, testRow.subject_id, targetStatus, userId, action === 'approve' ? userId : null, action === 'publish' ? userId : null]
+                    [testId, testClassId, testSectionId, testSubjectId, targetStatus, userId, approvedByVal, publishedByVal]
                 );
             } else {
                 await client.query(
                     `UPDATE exam_sheet_approvals
                      SET status = $1,
-                         approved_by = CASE WHEN $1 IN ('approved','published') THEN $2 ELSE approved_by END,
-                         approved_at = CASE WHEN $1 IN ('approved','published') THEN NOW() ELSE approved_at END,
+                         approved_by = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_by, $2) ELSE approved_by END,
+                         approved_at = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
                          published_by = CASE WHEN $1 = 'published' THEN $2 ELSE published_by END,
                          published_at = CASE WHEN $1 = 'published' THEN NOW() ELSE published_at END,
                          updated_at = NOW()
