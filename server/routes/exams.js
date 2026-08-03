@@ -2120,31 +2120,58 @@ router.post('/approvals/change-status', async (req, res) => {
                 [termId, classId, sectionId, subjectId]
             );
 
-            const approvedByVal = (action === 'approve' || action === 'publish') ? userId : null;
-            const publishedByVal = action === 'publish' ? userId : null;
+            const isApprovedOrPublished = targetStatus === 'approved' || targetStatus === 'published';
+            const isPublished = targetStatus === 'published';
+            const now = new Date();
 
             if (checkRes.rows.length === 0) {
                 await client.query(
                     `INSERT INTO exam_sheet_approvals (
                         sheet_type, term_id, class_id, section_id, subject_id, status,
                         submitted_by, approved_by, approved_at, published_by, published_at, updated_at
-                     ) VALUES ('term_exam', $1, $2, $3, $4, $5, $6,
-                               $7, CASE WHEN $5 IN ('approved','published') THEN NOW() ELSE NULL END,
-                               $8, CASE WHEN $5 = 'published' THEN NOW() ELSE NULL END, NOW())`,
-                    [termId, classId, sectionId, subjectId, targetStatus, userId, approvedByVal, publishedByVal]
+                     ) VALUES ('term_exam', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+                    [
+                        termId, classId, sectionId, subjectId, targetStatus, userId,
+                        isApprovedOrPublished ? userId : null,
+                        isApprovedOrPublished ? now : null,
+                        isPublished ? userId : null,
+                        isPublished ? now : null
+                    ]
                 );
             } else {
-                await client.query(
-                    `UPDATE exam_sheet_approvals
-                     SET status = $1,
-                         approved_by = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_by, $2) ELSE approved_by END,
-                         approved_at = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
-                         published_by = CASE WHEN $1 = 'published' THEN $2 ELSE published_by END,
-                         published_at = CASE WHEN $1 = 'published' THEN NOW() ELSE published_at END,
-                         updated_at = NOW()
-                     WHERE sheet_type = 'term_exam' AND term_id = $3 AND class_id = $4 AND section_id = $5 AND subject_id = $6`,
-                    [targetStatus, userId, termId, classId, sectionId, subjectId]
-                );
+                if (isPublished) {
+                    await client.query(
+                        `UPDATE exam_sheet_approvals
+                         SET status = $1,
+                             approved_by = COALESCE(approved_by, $2),
+                             approved_at = COALESCE(approved_at, NOW()),
+                             published_by = $2,
+                             published_at = NOW(),
+                             updated_at = NOW()
+                         WHERE sheet_type = 'term_exam' AND term_id = $3 AND class_id = $4 AND section_id = $5 AND subject_id = $6`,
+                        [targetStatus, userId, termId, classId, sectionId, subjectId]
+                    );
+                } else if (targetStatus === 'approved') {
+                    await client.query(
+                        `UPDATE exam_sheet_approvals
+                         SET status = $1,
+                             approved_by = COALESCE(approved_by, $2),
+                             approved_at = COALESCE(approved_at, NOW()),
+                             updated_at = NOW()
+                         WHERE sheet_type = 'term_exam' AND term_id = $3 AND class_id = $4 AND section_id = $5 AND subject_id = $6`,
+                        [targetStatus, userId, termId, classId, sectionId, subjectId]
+                    );
+                } else {
+                    await client.query(
+                        `UPDATE exam_sheet_approvals
+                         SET status = $1,
+                             published_by = NULL,
+                             published_at = NULL,
+                             updated_at = NOW()
+                         WHERE sheet_type = 'term_exam' AND term_id = $2 AND class_id = $3 AND section_id = $4 AND subject_id = $5`,
+                        [targetStatus, termId, classId, sectionId, subjectId]
+                    );
+                }
             }
         } else if (sheet_type === 'class_test') {
             const testId = Number(test_id);
@@ -2153,15 +2180,37 @@ router.post('/approvals/change-status', async (req, res) => {
                 return res.status(400).json({ error: 'Valid test_id is required for class_test' });
             }
 
+            const isApprovedOrPublished = targetStatus === 'approved' || targetStatus === 'published';
+            const isPublished = targetStatus === 'published';
+            const now = new Date();
+
             // Update test_papers table status
-            await client.query(
-                `UPDATE test_papers 
-                 SET status = $1,
-                     approved_by = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_by, $2) ELSE approved_by END,
-                     published_by = CASE WHEN $1 = 'published' THEN $2 ELSE published_by END
-                 WHERE test_id = $3`,
-                [targetStatus, userId, testId]
-            );
+            if (isPublished) {
+                await client.query(
+                    `UPDATE test_papers 
+                     SET status = $1,
+                         approved_by = COALESCE(approved_by, $2),
+                         published_by = $2
+                     WHERE test_id = $3`,
+                    [targetStatus, userId, testId]
+                );
+            } else if (targetStatus === 'approved') {
+                await client.query(
+                    `UPDATE test_papers 
+                     SET status = $1,
+                         approved_by = COALESCE(approved_by, $2)
+                     WHERE test_id = $3`,
+                    [targetStatus, userId, testId]
+                );
+            } else {
+                await client.query(
+                    `UPDATE test_papers 
+                     SET status = $1,
+                         published_by = NULL
+                     WHERE test_id = $2`,
+                    [targetStatus, testId]
+                );
+            }
 
             const testRowRes = await client.query(`SELECT class_id, section_id, subject_id FROM test_papers WHERE test_id = $1`, [testId]);
             const testRow = testRowRes.rows[0] || {};
@@ -2174,31 +2223,54 @@ router.post('/approvals/change-status', async (req, res) => {
                 [testId]
             );
 
-            const approvedByVal = (action === 'approve' || action === 'publish') ? userId : null;
-            const publishedByVal = action === 'publish' ? userId : null;
-
             if (checkRes.rows.length === 0) {
                 await client.query(
                     `INSERT INTO exam_sheet_approvals (
                         sheet_type, test_id, class_id, section_id, subject_id, status,
                         submitted_by, approved_by, approved_at, published_by, published_at, updated_at
-                     ) VALUES ('class_test', $1, $2, $3, $4, $5, $6,
-                               $7, CASE WHEN $5 IN ('approved','published') THEN NOW() ELSE NULL END,
-                               $8, CASE WHEN $5 = 'published' THEN NOW() ELSE NULL END, NOW())`,
-                    [testId, testClassId, testSectionId, testSubjectId, targetStatus, userId, approvedByVal, publishedByVal]
+                     ) VALUES ('class_test', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
+                    [
+                        testId, testClassId, testSectionId, testSubjectId, targetStatus, userId,
+                        isApprovedOrPublished ? userId : null,
+                        isApprovedOrPublished ? now : null,
+                        isPublished ? userId : null,
+                        isPublished ? now : null
+                    ]
                 );
             } else {
-                await client.query(
-                    `UPDATE exam_sheet_approvals
-                     SET status = $1,
-                         approved_by = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_by, $2) ELSE approved_by END,
-                         approved_at = CASE WHEN $1 IN ('approved','published') THEN COALESCE(approved_at, NOW()) ELSE approved_at END,
-                         published_by = CASE WHEN $1 = 'published' THEN $2 ELSE published_by END,
-                         published_at = CASE WHEN $1 = 'published' THEN NOW() ELSE published_at END,
-                         updated_at = NOW()
-                     WHERE sheet_type = 'class_test' AND test_id = $3`,
-                    [targetStatus, userId, testId]
-                );
+                if (isPublished) {
+                    await client.query(
+                        `UPDATE exam_sheet_approvals
+                         SET status = $1,
+                             approved_by = COALESCE(approved_by, $2),
+                             approved_at = COALESCE(approved_at, NOW()),
+                             published_by = $2,
+                             published_at = NOW(),
+                             updated_at = NOW()
+                         WHERE sheet_type = 'class_test' AND test_id = $3`,
+                        [targetStatus, userId, testId]
+                    );
+                } else if (targetStatus === 'approved') {
+                    await client.query(
+                        `UPDATE exam_sheet_approvals
+                         SET status = $1,
+                             approved_by = COALESCE(approved_by, $2),
+                             approved_at = COALESCE(approved_at, NOW()),
+                             updated_at = NOW()
+                         WHERE sheet_type = 'class_test' AND test_id = $3`,
+                        [targetStatus, userId, testId]
+                    );
+                } else {
+                    await client.query(
+                        `UPDATE exam_sheet_approvals
+                         SET status = $1,
+                             published_by = NULL,
+                             published_at = NULL,
+                             updated_at = NOW()
+                         WHERE sheet_type = 'class_test' AND test_id = $2`,
+                        [targetStatus, testId]
+                    );
+                }
             }
         }
 
