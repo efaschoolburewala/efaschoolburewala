@@ -78,6 +78,7 @@ const PAGE_TREE: Record<string, ModuleDef> = {
         label: 'Students', icon: 'bi-person-graduation', color: '#0ea5e9',
         pages: [
             { key: 'students.details', label: 'Student List', icon: 'bi-list-ul', desc: 'Browse, search and filter all students' },
+            { key: 'students.families', label: 'Family Directory', icon: 'bi-people', desc: 'Family-wise student directory & balance management' },
             { key: 'students.admission', label: 'New Admission', icon: 'bi-person-plus', desc: 'Register a new student' },
             { key: 'students.import', label: 'Import Students', icon: 'bi-file-earmark-arrow-up', desc: 'Bulk import via Excel file' },
             { key: 'students.profile', label: 'Student Profile', icon: 'bi-person-badge', desc: 'View individual student profile page' },
@@ -117,6 +118,7 @@ const PAGE_TREE: Record<string, ModuleDef> = {
             { key: 'fees.heads', label: 'Fee Heads', icon: 'bi-tags', desc: 'Define fee categories / heads' },
             { key: 'fees.plans', label: 'Fee Plans', icon: 'bi-card-list', desc: 'Create and manage fee plans' },
             { key: 'fees.generate', label: 'Generate Slips', icon: 'bi-receipt', desc: 'Generate monthly fee slips' },
+            { key: 'fees.print', label: 'Print Slips', icon: 'bi-printer', desc: 'Batch print monthly fee slips' },
             { key: 'fees.collect', label: 'Collect Fees', icon: 'bi-cash-stack', desc: 'Receive and record fee payments' },
             { key: 'fees.admission', label: 'Admission Fees', icon: 'bi-cash-coin', desc: 'Collect one-time admission fees' },
             { key: 'fees.opening-balance', label: 'Opening Balance', icon: 'bi-clock-history', desc: 'Set prior dues / opening balance' },
@@ -129,6 +131,7 @@ const PAGE_TREE: Record<string, ModuleDef> = {
             { key: 'expenses.categories', label: 'Categories', icon: 'bi-folder', desc: 'Manage expense categories' },
             { key: 'expenses.list', label: 'All Expenses', icon: 'bi-list-check', desc: 'Browse all expense records' },
             { key: 'expenses.add', label: 'Add Expense', icon: 'bi-plus-square', desc: 'Record a new expense entry' },
+            { key: 'expenses.edit', label: 'Edit Expense', icon: 'bi-pencil-square', desc: 'Edit expense entries' },
         ],
     },
     attendance: {
@@ -143,10 +146,12 @@ const PAGE_TREE: Record<string, ModuleDef> = {
     reports: {
         label: 'Reports', icon: 'bi-bar-chart-fill', color: '#64748b',
         pages: [
+            { key: 'reports.monthly', label: 'Monthly Report', icon: 'bi-calendar-month', desc: 'Monthly summary & collection report' },
             { key: 'reports.students', label: 'Student Reports', icon: 'bi-person-lines-fill', desc: 'Student-related report views' },
             { key: 'reports.results', label: 'Result Reports', icon: 'bi-bar-chart-steps', desc: 'Exam result reports' },
             { key: 'reports.expenses', label: 'Expense Reports', icon: 'bi-graph-down', desc: 'Financial expense summaries' },
             { key: 'reports.family-fee', label: 'Family Fee Reports', icon: 'bi-people-fill', desc: 'Family fee summary reports' },
+            { key: 'reports.admission', label: 'Admission Reports', icon: 'bi-person-badge-fill', desc: 'New admissions & fee collection reports' },
         ],
     },
     settings: {
