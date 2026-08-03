@@ -99,14 +99,20 @@ export default function CollectFeePage() {
         // School info lives in school_settings table (via /settings), NOT system_settings
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
+                const getLogo = (raw?: string) => {
+                    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+                    if (!raw || !raw.trim()) return `${API_URL}/icon.png`;
+                    const s = raw.trim();
+                    if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://')) return s;
+                    return `${API_URL}/${s.replace(/^\/+/, '')}`;
+                };
                 setSchool({
                     school_name: data.school_name || '',
                     school_address: data.address || '',
                     phone_number: data.contact_number || '',
                     school_phone2: '',
                     school_phone3: '',
-                    // logo_url is a relative path like /uploads/school_logo.png prefix API host
-                    school_logo_url: data.logo_url ? `${API}${data.logo_url}` : ''
+                    school_logo_url: getLogo(data.logo_url)
                 });
             }
         }).catch(() => { });
@@ -399,12 +405,13 @@ export default function CollectFeePage() {
             </tr>`;
 
         const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
-        const logoUrl = school.school_logo_url || '';
+        const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+        const logoUrl = school.school_logo_url || `${API_URL}/icon.png`;
         const schoolNameFormatted = (school.school_name || 'Shaheen English Model School\nVehari').split('\n').join('<br>');
         const schoolAddress = school.school_address || '83/M Madina Colony Vehari';
 
-        const logoBoxStyle = logoUrl
-            ? `background-image: url('${escStr(logoUrl)}'); border: none;`
+        const logoImgHtml = logoUrl
+            ? `<img src="${escStr(logoUrl)}" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:1.5mm;display:block;" />`
             : '';
 
         const html = `<!DOCTYPE html>
@@ -428,9 +435,8 @@ export default function CollectFeePage() {
 
   .header { display: flex; align-items: center; gap: 2mm; margin-bottom: 2mm; }
   .logo-box {
-    width: 16mm; height: 16mm; border: 1.2px solid #000; border-radius: 2mm;
-    flex-shrink: 0; background-size: cover; background-position: center;
-    ${logoBoxStyle}
+    width: 16mm; height: 16mm; border: ${logoUrl ? 'none' : '1.2px solid #000'}; border-radius: 2mm;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
   .school-name { font-size: 11pt; font-weight: bold; line-height: 1.25; text-transform: uppercase; color: #000; }
 
@@ -479,7 +485,7 @@ export default function CollectFeePage() {
 <body>
   <div class="voucher">
     <div class="header">
-      <div class="logo-box"></div>
+      <div class="logo-box">${logoImgHtml}</div>
       <div class="school-name">${schoolNameFormatted}</div>
     </div>
     <div class="address-block">
@@ -511,6 +517,17 @@ export default function CollectFeePage() {
     <div class="spacer"></div>
   </div>
   <button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+  <script>
+    window.onload = function() {
+      var img = document.querySelector('.logo-box img');
+      if (img && !img.complete) {
+        img.onload = function() { window.print(); };
+        img.onerror = function() { window.print(); };
+      } else {
+        window.print();
+      }
+    };
+  </script>
 </body>
 </html>`;
 
@@ -519,7 +536,6 @@ export default function CollectFeePage() {
             w.document.write(html);
             w.document.close();
             w.focus();
-            setTimeout(() => w.print(), 250);
         }
     };
 
