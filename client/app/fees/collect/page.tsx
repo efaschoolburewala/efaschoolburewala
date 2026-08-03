@@ -195,7 +195,10 @@ export default function CollectFeePage() {
         finally { setLoadingHistory(false); }
     };
 
-    const openReceiptWindow = (
+    /* ============================================================================
+       PREVIOUS OPEN RECEIPT WINDOW (PRESERVED IN COMMENTS)
+       ============================================================================
+    const oldOpenReceiptWindow = (
         slip: SlipRow,
         receivingAmt: number,
         submissionDate: string,
@@ -285,6 +288,229 @@ export default function CollectFeePage() {
     <div class="spacer"></div>
   </div>
   <button class="print-btn" onclick="window.print()">&#128438; Print Receipt</button>
+</body>
+</html>`;
+
+        const w = window.open('', '_blank', 'width=420,height=680,toolbar=0,menubar=0,scrollbars=1');
+        if (w) {
+            w.document.write(html);
+            w.document.close();
+            w.focus();
+            setTimeout(() => w.print(), 250);
+        }
+    };
+       ============================================================================ */
+
+    /* ============================================================================
+       NEW THERMAL FEE RECEIPT (Strictly matching fee-voucher thermal printer.html)
+       ============================================================================ */
+    const openReceiptWindow = (
+        slip: SlipRow,
+        receivingAmt: number,
+        submissionDate: string,
+        prevPaid: number
+    ) => {
+        const escStr = (text: unknown): string => {
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const totalPayable = parseFloat(slip.total_amount as any) || 0;
+        const totalReceivedBefore = prevPaid || 0;
+        const totalReceivedNow = totalReceivedBefore + receivingAmt;
+        const remainingBalance = Math.max(0, totalPayable - totalReceivedNow);
+
+        const fmtMoney = (n: number) => `${Number(n || 0).toLocaleString('en-PK')}/-`;
+        const fmtD = (d: string | null) => {
+            if (!d) return '\u2014';
+            try {
+                const dt = new Date(d);
+                return ("0" + dt.getDate()).slice(-2) + "-" + ("0" + (dt.getMonth() + 1)).slice(-2) + "-" + dt.getFullYear();
+            } catch {
+                return String(d);
+            }
+        };
+        const zeroPad = (n: number) => String(n).padStart(5, '0');
+
+        // Students list: exactly 1 row per student, no blank filler rows
+        const members: any[] = (slip.family_members && slip.family_members.length > 0)
+            ? slip.family_members
+            : [{
+                first_name: slip.first_name,
+                last_name: slip.last_name,
+                father_name: slip.father_name || '',
+                class_name: slip.class_name,
+                section_name: slip.section_name
+            }];
+
+        const studentRows = members.map(m =>
+            `<tr>
+                <td>${escStr(m.first_name || '')} ${escStr(m.last_name || '')}</td>
+                <td>${escStr(m.father_name || slip.father_name || '')}</td>
+                <td>${escStr(m.class_name || '')}${m.section_name ? ` (${escStr(m.section_name)})` : ''}</td>
+            </tr>`
+        ).join('');
+
+        // Fee Details: 1 row per fee head with Sr.#
+        const lineItems = slip.line_items || [];
+        let srNo = 0;
+        let feeRows = '';
+
+        lineItems.forEach(li => {
+            srNo++;
+            const desc = li.head_name.replace('Family Monthly Fee', 'Monthly Fee') + (li.note ? ` (${li.note})` : '');
+            feeRows += `<tr>
+                <td>${srNo}</td>
+                <td>${escStr(desc)}</td>
+                <td>${fmtMoney(parseFloat(li.amount as any) || 0)}</td>
+            </tr>`;
+        });
+
+        if (lineItems.length === 0) {
+            srNo++;
+            feeRows += `<tr>
+                <td>${srNo}</td>
+                <td>Monthly Fee</td>
+                <td>${fmtMoney(totalPayable)}</td>
+            </tr>`;
+        }
+
+        // Subtotal row
+        srNo++;
+        feeRows += `<tr class="subtotal-row">
+            <td>${srNo}</td>
+            <td>Total Payable</td>
+            <td>${fmtMoney(totalPayable)}</td>
+        </tr>`;
+
+        // Receiving Amount & Remaining Balance
+        feeRows += `
+            <tr class="divider-row">
+                <td colspan="2">Receiving Amount</td>
+                <td>${fmtMoney(receivingAmt)}</td>
+            </tr>
+            <tr class="bold-row">
+                <td colspan="2">Remaining Balance</td>
+                <td>${fmtMoney(remainingBalance)}</td>
+            </tr>`;
+
+        const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
+        const logoUrl = school.school_logo_url || '';
+        const schoolNameFormatted = (school.school_name || 'Shaheen English Model School\nVehari').split('\n').join('<br>');
+        const schoolAddress = school.school_address || '83/M Madina Colony Vehari';
+
+        const logoBoxStyle = logoUrl
+            ? `background-image: url('${escStr(logoUrl)}'); border: none;`
+            : '';
+
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fee Receipt</title>
+<style>
+  @page { margin: 0; size: auto; }
+  html, body {
+    margin: 0; padding: 0; width: 72mm; box-sizing: border-box;
+    font-family: 'Times New Roman', Times, serif; color: #000; background: #fff;
+  }
+  .voucher {
+    width: 100%; padding: 3mm; display: flex; flex-direction: column; box-sizing: border-box;
+    border: 2px solid #000; border-radius: 4mm; position: relative; background: #fff;
+  }
+  .voucher::before {
+    content: ""; position: absolute; inset: 2px; border: 1px solid #000; border-radius: 3.3mm; pointer-events: none;
+  }
+
+  .header { display: flex; align-items: center; gap: 2mm; margin-bottom: 2mm; }
+  .logo-box {
+    width: 16mm; height: 16mm; border: 1.2px solid #000; border-radius: 2mm;
+    flex-shrink: 0; background-size: cover; background-position: center;
+    ${logoBoxStyle}
+  }
+  .school-name { font-size: 11pt; font-weight: bold; line-height: 1.25; text-transform: uppercase; color: #000; }
+
+  .address-block { text-align: center; font-size: 8pt; margin-bottom: 1mm; line-height: 1.3; color: #000; }
+  .address-block p { margin: 0; }
+  hr { border: 0; border-top: 1px dashed #000; margin: 1.5mm 0; }
+  .voucher-title { text-align: center; font-size: 10.5pt; font-weight: bold; text-transform: uppercase; margin: 1mm 0; color: #000; }
+
+  .info { font-size: 8pt; margin-bottom: 2mm; line-height: 1.4; color: #000; }
+  .info-row { display: flex; align-items: baseline; gap: 2mm; white-space: nowrap; margin-bottom: 0.5mm; }
+  .info-row .voucher-no { flex-shrink: 0; }
+  .info-row .family-id { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+  .info-row2 { margin-bottom: 0.5mm; }
+
+  .section-label { font-size: 9.5pt; font-weight: bold; margin: 3mm 0 1mm; color: #000; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 3mm; table-layout: fixed; word-wrap: break-word; color: #000; }
+  th, td { border: 1px solid #000; padding: 1.2mm 0.8mm; text-align: center; }
+  th { font-weight: bold; background: #e9e9e9; }
+
+  .students th:nth-child(1), .students td:nth-child(1) { text-align: left; }
+  .students th:nth-child(2), .students td:nth-child(2) { text-align: left; }
+
+  .details th:nth-child(1), .details td:nth-child(1) { width: 12%; }
+  .details th:nth-child(2), .details td:nth-child(2) { text-align: left; }
+  .details th:nth-child(3), .details td:nth-child(3) { text-align: right; }
+  .details tr.subtotal-row td { font-weight: bold; background: #e9e9e9; }
+  .details tr.divider-row td { font-weight: bold; border-top: 2px solid #000; }
+  .details tr.bold-row td { font-weight: bold; }
+  .details tr.divider-row td:first-child,
+  .details tr.bold-row td:first-child { text-align: left; }
+
+  .thank-you { text-align: center; font-size: 9.5pt; font-weight: bold; margin-top: 3mm; margin-bottom: 2mm; color: #000; }
+  .spacer { flex-grow: 1; }
+
+  .print-btn {
+    display: block; width: 100%; margin-top: 4mm; padding: 8px; font-size: 10pt; font-weight: bold;
+    background: #215E61; color: #fff; border: none; border-radius: 4px; cursor: pointer; text-align: center;
+  }
+  @media print {
+    .print-btn { display: none !important; }
+    body { width: 72mm !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="voucher">
+    <div class="header">
+      <div class="logo-box"></div>
+      <div class="school-name">${schoolNameFormatted}</div>
+    </div>
+    <div class="address-block">
+      <p>${escStr(schoolAddress)}</p>
+      <p>${escStr(phones)}</p>
+    </div>
+    <hr><div class="voucher-title">Fee Receipt</div><hr>
+    <div class="info">
+      <div class="info-row">
+        <div class="voucher-no">Voucher No: <strong><u>${zeroPad(slip.slip_id)}</u></strong></div>
+        <div class="family-id">Family ID: <strong><u>${escStr(slip.family_id || '—')}</u></strong></div>
+      </div>
+      <div class="info-row2">Fee Submission Date: <strong><u>${fmtD(submissionDate)}</u></strong></div>
+    </div>
+
+    <div class="section-label">Students Details</div>
+    <table class="students">
+      <thead><tr><th>Student Name</th><th>Father Name</th><th>Class (Sec)</th></tr></thead>
+      <tbody>${studentRows}</tbody>
+    </table>
+
+    <div class="section-label">Fee Details</div>
+    <table class="details">
+      <thead><tr><th>Sr.#</th><th>Fee Description</th><th>Amount</th></tr></thead>
+      <tbody>${feeRows}</tbody>
+    </table>
+
+    <div class="thank-you">Thank You</div>
+    <div class="spacer"></div>
+  </div>
+  <button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
 </body>
 </html>`;
 
