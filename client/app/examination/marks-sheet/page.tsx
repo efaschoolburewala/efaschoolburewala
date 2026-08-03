@@ -216,7 +216,8 @@ function buildPrintHtml(payload: SheetPayload): string {
             <img src="${esc(logo)}" alt="logo" class="logo-circle">
             <div class="titles">
               <h1>${esc(schoolName)}</h1>
-              <span class="addr">${esc(fullAddressPhone)}</span>
+              <div class="addr">${esc(address)}</div>
+              ${phones ? `<div class="contact">Ph: ${esc(phones)}</div>` : ''}
             </div>
           </div>
           <div class="sheet-title">Detailed Marks Sheet of Obtained Marks in Exam.</div>
@@ -289,9 +290,10 @@ function buildPrintHtml(payload: SheetPayload): string {
   .school-header img { width: 90px; height: 90px; object-fit: cover; flex-shrink: 0; border: 3px solid #000; }
   .school-header img.logo-circle { border-radius: 50%; }
   .school-header img.logo-square { border-radius: 8px; }
-  .school-header .titles { text-align: left; white-space: nowrap; }
-  .school-header h1 { margin: 0; font-size: 46px; font-weight: 900; letter-spacing: 0.5px; display: inline-block; color: #000; }
-  .school-header .addr { font-size: 16px; margin-left: 10px; color: #333; }
+  .school-header .titles { text-align: left; }
+  .school-header h1 { margin: 0 0 2px 0; font-size: 40px; font-weight: 900; letter-spacing: 0.5px; display: block; color: #000; line-height: 1.1; }
+  .school-header .addr { font-size: 16px; color: #333; margin-top: 2px; font-weight: 600; }
+  .school-header .contact { font-size: 15px; color: #333; margin-top: 1px; }
 
   .sheet-title {
     text-align: center; font-weight: bold; font-size: 21px; margin: 12px 0 10px 0;

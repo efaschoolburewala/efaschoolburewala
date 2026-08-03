@@ -799,6 +799,26 @@ router.post('/result-card/data', async (req, res) => {
             return res.status(404).json({ error: 'Invalid term/class/section selection' });
         }
 
+        const teacherRes = await client.query(
+            `SELECT e.first_name, e.last_name
+             FROM teacher_class_assignment tca
+             JOIN employees e ON e.employee_id = tca.employee_id
+             WHERE tca.class_id = $1
+               AND tca.section_id = $2
+               AND tca.is_class_teacher = true
+             LIMIT 1`,
+            [classId, sectionId]
+        );
+
+        const classTeacher = teacherRes.rows.length > 0
+            ? `${teacherRes.rows[0].first_name || ''} ${teacherRes.rows[0].last_name || ''}`.trim()
+            : '';
+
+        const metaData = {
+            ...metaRes.rows[0],
+            class_teacher: classTeacher
+        };
+
         let studentIds = requestedStudentIds
             .map(v => Number(v))
             .filter(v => Number.isInteger(v) && v > 0);
@@ -935,7 +955,7 @@ router.post('/result-card/data', async (req, res) => {
         });
 
         res.json({
-            meta: metaRes.rows[0],
+            meta: metaData,
             school,
             subjects: subjectsRes.rows,
             students: studentCards
