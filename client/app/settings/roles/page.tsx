@@ -101,6 +101,7 @@ const PAGE_TREE: Record<string, ModuleDef> = {
             { key: 'academic.examination.test-marking', label: 'Test Marking', icon: 'bi-journal-check', desc: 'Enter class test marks' },
             { key: 'academic.marks-sheet', label: 'Marks Sheet', icon: 'bi-table', desc: 'View class-wide marks sheet (Incharge only)' },
             { key: 'academic.result-card', label: 'Result Cards', icon: 'bi-file-earmark-text', desc: 'Print individual result cards (Incharge only)' },
+            { key: 'academic.examination.approvals', label: 'Marks Approval & Publishing', icon: 'bi-shield-check', desc: 'Approve & publish marks to Student Portal' },
         ],
     },
     hrm: {

@@ -142,6 +142,42 @@ async function runEssentialMigrations() {
                OR role_level >= 90;
         `);
 
+        // 7. Exam Marks & Test Papers Approval Workflow Migration
+        console.log("   → Checking exam_marks & test_papers approval columns and exam_sheet_approvals table...");
+        await client.query(`
+            ALTER TABLE exam_marks ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
+            
+            ALTER TABLE test_papers 
+            ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending',
+            ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS published_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL;
+
+            CREATE TABLE IF NOT EXISTS exam_sheet_approvals (
+                id SERIAL PRIMARY KEY,
+                sheet_type VARCHAR(20) NOT NULL CHECK (sheet_type IN ('term_exam', 'class_test')),
+                term_id INTEGER REFERENCES academic_terms(id) ON DELETE CASCADE,
+                class_id INTEGER NOT NULL REFERENCES classes(class_id) ON DELETE CASCADE,
+                section_id INTEGER NOT NULL REFERENCES sections(section_id) ON DELETE CASCADE,
+                subject_id INTEGER NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
+                test_id INTEGER REFERENCES test_papers(test_id) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'published')),
+                submitted_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                approved_at TIMESTAMP,
+                published_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                published_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_uniq_sheet_term_exam ON exam_sheet_approvals (sheet_type, term_id, class_id, section_id, subject_id) WHERE sheet_type = 'term_exam';
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_uniq_sheet_class_test ON exam_sheet_approvals (test_id) WHERE sheet_type = 'class_test';
+
+            -- Legacy data backfill (keep existing marks published)
+            UPDATE exam_marks SET status = 'published' WHERE status IS NULL;
+            UPDATE test_papers SET status = 'published' WHERE status IS NULL;
+        `);
+
         await client.query('COMMIT');
         console.log("✅ All essential migrations completed successfully!");
     } catch (err) {

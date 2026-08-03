@@ -61,7 +61,7 @@ router.get('/results', async (req, res) => {
         let idx = 2;
 
         // Build the JOIN condition for exam_marks
-        let emJoinCondition = `em.academic_year_id = $1`;
+        let emJoinCondition = `em.academic_year_id = $1 AND em.status = 'published'`;
         if (term_id) {
             emJoinCondition += ` AND em.term_id = $${idx}`;
             params.push(term_id);
