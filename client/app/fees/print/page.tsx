@@ -257,14 +257,19 @@ export default function PrintSlipsPage() {
         // School info lives in school_settings table (via /settings), NOT system_settings
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
+                const getLogo = (raw?: string) => {
+                    if (!raw || !raw.trim()) return `${API}/icon.png`;
+                    const s = raw.trim();
+                    if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://')) return s;
+                    return `${API}/${s.replace(/^\/+/, '')}`;
+                };
                 setSchool({
                     school_name: data.school_name || '',
                     school_address: data.address || '',
                     phone_number: data.contact_number || '',
                     school_phone2: '',
                     school_phone3: '',
-                    // logo_url is a relative path like /uploads/school_logo.png prefix API host
-                    school_logo_url: data.logo_url ? `${API}${data.logo_url}` : ''
+                    school_logo_url: getLogo(data.logo_url)
                 });
             }
         }).catch(() => { });

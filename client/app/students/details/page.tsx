@@ -375,6 +375,31 @@ export default function StudentDetails() {
         URL.revokeObjectURL(url);
     };
 
+    const [school, setSchool] = useState<any>(null);
+
+    useEffect(() => {
+        const API = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+        fetch(`${API}/settings`)
+            .then(r => r.json())
+            .then(data => {
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    const getLogo = (raw?: string) => {
+                        if (!raw || !raw.trim()) return `${API}/icon.png`;
+                        const s = raw.trim();
+                        if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://')) return s;
+                        return `${API}/${s.replace(/^\/+/, '')}`;
+                    };
+                    setSchool({
+                        school_name: data.school_name || 'Shaheen Model High School',
+                        address: data.address || '',
+                        contact_number: data.contact_number || '',
+                        logo_url: getLogo(data.logo_url)
+                    });
+                }
+            })
+            .catch(() => {});
+    }, []);
+
     const doExportPDF = () => {
         const { headers, rows } = buildExportData();
         const win = window.open('', '_blank');
@@ -384,18 +409,35 @@ export default function StudentDetails() {
             const isRemarks = headers[i]?.toLowerCase().includes('remarks') || headers[i]?.toLowerCase().includes('notes');
             return isRemarks ? `<td style="border-bottom:1px dashed #777;min-width:120px">&nbsp;</td>` : `<td>${v}</td>`;
         }).join('') + '</tr>').join('');
+
+        const logoUrl = school?.logo_url || `${(process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '')}/icon.png`;
+        const schoolName = school?.school_name || 'Shaheen Model High School';
+        const address = school?.address || '';
+        const contact = school?.contact_number || '';
+
         win.document.write(
-            `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Students</title>` +
+            `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Student Directory</title>` +
             `<style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}` +
-            `h2{text-align:center;font-size:16px;margin-bottom:4px}` +
-            `p.sub{text-align:center;color:#666;font-size:10px;margin-bottom:12px}` +
-            `table{width:100%;border-collapse:collapse}` +
+            `.header-container{display:flex;align-items:center;justify-content:center;gap:15px;margin-bottom:15px;border-bottom:2px solid #1a3a5c;padding-bottom:10px}` +
+            `.header-logo{height:65px;width:65px;object-fit:contain}` +
+            `.header-text{text-align:center}` +
+            `h2{text-align:center;font-size:18px;margin:0;color:#1a3a5c;font-weight:bold}` +
+            `p.sub{text-align:center;color:#555;font-size:11px;margin:2px 0}` +
+            `h3.title{text-align:center;font-size:14px;margin:4px 0 0 0;color:#333;text-transform:uppercase;letter-spacing:0.5px}` +
+            `table{width:100%;border-collapse:collapse;margin-top:10px}` +
             `th{background:#1a3a5c;color:#fff;padding:6px 8px;font-size:10px;text-align:left}` +
             `td{padding:5px 8px;border-bottom:1px solid #e0e0e0;font-size:11px}` +
             `tr:nth-child(even) td{background:#f7f9fc}` +
             `@media print{@page{margin:10mm}}</style></head><body>` +
-            `<h2>Student Directory</h2>` +
-            `<p class="sub">Generated: ${new Date().toLocaleDateString()} Total: ${students.length}</p>` +
+            `<div class="header-container">` +
+            `<img src="${logoUrl}" class="header-logo" alt="Logo" />` +
+            `<div class="header-text">` +
+            `<h2>${schoolName}</h2>` +
+            `${address ? `<p class="sub">${address}</p>` : ''}` +
+            `${contact ? `<p class="sub">Contact: ${contact}</p>` : ''}` +
+            `<h3 class="title">Student Directory (${students.length} Students)</h3>` +
+            `</div>` +
+            `</div>` +
             `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></body></html>`
         );
         win.document.close(); win.focus();

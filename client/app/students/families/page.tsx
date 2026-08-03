@@ -75,13 +75,19 @@ export default function FamilyListPage() {
                 // Fetch school settings
                 fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
                     if (data && typeof data === 'object' && !Array.isArray(data)) {
+                        const getLogo = (raw?: string) => {
+                            if (!raw || !raw.trim()) return `${API}/icon.png`;
+                            const s = raw.trim();
+                            if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://')) return s;
+                            return `${API}/${s.replace(/^\/+/, '')}`;
+                        };
                         setSchool({
                             school_name: data.school_name || 'Shaheen Model High School',
                             school_address: data.address || 'Main Campus, Vehari',
                             phone_number: data.contact_number || '',
                             school_phone2: '',
                             school_phone3: '',
-                            school_logo_url: data.logo_url ? `${API}${data.logo_url}` : ''
+                            school_logo_url: getLogo(data.logo_url)
                         });
                     }
                 }).catch(() => { });

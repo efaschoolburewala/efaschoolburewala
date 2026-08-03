@@ -111,14 +111,14 @@ function esc(text: unknown) {
 }
 
 function getLogoUrl(rawLogo?: string): string {
-    if (!rawLogo || !rawLogo.trim()) return '';
+    const API = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+    if (!rawLogo || !rawLogo.trim()) return `${API}/icon.png`;
     const logoStr = rawLogo.trim();
-    if (logoStr.startsWith('http://') || logoStr.startsWith('https://') || logoStr.startsWith('data:')) {
+    if (logoStr.startsWith('data:') || logoStr.startsWith('http://') || logoStr.startsWith('https://')) {
         return logoStr;
     }
-    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
     const cleanPath = logoStr.replace(/^\/+/, '');
-    return `${baseUrl}/${cleanPath}`;
+    return `${API}/${cleanPath}`;
 }
 
 function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
