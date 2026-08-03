@@ -1624,7 +1624,7 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
             mother_name, mother_phone, mother_cnic, mother_occupation,
             is_orphan, guardian_name, guardian_relation, guardian_phone, guardian_cnic, guardian_address,
             monthly_fee, admission_fee, other_charges,
-            family_fee
+            family_fee, opening_balance
         } = req.body;
 
         // Handle Files
@@ -1686,6 +1686,27 @@ router.put('/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'docum
                 VALUES ($1, $2)
                 ON CONFLICT (family_id) DO UPDATE SET family_fee = $2
             `, [fam_id_updated, parseFloat(family_fee)]);
+        }
+
+        // Update opening_balance in families table if provided
+        if (opening_balance !== undefined && opening_balance !== null && opening_balance !== '' && fam_id_updated) {
+            const opbVal = parseFloat(opening_balance);
+            if (!isNaN(opbVal) && opbVal >= 0) {
+                const famRes = await client.query(`SELECT opening_balance, opening_balance_paid FROM families WHERE family_id = $1`, [fam_id_updated]);
+                const currentOpb = parseFloat(famRes.rows[0]?.opening_balance || 0);
+                const currentPaid = parseFloat(famRes.rows[0]?.opening_balance_paid || 0);
+
+                if (currentPaid > 0 && currentPaid >= currentOpb && currentOpb > 0) {
+                    // Fully paid: do not edit opening_balance
+                } else {
+                    const finalOpb = Math.max(opbVal, currentPaid);
+                    await client.query(`
+                        INSERT INTO families (family_id, opening_balance, created_at)
+                        VALUES ($1, $2, NOW())
+                        ON CONFLICT (family_id) DO UPDATE SET opening_balance = $2
+                    `, [fam_id_updated, finalOpb]);
+                }
+            }
         }
 
         // Update User

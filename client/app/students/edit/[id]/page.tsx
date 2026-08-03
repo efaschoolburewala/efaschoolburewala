@@ -65,11 +65,13 @@ export default function EditStudent({ params }: { params: { id: string } }) {
         monthly_fee: '',
         family_fee: '',
         admission_fee: '',
-        other_charges: ''
+        other_charges: '',
+        opening_balance: ''
     });
 
     // Family info state
     const [familyInfo, setFamilyInfo] = useState<{ family_id: string; family_fee: number; family_size: number } | null>(null);
+    const [opbPaid, setOpbPaid] = useState<number>(0);
 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [documentFiles, setDocumentFiles] = useState<FileList | null>(null);
@@ -89,6 +91,10 @@ export default function EditStudent({ params }: { params: { id: string } }) {
             if (res.ok) {
                 const data = await res.json();
 
+                const opbVal = data.opening_balance ? parseFloat(data.opening_balance) : 0;
+                const opbPaidVal = data.opening_balance_paid ? parseFloat(data.opening_balance_paid) : 0;
+                setOpbPaid(opbPaidVal);
+
                 // Populate Form
                 setForm({
                     ...data,
@@ -102,6 +108,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                     // If class/section IDs are present
                     class_id: data.class_id || '',
                     section_id: data.section_id || '',
+                    opening_balance: opbVal > 0 ? opbVal.toString() : '',
                 });
 
                 if (data.class_id) fetchSections(data.class_id);
@@ -175,6 +182,18 @@ export default function EditStudent({ params }: { params: { id: string } }) {
         e.preventDefault();
         setSubmitting(true);
         const toastId = toast.loading("Updating Student...");
+
+        const enteredOpb = parseFloat(form.opening_balance || '0') || 0;
+        if (opbPaid > 0 && enteredOpb < opbPaid) {
+            toast.update(toastId, {
+                render: `Opening Balance cannot be less than already paid amount (Rs. ${opbPaid.toLocaleString()})`,
+                type: "error",
+                isLoading: false,
+                autoClose: 5000
+            });
+            setSubmitting(false);
+            return;
+        }
 
         try {
             const formData = new FormData();
@@ -637,6 +656,65 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* ── OPENING BALANCE (Purana Baqi) ── */}
+                                {(() => {
+                                    const totalOpb = parseFloat(form.opening_balance || '0') || 0;
+                                    const paidOpb = opbPaid || 0;
+                                    const isFullyPaid = paidOpb > 0 && totalOpb > 0 && paidOpb >= totalOpb;
+                                    const isPartiallyPaid = paidOpb > 0 && paidOpb < totalOpb;
+
+                                    return (
+                                        <div className="mt-3 p-3 rounded-3" style={{ background: 'rgba(254,127,45,0.07)', border: '1.5px solid rgba(254,127,45,0.25)' }}>
+                                            <div className="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-1">
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <i className="bi bi-clock-history" style={{ color: 'var(--accent-orange)', fontSize: '1.1rem' }} />
+                                                    <strong style={{ color: 'var(--primary-dark)', fontSize: '0.95rem' }}>Opening Balance (Purana Baqi)</strong>
+                                                    <span className="badge rounded-pill ms-1" style={{ background: 'rgba(254,127,45,0.15)', color: 'var(--accent-orange)', fontSize: '0.72rem' }}>Optional</span>
+                                                </div>
+                                                {isFullyPaid && (
+                                                    <span className="badge bg-success text-white px-2.5 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                                        <i className="bi bi-check-circle-fill me-1"></i>Fully Paid (Rs. {paidOpb.toLocaleString()})
+                                                    </span>
+                                                )}
+                                                {isPartiallyPaid && (
+                                                    <span className="badge bg-warning text-dark px-2.5 py-1 rounded-pill" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                                                        <i className="bi bi-pie-chart-fill me-1"></i>Partially Paid: Rs. {paidOpb.toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <small className="text-muted d-block mb-2">
+                                                Agar is family ka koi purana baqi ho (software install se pehle ka) tou yahan enter karo. Yeh family account mein track hoga aur gradually collect kiya jay ga.
+                                            </small>
+
+                                            <div className="input-group">
+                                                <span className="input-group-text bg-white"><i className="bi bi-wallet2" style={{ color: 'var(--accent-orange)' }} /></span>
+                                                <span className="input-group-text bg-white fw-semibold">Rs.</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="form-control"
+                                                    placeholder="0.00 (agar koi purana baqi ho)"
+                                                    disabled={isFullyPaid}
+                                                    value={form.opening_balance}
+                                                    onChange={e => setForm({ ...form, opening_balance: e.target.value })}
+                                                />
+                                            </div>
+
+                                            {isFullyPaid && (
+                                                <small className="text-success d-block mt-1.5 fw-semibold" style={{ fontSize: '0.78rem' }}>
+                                                    <i className="bi bi-lock-fill me-1"></i>Yeh Opening Balance mukammal pay ho chuka hai (Paid: Rs. {paidOpb.toLocaleString()}), is wajah se yeh edit nahi ho sakta.
+                                                </small>
+                                            )}
+                                            {isPartiallyPaid && (
+                                                <small className="text-warning-emphasis d-block mt-1.5 fw-semibold" style={{ fontSize: '0.78rem' }}>
+                                                    <i className="bi bi-exclamation-triangle-fill me-1"></i>Is Opening Balance se Rs. {paidOpb.toLocaleString()} Already Paid hai. Naya Balance kam se kam Rs. {paidOpb.toLocaleString()} hona chahiye.
+                                                </small>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
