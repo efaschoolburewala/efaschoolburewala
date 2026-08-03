@@ -810,7 +810,7 @@ router.post('/result-card/data', async (req, res) => {
         }
 
         const studentsRes = await client.query(
-            `SELECT s.student_id, s.first_name, s.last_name, s.admission_no, s.roll_no
+            `SELECT s.student_id, s.first_name, s.last_name, s.father_name, s.admission_no, s.roll_no
              FROM students s
              WHERE s.class_id = $1
                AND s.section_id = $2
@@ -921,6 +921,7 @@ router.post('/result-card/data', async (req, res) => {
                 student_id: student.student_id,
                 first_name: student.first_name,
                 last_name: student.last_name,
+                father_name: student.father_name,
                 admission_no: student.admission_no,
                 roll_no: student.roll_no,
                 position: rankInfo.position,

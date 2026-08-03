@@ -12,6 +12,7 @@ type StudentListRow = {
     student_id: number;
     first_name: string;
     last_name: string;
+    father_name?: string | null;
     admission_no?: string | null;
     roll_no?: string | null;
     marked_subjects: number;
@@ -55,6 +56,7 @@ type CardStudent = {
     student_id: number;
     first_name: string;
     last_name: string;
+    father_name?: string | null;
     admission_no?: string | null;
     roll_no?: string | null;
     position: number | null;
@@ -94,14 +96,14 @@ async function fetchJson(url: string, options?: RequestInit) {
     return data;
 }
 
-function fmtNum(value: number | string | null | undefined) {
+function fmtNum(value: number | string | null | undefined): string {
     if (value === null || value === undefined || value === '') return '';
     const n = Number(value);
     if (!Number.isFinite(n)) return '';
     return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.00$/, '');
 }
 
-function esc(text: unknown) {
+function esc(text: unknown): string {
     return String(text ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -110,222 +112,501 @@ function esc(text: unknown) {
         .replace(/'/g, '&#39;');
 }
 
+function getSubjectGrade(obtained: number | null, total: number | null): string {
+    if (obtained === null || total === null || total <= 0) return '';
+    const pct = (obtained / total) * 100;
+    if (pct >= 90) return 'A+';
+    if (pct >= 80) return 'A';
+    if (pct >= 70) return 'B';
+    if (pct >= 60) return 'C';
+    if (pct >= 50) return 'D';
+    return 'F';
+}
+
 function getLogoUrl(rawLogo?: string): string {
-    const API = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
-    if (!rawLogo || !rawLogo.trim()) return `${API}/icon.png`;
+    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+    if (!rawLogo || !rawLogo.trim()) return `${API_URL}/icon.png`;
     const logoStr = rawLogo.trim();
     if (logoStr.startsWith('data:') || logoStr.startsWith('http://') || logoStr.startsWith('https://')) {
         return logoStr;
     }
     const cleanPath = logoStr.replace(/^\/+/, '');
-    return `${API}/${cleanPath}`;
+    return `${API_URL}/${cleanPath}`;
 }
 
 function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
     const { meta, school, students } = payload;
-    const schoolName = school.school_name || 'Shaheen Public School';
-    const address = school.school_address || '';
-    const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' | ');
+    const schoolName = school.school_name || 'Shaheen English Model School Vehari';
+    const address = school.school_address || '83m Madina Colony Vehari';
+    const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
     const logo = getLogoUrl(school.school_logo_url);
+    const session = meta.year_name || meta.term_name || '2025 - 2026';
+    const todayDate = new Date().toLocaleDateString('en-GB');
 
-    const cardsHtml = payload.students
-        .map((student) => {
-            const rowsHtml = student.subject_rows
-                .map(
-                    (row, idx) => `
-                        <tr>
-                            <td class="center">${idx + 1}</td>
-                            <td>${esc(row.subject_name)}</td>
-                            <td class="center">${esc(fmtNum(row.total_marks))}</td>
-                            <td class="center">${esc(fmtNum(row.obtained_marks))}</td>
-                        </tr>
-                    `
-                )
-                .join('');
+    const cardsHtml = students.map((student) => {
+        const subjects = student.subject_rows || [];
+        const isCompact = subjects.length > 9;
+
+        const subjectRowsHtml = subjects.map((subj, idx) => {
+            const i = idx + 1;
+            const name = subj.subject_name || `Subject ${i}`;
+            const total = subj.total_marks !== null && subj.total_marks !== undefined ? fmtNum(subj.total_marks) : '100';
+            const obtained = subj.obtained_marks !== null && subj.obtained_marks !== undefined ? fmtNum(subj.obtained_marks) : '';
+            const pctVal = subj.total_marks && subj.total_marks > 0 && subj.obtained_marks !== null && subj.obtained_marks !== undefined
+                ? fmtNum((Number(subj.obtained_marks) / Number(subj.total_marks)) * 100) + '%'
+                : '';
+            const gradeVal = getSubjectGrade(subj.obtained_marks, subj.total_marks);
 
             return `
-                <section class="result-card">
-                    <div class="header-row">
-                        <div class="logo-wrap">
-                            ${logo ? `<img src="${esc(logo)}" alt="School Logo" />` : ''}
-                        </div>
-                        <div class="title-wrap">
-                            <h2>${esc(schoolName)}</h2>
-                            ${address ? `<div class="sub">${esc(address)}</div>` : ''}
-                            ${phones ? `<div class="sub">${esc(phones)}</div>` : ''}
-                            <h3>Result Card</h3>
-                        </div>
-                    </div>
+              <tr>
+                <td>${i}</td>
+                <td class="subject">${esc(name)}</td>
+                <td>${esc(total)}</td>
+                <td>${esc(obtained)}</td>
+                <td>${esc(pctVal)}</td>
+                <td>${esc(gradeVal)}</td>
+              </tr>`;
+        }).join('');
 
-                    <div class="student-line">
-                        <span>Student Name: <b>${esc(`${student.first_name} ${student.last_name}`)}</b></span>
-                        <span>Class: <b>${esc(payload.meta.class_name)}</b></span>
-                        <span>Section: <b>${esc(payload.meta.section_name)}</b></span>
-                    </div>
-                    <div class="student-line">
-                        <span>Roll No: <b>${esc(student.roll_no || '')}</b></span>
-                        <span>Exam Term: <b>${esc(payload.meta.term_name)}</b></span>
-                        <span>Year: <b>${esc(payload.meta.year_name)}</b></span>
-                    </div>
+        const overallPctStr = student.percentage !== null && student.percentage !== undefined ? fmtNum(student.percentage) + ' %' : '—';
+        const overallGradeStr = student.grade || '—';
+        const positionStr = student.ordinal_position || (student.position ? String(student.position) : '—');
+        const statusStr = student.grade === 'F' ? 'FAIL' : (student.percentage !== null ? 'PASS' : '—');
 
-                    <table class="marks-table">
-                        <thead>
-                            <tr>
-                                <th class="center">S.no</th>
-                                <th>Subjects</th>
-                                <th class="center">Total Marks</th>
-                                <th class="center">Obtained Marks</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rowsHtml}
-                            <tr class="grand-row">
-                                <td colspan="2" class="center"><b>Grand Total</b></td>
-                                <td class="center"><b>${esc(fmtNum(student.grand_total_marks))}</b></td>
-                                <td class="center"><b>${esc(fmtNum(student.grand_obtained_marks))}</b></td>
-                            </tr>
-                            <tr>
-                                <td class="center"><b>Position</b></td>
-                                <td class="center"><b>${esc(student.ordinal_position || '--')}</b></td>
-                                <td class="center"><b>Percentage</b></td>
-                                <td class="center"><b>${student.percentage !== null && student.percentage !== undefined ? esc(String(student.percentage)) + '%' : '--'}</b></td>
-                            </tr>
-                            <tr>
-                                <td colspan="4" class="center" style="font-size:30px;"><b>Grade: ${esc(student.grade || '--')}</b></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div class="remarks">Teacher Remarks: ________________________________</div>
-                    <div class="sign-row">
-                        <span>Teacher sign: _______________</span>
-                        <span>Principal Sign: _______________</span>
-                    </div>
-                </section>
-            `;
-        })
-        .join('');
-
-    return `
-        <!doctype html>
-        <html>
-        <head>
-            <meta charset="utf-8" />
-            <title>Result Cards</title>
-            <style>
-                @page { size: A4 portrait; margin: 8mm; }
-                * { box-sizing: border-box; }
-                body {
-                    margin: 0;
-                    font-family: "Times New Roman", serif;
-                    color: #000;
-                    background: #fff;
-                }
-                .print-toolbar {
-                    position: fixed;
-                    top: 0; left: 0; right: 0;
-                    background: #215E61;
-                    color: #fff;
-                    padding: 10px 20px;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    z-index: 9999;
-                    font-family: Arial, sans-serif;
-                    font-size: 14px;
-                }
-                .print-toolbar button {
-                    background: #FE7F2D;
-                    color: #fff;
-                    border: none;
-                    padding: 7px 22px;
-                    border-radius: 4px;
-                    font-size: 14px;
-                    font-weight: bold;
-                    cursor: pointer;
-                }
-                .cards-wrapper { padding-top: 52px; }
-                @media print {
-                    .print-toolbar { display: none !important; }
-                    .cards-wrapper { padding-top: 0; }
-                }
-                .result-card {
-                    border: 1px dashed #000;
-                    width: 100%;
-                    min-height: 270mm;
-                    padding: 7mm;
-                    page-break-after: always;
-                }
-                .result-card:last-child { page-break-after: auto; }
-                .header-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    margin-bottom: 8px;
-                }
-                .logo-wrap {
-                    width: 90px;
-                    height: 90px;
-                    flex: 0 0 90px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                .logo-wrap img { width: 90px; height: 90px; object-fit: contain; }
-                .title-wrap { flex: 1; text-align: center; }
-                .title-wrap h2 { margin: 0; font-size: 34px; font-weight: 700; line-height: 1.1; }
-                .title-wrap h3 { margin: 8px 0 0; font-size: 32px; }
-                .sub { font-size: 15px; }
-                .student-line {
-                    display: flex;
-                    justify-content: space-between;
-                    gap: 12px;
-                    font-size: 26px;
-                    margin: 8px 0;
-                    font-weight: 700;
-                    flex-wrap: wrap;
-                }
-                .student-line span { white-space: nowrap; }
-                .marks-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 10px;
-                    font-size: 28px;
-                }
-                .marks-table th,
-                .marks-table td {
-                    border: 1px solid #000;
-                    padding: 8px 10px;
-                }
-                .center { text-align: center; }
-                .grand-row td { font-weight: 700; }
-                .remarks {
-                    margin-top: 46px;
-                    font-size: 30px;
-                    font-weight: 700;
-                }
-                .sign-row {
-                    margin-top: 24px;
-                    font-size: 30px;
-                    font-weight: 700;
-                    display: flex;
-                    justify-content: space-between;
-                    gap: 20px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="print-toolbar">
-                <span>📄 Result Card ${esc(payload.meta.class_name)} / ${esc(payload.meta.section_name)} / ${esc(payload.meta.term_name)} (${esc(payload.meta.year_name)})</span>
-                <button onclick="window.print()">🖨️ Print</button>
+        return `
+          <div class="page ${isCompact ? 'compact' : ''}">
+            <!-- Header -->
+            <div class="header">
+              <div class="logo">
+                ${logo ? `<img src="${esc(logo)}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>` : 'DEEDS NOT WORDS<br>SHAHEEN SCHOOL'}
+              </div>
+              <div class="school-info">
+                <div class="school-name">${esc(schoolName)}</div>
+                <div class="school-address">${esc(address)}</div>
+                <div class="school-contact">${esc(phones)}</div>
+              </div>
             </div>
-            <div class="cards-wrapper">
-                ${cardsHtml}
+
+            <!-- Title bar -->
+            <div class="title-bar">
+              <div class="title">ANNUAL RESULT CARD</div>
+              <div class="session">Session: [ <span>${esc(session)}</span> ]</div>
             </div>
-            ${autoPrint ? '<script>window.onload=function(){window.print();}<\/script>' : ''}
-        </body>
-        </html>
-    `;
+
+            <!-- Student info -->
+            <table class="info-table">
+              <tr>
+                <td class="label">Student Name</td>
+                <td class="value">${esc(`${student.first_name} ${student.last_name}`.trim())}</td>
+                <td class="label">Father Name</td>
+                <td class="value">${esc(student.father_name || '—')}</td>
+              </tr>
+              <tr>
+                <td class="label">Class</td>
+                <td class="value">${esc(meta.class_name)}</td>
+                <td class="label">Section</td>
+                <td class="value">${esc(meta.section_name)}</td>
+              </tr>
+              <tr>
+                <td class="label">Roll No.</td>
+                <td class="value">${esc(student.roll_no || '—')}</td>
+                <td class="label">Admission No.</td>
+                <td class="value">${esc(student.admission_no || '—')}</td>
+              </tr>
+            </table>
+
+            <!-- Subject-wise Marks -->
+            <div class="section-heading">Subject-wise Marks</div>
+            <table class="marks-table">
+              <thead>
+                <tr>
+                  <th style="width:6%;">S.#</th>
+                  <th style="width:34%;">Subject</th>
+                  <th style="width:15%;">Total Marks</th>
+                  <th style="width:15%;">Marks Obtained</th>
+                  <th style="width:15%;">%</th>
+                  <th style="width:15%;">Grade</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${subjectRowsHtml}
+                <tr class="total-row">
+                  <td colspan="2">Total</td>
+                  <td>${esc(fmtNum(student.grand_total_marks))}</td>
+                  <td>${esc(fmtNum(student.grand_obtained_marks))}</td>
+                  <td>${student.percentage !== null && student.percentage !== undefined ? esc(fmtNum(student.percentage)) + '%' : ''}</td>
+                  <td>&nbsp;</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Summary -->
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <th>Percentage</th>
+                  <th>Overall Grade</th>
+                  <th>Class Position</th>
+                  <th>Result Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>${esc(overallPctStr)}</td>
+                  <td>${esc(overallGradeStr)}</td>
+                  <td>${esc(positionStr)}</td>
+                  <td>${esc(statusStr)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Grading scale -->
+            <div class="grading-heading">Grading Scale</div>
+            <table class="grading-table">
+              <thead>
+                <tr>
+                  <th>Grade</th>
+                  <th>A+</th>
+                  <th>A</th>
+                  <th>B</th>
+                  <th>C</th>
+                  <th>D</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>Marks %</th>
+                  <td>90-100</td>
+                  <td>80-89</td>
+                  <td>70-79</td>
+                  <td>60-69</td>
+                  <td>Below 60</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Remarks -->
+            <div class="remarks-heading">Class Teacher's Remarks:</div>
+            <div class="remarks-line"></div>
+            <div class="remarks-line"></div>
+
+            <div class="bottom-spacer"></div>
+
+            <!-- Signatures -->
+            <div class="signatures">
+              <div class="sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">Class Teacher's Signature</div>
+              </div>
+              <div class="sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">Exam Controller's Signature</div>
+              </div>
+              <div class="sig">
+                <div class="sig-line"></div>
+                <div class="sig-label">Principal's Signature</div>
+              </div>
+            </div>
+
+            <div class="issue-date">Date of Issue: [ <span>${esc(todayDate)}</span> ]</div>
+          </div>`;
+    }).join('');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shaheen English Model School Vehari - Annual Result Card</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Times New Roman", Times, serif;
+    color: #000;
+    margin: 0;
+    padding: 0;
+    background: #e5e5e5;
+  }
+  .print-toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: #215E61;
+    color: #fff;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    z-index: 9999;
+  }
+  .print-toolbar button {
+    background: #FE7F2D;
+    color: #fff;
+    border: none;
+    padding: 6px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .page-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 46px;
+  }
+  @media print {
+    .print-toolbar { display: none !important; }
+    body { background: #fff; }
+    .page-wrap { padding-top: 0; }
+    .page { box-shadow: none; margin: 0 auto; page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 277mm;
+    padding: 10mm 12mm;
+    margin: 8mm auto 20mm auto;
+    background: #fff;
+    box-shadow: 0 0 8px rgba(0,0,0,0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* ---------- Header ---------- */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 3px solid #000;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+  .logo {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 2px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 6px;
+    font-weight: bold;
+    line-height: 1.1;
+    flex-shrink: 0;
+    padding: 4px;
+    overflow: hidden;
+  }
+  .school-info {
+    text-align: center;
+    flex: 1;
+  }
+  .school-name {
+    font-size: 35px;
+    font-weight: bold;
+    margin: 0 0 3px 0;
+    line-height: 1.1;
+  }
+  .school-address, .school-contact {
+    font-size: 17px;
+    margin: 1px 0;
+    line-height: 1.15;
+  }
+  /* ---------- Title bar ---------- */
+  .title-bar {
+    display: flex;
+    border: 1.5px solid #000;
+    margin-bottom: 10px;
+  }
+  .title-bar .title {
+    flex: 2;
+    background: #d9d9d9;
+    text-align: center;
+    font-weight: bold;
+    font-size: 20px;
+    padding: 6px;
+    border-right: 1.5px solid #000;
+    letter-spacing: 1px;
+  }
+  .title-bar .session {
+    flex: 1;
+    text-align: center;
+    font-weight: bold;
+    font-size: 17px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* ---------- Info table ---------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .info-table td {
+    border: 1px solid #000;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  .info-table td.label {
+    font-weight: bold;
+    width: 16%;
+    background: #f2f2f2;
+  }
+  .info-table td.value {
+    width: 34%;
+  }
+  .info-table {
+    margin-bottom: 10px;
+  }
+  /* ---------- Section heading ---------- */
+  .section-heading {
+    font-weight: bold;
+    font-size: 17px;
+    margin: 0 0 5px 0;
+  }
+  /* ---------- Marks table ---------- */
+  .marks-table {
+    margin-bottom: 10px;
+  }
+  .marks-table th, .marks-table td {
+    border: 1px solid #000;
+    padding: 4px 8px;
+    font-size: 17px;
+    text-align: center;
+  }
+  .marks-table th {
+    background: #d9d9d9;
+    font-weight: bold;
+  }
+  .marks-table td.subject {
+    text-align: left;
+  }
+  .marks-table tr.total-row td {
+    font-weight: bold;
+    background: #f2f2f2;
+  }
+  /* compact mode when subject count is high */
+  .page.compact .marks-table th,
+  .page.compact .marks-table td {
+    padding: 2.5px 6px;
+    font-size: 14.5px;
+  }
+  .page.compact .info-table td {
+    padding: 3px 8px;
+  }
+  .page.compact .remarks-line {
+    height: 16px;
+    margin-bottom: 4px;
+  }
+  .page.compact .signatures {
+    margin-top: 30px;
+  }
+  .page.compact .issue-date {
+    margin-top: 14px;
+  }
+  .page.compact .header {
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+  }
+  .page.compact .school-name { font-size: 30px; }
+  .page.compact .title-bar { margin-bottom: 7px; }
+  .page.compact .section-heading { margin-bottom: 3px; }
+  /* ---------- Summary table ---------- */
+  .summary-table {
+    margin-bottom: 10px;
+  }
+  .summary-table th, .summary-table td {
+    border: 1px solid #000;
+    padding: 6px;
+    text-align: center;
+  }
+  .summary-table th {
+    background: #d9d9d9;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  .summary-table td {
+    font-size: 17px;
+  }
+  /* ---------- Grading scale ---------- */
+  .grading-heading {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 17px;
+    margin: 0 0 5px 0;
+  }
+  .grading-table {
+    margin-bottom: 10px;
+  }
+  .grading-table th, .grading-table td {
+    border: 1px solid #000;
+    padding: 4px 8px;
+    font-size: 16px;
+    text-align: center;
+  }
+  .grading-table th {
+    background: #f2f2f2;
+    font-weight: bold;
+  }
+  /* ---------- Remarks ---------- */
+  .remarks-heading {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 17px;
+    margin: 0 0 8px 0;
+  }
+  .remarks-line {
+    border-bottom: 1px solid #000;
+    height: 20px;
+    margin-bottom: 5px;
+  }
+  /* ---------- Signatures ---------- */
+  .signatures {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 40px;
+    text-align: center;
+  }
+  .signatures .sig {
+    flex: 1;
+  }
+  .sig-line {
+    border-bottom: 1px solid #000;
+    width: 80%;
+    margin: 0 auto 6px auto;
+    height: 24px;
+  }
+  .sig-label {
+    font-size: 15px;
+    font-weight: bold;
+  }
+  .issue-date {
+    text-align: center;
+    font-style: italic;
+    font-size: 12px;
+    margin-top: 18px;
+  }
+  .bottom-spacer { flex: 1; }
+</style>
+</head>
+<body>
+<div class="print-toolbar">
+  <span>📄 Result Card: ${esc(meta.class_name)} – ${esc(meta.section_name)} (${esc(meta.term_name)})</span>
+  <button onclick="window.print()">🖨️ Print Card</button>
+</div>
+<div class="page-wrap">
+  ${cardsHtml}
+</div>
+${autoPrint ? '<script>window.onload=function(){window.print();}<\/script>' : ''}
+</body>
+</html>`;
 }
 
 export default function ResultCardPage() {
@@ -513,7 +794,6 @@ export default function ResultCardPage() {
         }
     }, [filteredSections, selectedSection]);
 
-    // Seamless auto loading
     useEffect(() => {
         if (ready) {
             loadStudents();
@@ -563,7 +843,7 @@ export default function ResultCardPage() {
                 </div>
             )}
 
-            {/* Filters (Original Theme Structure) */}
+            {/* Filters */}
             <div className="card border-0 shadow-sm mb-4">
                 <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
                     <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
@@ -749,3 +1029,4 @@ export default function ResultCardPage() {
         </div>
     );
 }
+
