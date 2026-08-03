@@ -121,25 +121,47 @@ function getSubjectMaxMarksMap(subjects: SubjectCol[], students: StudentRow[]): 
     return map;
 }
 
+function sortStudentsByPosition(students: StudentRow[]): StudentRow[] {
+    return [...students].sort((a, b) => {
+        const posA = a.position !== null && a.position !== undefined ? Number(a.position) : 999999;
+        const posB = b.position !== null && b.position !== undefined ? Number(b.position) : 999999;
+        if (posA !== posB) return posA - posB;
+
+        const obtA = a.grand_obtained !== undefined && a.grand_obtained !== null
+            ? Number(a.grand_obtained)
+            : Number(a.grand_obtained_marks || 0);
+        const obtB = b.grand_obtained !== undefined && b.grand_obtained !== null
+            ? Number(b.grand_obtained)
+            : Number(b.grand_obtained_marks || 0);
+        if (obtB !== obtA) return obtB - obtA;
+
+        const rollA = Number(a.roll_no) || 999999;
+        const rollB = Number(b.roll_no) || 999999;
+        return rollA - rollB;
+    });
+}
+
 function buildPrintHtml(payload: SheetPayload): string {
-    const { meta, school, subjects, students } = payload;
+    const { meta, school, subjects } = payload;
+    const sortedStudents = sortStudentsByPosition(payload.students || []);
+
     const schoolName = school.school_name || 'Shaheen English Model School';
     const address = school.school_address || '83/m Madina colony Vehari';
-    const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(', ');
+    const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(', ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
     const fullAddressPhone = [address, phones ? `Ph: ${phones}` : ''].filter(Boolean).join(' | ');
     const logo = getLogoUrl(school.school_logo_url);
 
-    const subjectMaxMap = getSubjectMaxMarksMap(subjects, students);
+    const subjectMaxMap = getSubjectMaxMarksMap(subjects, sortedStudents);
     const overallMaxMarks = subjects.reduce<number>((sum, s) => sum + (Number(subjectMaxMap[s.subject_id]) || 0), 0);
 
     const ROWS_PER_PAGE = 16;
-    const numPages = Math.max(1, Math.ceil(students.length / ROWS_PER_PAGE));
+    const numPages = Math.max(1, Math.ceil(sortedStudents.length / ROWS_PER_PAGE));
 
     let pagesHtml = '';
 
     for (let p = 0; p < numPages; p++) {
         const startIdx = p * ROWS_PER_PAGE;
-        const pageStudents = students.slice(startIdx, startIdx + ROWS_PER_PAGE);
+        const pageStudents = sortedStudents.slice(startIdx, startIdx + ROWS_PER_PAGE);
 
         let rowsHtml = '';
         for (let i = 0; i < ROWS_PER_PAGE; i++) {
@@ -475,25 +497,16 @@ export default function ClassMarksSheetPage() {
         if (ready) loadSheet();
     }, [ready, selectedTerm, selectedClass, selectedSection]);
 
-    const filteredStudents = useMemo(() => {
+    const sortedAndFilteredStudents = useMemo(() => {
         if (!sheet?.students) return [];
-        if (!searchKeyword.trim()) return sheet.students;
+        const sorted = sortStudentsByPosition(sheet.students);
+        if (!searchKeyword.trim()) return sorted;
         const q = searchKeyword.toLowerCase().trim();
-        return sheet.students.filter(s =>
+        return sorted.filter(s =>
             `${s.first_name} ${s.last_name}`.toLowerCase().includes(q) ||
             (s.roll_no || '').toLowerCase().includes(q)
         );
     }, [sheet, searchKeyword]);
-
-    const subjectMaxMap = useMemo(() => {
-        if (!sheet?.subjects || !sheet?.students) return {};
-        return getSubjectMaxMarksMap(sheet.subjects, sheet.students);
-    }, [sheet]);
-
-    const overallMaxMarks = useMemo(() => {
-        if (!sheet?.subjects) return 0;
-        return sheet.subjects.reduce<number>((sum, s) => sum + (Number(subjectMaxMap[s.subject_id]) || 0), 0);
-    }, [sheet, subjectMaxMap]);
 
     if (!canUsePage) {
         return (
@@ -503,152 +516,34 @@ export default function ClassMarksSheetPage() {
         );
     }
 
-    const schoolName = sheet?.school?.school_name || 'Shaheen English Model School';
-    const address = sheet?.school?.school_address || '83/m Madina colony Vehari';
-    const phones = sheet?.school ? [sheet.school.phone_number, sheet.school.school_phone2, sheet.school.school_phone3].filter(Boolean).join(', ') : '';
-    const fullAddressPhone = [address, phones ? `Ph: ${phones}` : ''].filter(Boolean).join(' | ');
-    const logoUrl = getLogoUrl(sheet?.school?.school_logo_url);
-
     return (
-        <div className="page-wrap" style={{ backgroundColor: '#e9e9e9', minHeight: '100vh', padding: '1.5rem', fontFamily: '"Times New Roman", Georgia, serif' }}>
-            {/* Embedded CSS for Page Card Styling */}
-            <style jsx global>{`
-                .marks-page-card {
-                    background: #fff;
-                    padding: 14px 18px 18px;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-                    color: #000;
-                    margin-bottom: 20px;
-                }
-                .marks-school-header {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 14px;
-                    border-bottom: 3px double #000;
-                    padding-bottom: 8px;
-                    margin-bottom: 4px;
-                }
-                .marks-school-header img {
-                    width: 90px;
-                    height: 90px;
-                    object-fit: cover;
-                    flex-shrink: 0;
-                    border: 3px solid #000;
-                    border-radius: 50%;
-                }
-                .marks-school-header .titles {
-                    text-align: left;
-                    white-space: nowrap;
-                }
-                .marks-school-header h1 {
-                    margin: 0;
-                    font-size: 46px;
-                    font-weight: 900;
-                    letter-spacing: 0.5px;
-                    display: inline-block;
-                    color: #000;
-                    font-family: "Times New Roman", Georgia, serif;
-                }
-                .marks-school-header .addr {
-                    font-size: 16px;
-                    margin-left: 10px;
-                    color: #333;
-                }
-                .marks-sheet-title {
-                    text-align: center;
-                    font-weight: bold;
-                    font-size: 21px;
-                    margin: 12px 0 10px 0;
-                    color: #000;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-                .marks-meta-line {
-                    display: flex;
-                    justify-content: center;
-                    flex-wrap: wrap;
-                    gap: 10px 30px;
-                    font-size: 17px;
-                    margin: 0 auto 14px;
-                    background: #f0f0f0;
-                    border: 1px solid #999;
-                    border-radius: 8px;
-                    padding: 8px 16px;
-                    max-width: 95%;
-                }
-                .marks-meta-line .item { white-space: nowrap; }
-                .marks-meta-line .val { font-weight: bold; margin-left: 4px; color: #000; text-decoration: underline; }
-
-                table.marks-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    table-layout: fixed;
-                }
-                table.marks-table th, table.marks-table td {
-                    border: 1.5px solid #000;
-                    text-align: center;
-                    padding: 7px 4px;
-                    font-size: 15px;
-                }
-                table.marks-table thead th {
-                    font-weight: bold;
-                    font-size: 13px;
-                    background: #e8e8e8;
-                    color: #000;
-                    text-transform: uppercase;
-                    letter-spacing: 0.2px;
-                    border: 1.5px solid #000;
-                    line-height: 1.2;
-                    white-space: normal;
-                    word-break: break-word;
-                    overflow-wrap: break-word;
-                    vertical-align: middle;
-                }
-                table.marks-table thead th .max-marks {
-                    display: inline-block;
-                    font-weight: normal;
-                    font-size: 12px;
-                    color: #333;
-                    margin-top: 2px;
-                    text-transform: none;
-                }
-                table.marks-table td.name-col { text-align: left; padding-left: 10px; }
-                table.marks-table th.name-col { text-align: center; }
-                table.marks-table th.roll-col, table.marks-table td.roll-col { width: 34px; font-weight: bold; color: #000; }
-                table.marks-table th.name-col, table.marks-table td.name-col { width: 190px; }
-                table.marks-table tr { height: 30px; }
-                table.marks-table tbody tr:nth-child(even) { background: #f2f2f2; }
-                table.marks-table thead tr { border-bottom: 3px solid #000; }
-            `}</style>
-
+        <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '1.5rem' }}>
             {/* Standard Theme Page Header */}
-            <div className="d-flex align-items-center justify-content-between mb-4 bg-white p-3 rounded-3 shadow-sm">
+            <div className="d-flex align-items-center justify-content-between mb-4">
                 <div>
-                    <h4 className="mb-1 fw-bold" style={{ color: '#000', fontFamily: 'sans-serif' }}>
-                        <i className="bi bi-table me-2" style={{ color: '#FE7F2D' }} />
+                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-table me-2" style={{ color: 'var(--accent-orange)' }} />
                         Class Marks Sheet
                     </h4>
-                    <div className="text-muted small" style={{ fontFamily: 'sans-serif' }}>Detailed marks sheet preview &amp; printing</div>
+                    <div className="text-muted small">Detailed marks sheet matrix (arranged position-wise)</div>
                 </div>
-                <span className="badge rounded-pill bg-light text-dark border px-3 py-2" style={{ fontFamily: 'sans-serif' }}>
+                <span className="badge rounded-pill bg-light text-dark border">
                     Academic Year: {activeYearName || '—'}
                 </span>
             </div>
 
             {msg && (
-                <div className={`alert alert-${msg.type} alert-dismissible shadow-sm`} role="alert" style={{ fontFamily: 'sans-serif' }}>
+                <div className={`alert alert-${msg.type} alert-dismissible`} role="alert">
                     {msg.text}
                     <button type="button" className="btn-close" onClick={() => setMsg(null)} />
                 </div>
             )}
 
             {/* Filters */}
-            <div className="card border-0 shadow-sm mb-4" style={{ fontFamily: 'sans-serif' }}>
-                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid #215E61' }}>
-                    <h6 className="mb-0 fw-bold" style={{ color: '#215E61' }}>
-                        <i className="bi bi-funnel-fill me-2" style={{ color: '#215E61' }} />
+            <div className="card border-0 shadow-sm mb-4">
+                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                    <h6 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-funnel-fill me-2" style={{ color: 'var(--primary-teal)' }} />
                         Filter Marks Sheet
                     </h6>
                 </div>
@@ -682,7 +577,7 @@ export default function ClassMarksSheetPage() {
                             </select>
                         </div>
                         <div className="col-12 col-sm-6 col-md-3">
-                            <button className="btn btn-success fw-bold w-100 py-2 rounded-3" style={{ backgroundColor: '#215E61', borderColor: '#215E61' }} onClick={handlePrint}
+                            <button className="btn btn-outline-success fw-bold w-100 py-2 rounded-3" onClick={handlePrint}
                                 disabled={!ready || printing || loadingCtx}>
                                 {printing
                                     ? <><span className="spinner-border spinner-border-sm me-2" />Opening...</>
@@ -693,102 +588,92 @@ export default function ClassMarksSheetPage() {
                 </div>
             </div>
 
-            {/* Preview View matching detail marks sheet HTML files */}
+            {/* Dashboard Matrix Table View (Sorted Position-wise) */}
             {ready && (
-                <div>
-                    <div className="d-flex justify-content-between align-items-center mb-3 px-1" style={{ fontFamily: 'sans-serif' }}>
-                        <h6 className="mb-0 fw-bold text-dark">
-                            Marks Sheet Matrix Preview ({filteredStudents.length} Students)
-                        </h6>
-                        <div className="input-group input-group-sm" style={{ width: 220 }}>
-                            <span className="input-group-text bg-white border-0 shadow-sm"><i className="bi bi-search text-muted"></i></span>
-                            <input type="text" className="form-control border-0 shadow-sm bg-white" placeholder="Search name/roll..."
+                <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 py-3" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
+                        <div className="fw-semibold" style={{ color: 'var(--primary-dark)' }}>
+                            Class Matrix ({sheet?.students?.length || 0} Students - Arranged Position Wise)
+                        </div>
+                        <div className="input-group input-group-sm" style={{ width: 200 }}>
+                            <span className="input-group-text bg-light border-0"><i className="bi bi-search text-muted"></i></span>
+                            <input type="text" className="form-control border-0 bg-light" placeholder="Search name/roll..."
                                 value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} />
                         </div>
                     </div>
 
-                    {loading ? (
-                        <div className="text-center p-5 bg-white rounded-3 shadow-sm" style={{ fontFamily: 'sans-serif' }}>
-                            <div className="spinner-border text-teal" role="status" style={{ color: '#215E61' }}></div>
-                            <p className="text-muted mt-2 small fw-semibold">Loading class marks sheet matrix...</p>
-                        </div>
-                    ) : !sheet || sheet.students.length === 0 ? (
-                        <div className="text-center p-5 text-muted bg-white rounded-3 shadow-sm" style={{ fontFamily: 'sans-serif' }}>
-                            No student marks recorded for selected term &amp; section.
-                        </div>
-                    ) : (
-                        <div className="marks-page-card">
-                            {/* Page 1 Header */}
-                            <div className="marks-school-header">
-                                <img src={logoUrl} alt="logo" className="logo-circle" />
-                                <div className="titles">
-                                    <h1>{schoolName}</h1>
-                                    <span className="addr">{fullAddressPhone}</span>
-                                </div>
+                    <div className="card-body p-0">
+                        {loading ? (
+                            <div className="text-center p-5">
+                                <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal)' }}></div>
+                                <p className="text-muted mt-2 small fw-semibold">Loading class marks sheet matrix...</p>
                             </div>
-                            <div className="marks-sheet-title">Detailed Marks Sheet of Obtained Marks in Exam.</div>
-                            <div className="marks-meta-line">
-                                <span className="item">Class: <span className="val">{sheet.meta.class_name}</span></span>
-                                <span className="item">Section: <span className="val">{sheet.meta.section_name}</span></span>
-                                <span className="item">Exam Term: <span className="val">{sheet.meta.term_name}</span></span>
-                                <span className="item">Year: <span className="val">{sheet.meta.year_name}</span></span>
-                                <span className="item">Total Marks: <span className="val">{overallMaxMarks || '—'}</span></span>
-                                <span className="item">Class Teacher: <span className="val">{sheet.meta.class_teacher || '—'}</span></span>
+                        ) : !sheet || sheet.students.length === 0 ? (
+                            <div className="text-center p-5 text-muted">
+                                No student marks recorded for selected term &amp; section.
                             </div>
-
-                            {/* Table */}
+                        ) : (
                             <div className="table-responsive">
-                                <table className="marks-table">
-                                    <thead>
+                                <table className="table table-hover align-middle mb-0">
+                                    <thead style={{ background: 'var(--primary-dark)', color: '#fff' }}>
                                         <tr>
-                                            <th className="roll-col">Roll<br />No</th>
-                                            <th className="name-col">Student Name</th>
+                                            <th className="ps-3 text-center" style={{ width: 80 }}>Position</th>
+                                            <th style={{ width: 60 }}>Roll</th>
+                                            <th style={{ minWidth: 160 }}>Student Name</th>
                                             {sheet.subjects.map(s => (
-                                                <th key={s.subject_id}>
-                                                    {s.subject_name}<br />
-                                                    <span className="max-marks">{subjectMaxMap[s.subject_id] || ''}</span>
-                                                </th>
+                                                <th key={s.subject_id} className="text-center">{s.subject_name}</th>
                                             ))}
-                                            <th>Total<br />Marks</th>
-                                            <th>Position</th>
+                                            <th className="text-center" style={{ width: 90 }}>Obtained</th>
+                                            <th className="text-center pe-3" style={{ width: 70 }}>Grade</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredStudents.map((st, idx) => {
+                                        {sortedAndFilteredStudents.map((st) => {
                                             const smList = st.subject_marks || st.subject_rows || [];
-                                            const rollNo = st.roll_no || String(idx + 1);
-                                            const name = `${st.first_name || ''} ${st.last_name || ''}`.trim();
                                             const grandObtained = st.grand_obtained !== undefined && st.grand_obtained !== null && st.grand_obtained > 0
                                                 ? fmtN(st.grand_obtained)
                                                 : (st.grand_obtained_marks !== undefined && st.grand_obtained_marks !== null && st.grand_obtained_marks > 0
                                                     ? fmtN(st.grand_obtained_marks)
                                                     : '');
-                                            const position = st.ordinal_position || (st.position ? String(st.position) : '');
-
                                             return (
                                                 <tr key={st.student_id}>
-                                                    <td className="roll-col">{rollNo}</td>
-                                                    <td className="name-col">{name}</td>
+                                                    <td className="ps-3 text-center">
+                                                        {st.ordinal_position ? (
+                                                            <span className="badge bg-light text-primary border fw-bold">{st.ordinal_position}</span>
+                                                        ) : <span className="text-muted">—</span>}
+                                                    </td>
+                                                    <td className="fw-semibold">{st.roll_no || '—'}</td>
+                                                    <td className="fw-semibold">{st.first_name} {st.last_name}</td>
                                                     {sheet.subjects.map(sub => {
                                                         const sm = smList.find((m: any) => m.subject_id === sub.subject_id);
-                                                        const obtained = sm && sm.obtained_marks !== null && sm.obtained_marks !== undefined
-                                                            ? fmtN(sm.obtained_marks)
-                                                            : '';
-                                                        return <td key={sub.subject_id}>{obtained}</td>;
+                                                        return (
+                                                            <td key={sub.subject_id} className="text-center">
+                                                                {sm && sm.obtained_marks !== null && sm.obtained_marks !== undefined ? (
+                                                                    <span className="fw-bold">{fmtN(sm.obtained_marks)}</span>
+                                                                ) : (
+                                                                    <span className="text-muted small">—</span>
+                                                                )}
+                                                            </td>
+                                                        );
                                                     })}
-                                                    <td>{grandObtained}</td>
-                                                    <td>{position}</td>
+                                                    <td className="text-center fw-bold text-success">
+                                                        {grandObtained || '—'}
+                                                    </td>
+                                                    <td className="text-center pe-3">
+                                                        <span className={`badge ${st.grade === 'F' ? 'bg-danger' : st.grade === 'A+' ? 'bg-success' : 'bg-primary'}`}>
+                                                            {st.grade || '—'}
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             )}
         </div>
     );
 }
-

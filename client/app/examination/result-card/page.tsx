@@ -125,7 +125,7 @@ function getSubjectGrade(obtained: number | null, total: number | null): string 
 
 function getLogoUrl(rawLogo?: string): string {
     const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
-    if (!rawLogo || !rawLogo.trim()) return `${API_URL}/icon.png`;
+    if (!rawLogo || !rawLogo.trim()) return '';
     const logoStr = rawLogo.trim();
     if (logoStr.startsWith('data:') || logoStr.startsWith('http://') || logoStr.startsWith('https://')) {
         return logoStr;
@@ -141,7 +141,6 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
     const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
     const logo = getLogoUrl(school.school_logo_url);
     const session = meta.year_name || meta.term_name || '2025 - 2026';
-    const todayDate = new Date().toLocaleDateString('en-GB');
 
     const cardsHtml = students.map((student) => {
         const subjects = student.subject_rows || [];
@@ -242,47 +241,39 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
 
             <!-- Summary -->
             <table class="summary-table">
-              <thead>
-                <tr>
-                  <th>Percentage</th>
-                  <th>Overall Grade</th>
-                  <th>Class Position</th>
-                  <th>Result Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>${esc(overallPctStr)}</td>
-                  <td>${esc(overallGradeStr)}</td>
-                  <td>${esc(positionStr)}</td>
-                  <td>${esc(statusStr)}</td>
-                </tr>
-              </tbody>
+              <tr>
+                <th>Percentage</th>
+                <th>Overall Grade</th>
+                <th>Class Position</th>
+                <th>Result Status</th>
+              </tr>
+              <tr>
+                <td>${esc(overallPctStr)}</td>
+                <td>${esc(overallGradeStr)}</td>
+                <td>${esc(positionStr)}</td>
+                <td>${esc(statusStr)}</td>
+              </tr>
             </table>
 
             <!-- Grading scale -->
             <div class="grading-heading">Grading Scale</div>
             <table class="grading-table">
-              <thead>
-                <tr>
-                  <th>Grade</th>
-                  <th>A+</th>
-                  <th>A</th>
-                  <th>B</th>
-                  <th>C</th>
-                  <th>D</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th>Marks %</th>
-                  <td>90-100</td>
-                  <td>80-89</td>
-                  <td>70-79</td>
-                  <td>60-69</td>
-                  <td>Below 60</td>
-                </tr>
-              </tbody>
+              <tr>
+                <th>Grade</th>
+                <th>A+</th>
+                <th>A</th>
+                <th>B</th>
+                <th>C</th>
+                <th>D</th>
+              </tr>
+              <tr>
+                <th>Marks %</th>
+                <td>90-100</td>
+                <td>80-89</td>
+                <td>70-79</td>
+                <td>60-69</td>
+                <td>Below 60</td>
+              </tr>
             </table>
 
             <!-- Remarks -->
@@ -308,7 +299,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
               </div>
             </div>
 
-            <div class="issue-date">Date of Issue: [ <span>${esc(todayDate)}</span> ]</div>
+            <div class="issue-date">Date of Issue: [ <span>__ / __ / ____</span> ]</div>
           </div>`;
     }).join('');
 
@@ -362,14 +353,14 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
   @media print {
     .print-toolbar { display: none !important; }
     body { background: #fff; }
-    .page-wrap { padding-top: 0; }
-    .page { box-shadow: none; margin: 0 auto; page-break-after: always; break-after: page; }
+    .page-wrap { padding-top: 0; display: block; }
+    .page { box-shadow: none; margin: 0 auto; page-break-after: always; break-after: page; height: 277mm; }
     .page:last-child { page-break-after: auto; break-after: auto; }
   }
 
   .page {
     width: 210mm;
-    min-height: 277mm;
+    height: 277mm;
     padding: 10mm 12mm;
     margin: 8mm auto 20mm auto;
     background: #fff;
@@ -990,7 +981,7 @@ export default function ResultCardPage() {
                                                             {s.first_name} {s.last_name}
                                                             {isOpening && <span className="spinner-border spinner-border-sm text-secondary" />}
                                                         </div>
-                                                        <div className="small text-muted">Adm: {s.admission_no || '—'}</div>
+                                                        <div className="small text-muted">Father: {s.father_name || '—'} | Adm: {s.admission_no || '—'}</div>
                                                     </td>
                                                     <td>{s.roll_no || '—'}</td>
                                                     <td className="text-center">
@@ -1029,4 +1020,3 @@ export default function ResultCardPage() {
         </div>
     );
 }
-
