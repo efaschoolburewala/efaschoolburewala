@@ -38,7 +38,7 @@ interface StudentMarkRow {
 }
 
 export default function MarksApprovalPage() {
-    const { user, hasPermission } = useAuth();
+    const { user } = useAuth();
 
     const [sheets, setSheets] = useState<SheetItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -282,45 +282,45 @@ export default function MarksApprovalPage() {
     };
 
     return (
-        <div className="container-fluid p-2 p-md-4 min-vh-100" style={{ background: 'var(--bg-main)' }}>
+        <div className="container-fluid p-2 p-sm-3 p-md-4 min-vh-100" style={{ background: 'var(--bg-main)' }}>
             {/* Header Banner */}
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-4 p-3 p-md-4 rounded-4 shadow-sm"
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-2 gap-md-3 mb-3 mb-md-4 p-3 p-md-4 rounded-4 shadow-sm"
                 style={{
                     background: 'linear-gradient(135deg, var(--primary-dark) 0%, #152d3e 60%, #0f2030 100%)',
                     color: 'white',
                     borderLeft: '5px solid var(--accent-orange)'
                 }}>
                 <div>
-                    <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(254,127,45,0.2)', color: 'var(--accent-orange)', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em' }}>
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(254,127,45,0.2)', color: 'var(--accent-orange)', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
                             <i className="bi bi-shield-lock-fill me-1"></i>EXAMINATION GOVERNANCE
                         </span>
                         {roleName && (
                             <span className="badge bg-light text-dark fw-bold px-2 py-1" style={{ fontSize: 10 }}>
-                                Role: {roleName} (Level {roleLevel})
+                                Role: {roleName} (Lvl {roleLevel})
                             </span>
                         )}
                     </div>
-                    <h2 className="mb-1 fw-bold text-white" style={{ letterSpacing: '-0.5px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
+                    <h2 className="mb-1 fw-bold text-white" style={{ letterSpacing: '-0.5px', fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
                         Marks Approval &amp; Publishing Portal
                     </h2>
-                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(11px, 1.8vw, 13px)' }}>
+                    <p className="text-white-50 mb-0 small" style={{ fontSize: 'clamp(10px, 1.8vw, 13px)' }}>
                         Review, adjust student marks, approve term sheets &amp; publish officially to Student/Parent Portals.
                     </p>
                 </div>
             </div>
 
-            {/* Stat Summary Cards */}
-            <div className="row g-2 g-md-3 mb-4">
+            {/* Stat Summary Cards - 2 per row on mobile, 4 on desktop */}
+            <div className="row g-2 g-md-3 mb-3 mb-md-4">
                 {/* 1. Total Sheets */}
-                <div className="col-6 col-md-3">
-                    <div className="card shadow-sm border-0 rounded-3 p-3 bg-white h-100" style={{ borderLeft: '4px solid var(--primary-dark)' }}>
+                <div className="col-6 col-sm-6 col-lg-3">
+                    <div className="card shadow-sm border-0 rounded-3 p-2.5 p-md-3 bg-white h-100" style={{ borderLeft: '4px solid var(--primary-dark)' }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Total Sheets</span>
-                                <h3 className="fw-bold mb-0 mt-1" style={{ color: 'var(--primary-dark)' }}>{stats.total}</h3>
+                                <span className="text-muted text-uppercase fw-bold d-block" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Total Sheets</span>
+                                <h3 className="fw-bold mb-0 mt-1" style={{ color: 'var(--primary-dark)', fontSize: 'clamp(1.2rem, 3vw, 1.75rem)' }}>{stats.total}</h3>
                             </div>
-                            <div className="rounded-circle p-2.5" style={{ background: '#f1f5f9', color: 'var(--primary-dark)' }}>
+                            <div className="rounded-circle p-2 p-md-2.5" style={{ background: '#f1f5f9', color: 'var(--primary-dark)' }}>
                                 <i className="bi bi-folder-fill fs-5"></i>
                             </div>
                         </div>
@@ -328,14 +328,14 @@ export default function MarksApprovalPage() {
                 </div>
 
                 {/* 2. Pending Approval */}
-                <div className="col-6 col-md-3">
-                    <div className="card shadow-sm border-0 rounded-3 p-3 bg-white h-100" style={{ borderLeft: '4px solid #f59e0b' }}>
+                <div className="col-6 col-sm-6 col-lg-3">
+                    <div className="card shadow-sm border-0 rounded-3 p-2.5 p-md-3 bg-white h-100" style={{ borderLeft: '4px solid #f59e0b' }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Pending Approval</span>
-                                <h3 className="fw-bold mb-0 mt-1 text-warning">{stats.pending}</h3>
+                                <span className="text-muted text-uppercase fw-bold d-block" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Pending</span>
+                                <h3 className="fw-bold mb-0 mt-1 text-warning" style={{ fontSize: 'clamp(1.2rem, 3vw, 1.75rem)' }}>{stats.pending}</h3>
                             </div>
-                            <div className="rounded-circle p-2.5" style={{ background: '#fef3c7', color: '#d97706' }}>
+                            <div className="rounded-circle p-2 p-md-2.5" style={{ background: '#fef3c7', color: '#d97706' }}>
                                 <i className="bi bi-hourglass-split fs-5"></i>
                             </div>
                         </div>
@@ -343,14 +343,14 @@ export default function MarksApprovalPage() {
                 </div>
 
                 {/* 3. Approved (Unpublished) */}
-                <div className="col-6 col-md-3">
-                    <div className="card shadow-sm border-0 rounded-3 p-3 bg-white h-100" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+                <div className="col-6 col-sm-6 col-lg-3">
+                    <div className="card shadow-sm border-0 rounded-3 p-2.5 p-md-3 bg-white h-100" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Approved (Unpublished)</span>
-                                <h3 className="fw-bold mb-0 mt-1" style={{ color: 'var(--primary-teal)' }}>{stats.approved}</h3>
+                                <span className="text-muted text-uppercase fw-bold d-block" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Approved</span>
+                                <h3 className="fw-bold mb-0 mt-1" style={{ color: 'var(--primary-teal)', fontSize: 'clamp(1.2rem, 3vw, 1.75rem)' }}>{stats.approved}</h3>
                             </div>
-                            <div className="rounded-circle p-2.5" style={{ background: '#ccfbf1', color: '#0d9488' }}>
+                            <div className="rounded-circle p-2 p-md-2.5" style={{ background: '#ccfbf1', color: '#0d9488' }}>
                                 <i className="bi bi-shield-check fs-5"></i>
                             </div>
                         </div>
@@ -358,14 +358,14 @@ export default function MarksApprovalPage() {
                 </div>
 
                 {/* 4. Published to Portal */}
-                <div className="col-6 col-md-3">
-                    <div className="card shadow-sm border-0 rounded-3 p-3 bg-white h-100" style={{ borderLeft: '4px solid #10b981' }}>
+                <div className="col-6 col-sm-6 col-lg-3">
+                    <div className="card shadow-sm border-0 rounded-3 p-2.5 p-md-3 bg-white h-100" style={{ borderLeft: '4px solid #10b981' }}>
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <span className="text-muted small text-uppercase fw-bold" style={{ fontSize: 10, letterSpacing: '0.05em' }}>Published to Portal</span>
-                                <h3 className="fw-bold mb-0 mt-1 text-success">{stats.published}</h3>
+                                <span className="text-muted text-uppercase fw-bold d-block" style={{ fontSize: 9, letterSpacing: '0.05em' }}>Published</span>
+                                <h3 className="fw-bold mb-0 mt-1 text-success" style={{ fontSize: 'clamp(1.2rem, 3vw, 1.75rem)' }}>{stats.published}</h3>
                             </div>
-                            <div className="rounded-circle p-2.5" style={{ background: '#dcfce7', color: '#16a34a' }}>
+                            <div className="rounded-circle p-2 p-md-2.5" style={{ background: '#dcfce7', color: '#16a34a' }}>
                                 <i className="bi bi-globe fs-5"></i>
                             </div>
                         </div>
@@ -374,32 +374,36 @@ export default function MarksApprovalPage() {
             </div>
 
             {/* Filter Controls Bar */}
-            <div className="card border-0 shadow-sm rounded-3 mb-4 bg-white">
-                <div className="card-body p-3">
+            <div className="card border-0 shadow-sm rounded-3 mb-3 mb-md-4 bg-white">
+                <div className="card-body p-2.5 p-md-3">
                     <div className="row g-2 align-items-center">
-                        {/* Status Tabs */}
+                        {/* Mobile Horizontal Scrollable Status Pills */}
                         <div className="col-12 col-md-6">
-                            <div className="d-flex flex-wrap gap-1 p-1 bg-light rounded-3 border" style={{ width: 'fit-content' }}>
+                            <div className="d-flex overflow-x-auto text-nowrap pb-1 pb-md-0 gap-1 p-1 bg-light rounded-3 border">
                                 <button
-                                    className={`btn btn-sm rounded-2 fw-semibold px-3 ${statusFilter === 'all' ? 'btn-dark text-white shadow-sm' : 'btn-light text-muted'}`}
+                                    className={`btn btn-sm rounded-2 fw-semibold px-2.5 px-md-3 ${statusFilter === 'all' ? 'btn-dark text-white shadow-sm' : 'btn-light text-muted'}`}
+                                    style={{ fontSize: '0.8rem' }}
                                     onClick={() => setStatusFilter('all')}
                                 >
                                     All ({stats.total})
                                 </button>
                                 <button
-                                    className={`btn btn-sm rounded-2 fw-semibold px-3 ${statusFilter === 'pending' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
+                                    className={`btn btn-sm rounded-2 fw-semibold px-2.5 px-md-3 ${statusFilter === 'pending' ? 'btn-warning text-dark shadow-sm' : 'btn-light text-muted'}`}
+                                    style={{ fontSize: '0.8rem' }}
                                     onClick={() => setStatusFilter('pending')}
                                 >
                                     Pending ({stats.pending})
                                 </button>
                                 <button
-                                    className={`btn btn-sm rounded-2 fw-semibold px-3 ${statusFilter === 'approved' ? 'btn-info text-white shadow-sm' : 'btn-light text-muted'}`}
+                                    className={`btn btn-sm rounded-2 fw-semibold px-2.5 px-md-3 ${statusFilter === 'approved' ? 'btn-info text-white shadow-sm' : 'btn-light text-muted'}`}
+                                    style={{ fontSize: '0.8rem' }}
                                     onClick={() => setStatusFilter('approved')}
                                 >
                                     Approved ({stats.approved})
                                 </button>
                                 <button
-                                    className={`btn btn-sm rounded-2 fw-semibold px-3 ${statusFilter === 'published' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
+                                    className={`btn btn-sm rounded-2 fw-semibold px-2.5 px-md-3 ${statusFilter === 'published' ? 'btn-success text-white shadow-sm' : 'btn-light text-muted'}`}
+                                    style={{ fontSize: '0.8rem' }}
                                     onClick={() => setStatusFilter('published')}
                                 >
                                     Published ({stats.published})
@@ -410,8 +414,8 @@ export default function MarksApprovalPage() {
                         {/* Type & Search */}
                         <div className="col-12 col-md-6 d-flex flex-wrap gap-2 justify-content-md-end">
                             <select
-                                className="form-select form-select-sm rounded-3 border bg-light"
-                                style={{ width: 'auto', minWidth: '150px' }}
+                                className="form-select form-select-sm rounded-3 border bg-light flex-grow-1 flex-md-grow-0"
+                                style={{ width: 'auto', minWidth: '130px', fontSize: '0.82rem' }}
                                 value={typeFilter}
                                 onChange={e => setTypeFilter(e.target.value as any)}
                             >
@@ -420,13 +424,14 @@ export default function MarksApprovalPage() {
                                 <option value="class_test">Class Tests</option>
                             </select>
 
-                            <div className="input-group input-group-sm flex-grow-1" style={{ maxWidth: '260px' }}>
+                            <div className="input-group input-group-sm flex-grow-1" style={{ maxWidth: '100%' }}>
                                 <span className="input-group-text bg-light border-end-0">
                                     <i className="bi bi-search text-muted"></i>
                                 </span>
                                 <input
                                     type="text"
                                     className="form-control bg-light border-start-0"
+                                    style={{ fontSize: '0.82rem' }}
                                     placeholder="Search class, subject, teacher..."
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
@@ -442,7 +447,7 @@ export default function MarksApprovalPage() {
                 </div>
             </div>
 
-            {/* Sheets Table */}
+            {/* Desktop Table View (>= 768px) & Mobile Card View (< 768px) */}
             <div className="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
                 <div className="card-body p-0">
                     {loading ? (
@@ -451,128 +456,187 @@ export default function MarksApprovalPage() {
                             <div className="text-muted small mt-2">Loading mark sheets for review...</div>
                         </div>
                     ) : filteredSheets.length === 0 ? (
-                        <div className="text-center py-5 text-muted">
+                        <div className="text-center py-5 text-muted p-3">
                             <i className="bi bi-clipboard-x fs-1 d-block mb-2 opacity-50"></i>
-                            <div>No mark sheets found matching your filters.</div>
+                            <div className="fw-semibold">No mark sheets found.</div>
+                            <small>Try selecting a different filter tab or clear search query.</small>
                         </div>
                     ) : (
-                        <div className="table-responsive">
-                            <table className="table align-middle mb-0" style={{ fontSize: '0.88rem' }}>
-                                <thead style={{ backgroundColor: 'var(--primary-dark)', color: '#fff' }}>
-                                    <tr>
-                                        <th style={{ padding: '12px 14px' }}>Sheet Type</th>
-                                        <th style={{ padding: '12px 14px' }}>Sheet Name</th>
-                                        <th style={{ padding: '12px 14px' }}>Class &amp; Section</th>
-                                        <th style={{ padding: '12px 14px' }}>Subject</th>
-                                        <th className="text-center" style={{ padding: '12px 14px' }}>Students</th>
-                                        <th style={{ padding: '12px 14px' }}>Submitted By</th>
-                                        <th className="text-center" style={{ padding: '12px 14px' }}>Status</th>
-                                        <th className="text-center" style={{ padding: '12px 14px' }}>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredSheets.map((item, idx) => (
-                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa' }}>
-                                            {/* Sheet Type */}
-                                            <td style={{ padding: '12px 14px' }}>
+                        <>
+                            {/* 1. Desktop & Tablet Table View (Visible >= 768px) */}
+                            <div className="table-responsive d-none d-md-block">
+                                <table className="table align-middle mb-0" style={{ fontSize: '0.88rem' }}>
+                                    <thead style={{ backgroundColor: 'var(--primary-dark)', color: '#fff' }}>
+                                        <tr>
+                                            <th style={{ padding: '12px 14px' }}>Sheet Type</th>
+                                            <th style={{ padding: '12px 14px' }}>Sheet Name</th>
+                                            <th style={{ padding: '12px 14px' }}>Class &amp; Section</th>
+                                            <th style={{ padding: '12px 14px' }}>Subject</th>
+                                            <th className="text-center" style={{ padding: '12px 14px' }}>Students</th>
+                                            <th style={{ padding: '12px 14px' }}>Submitted By</th>
+                                            <th className="text-center" style={{ padding: '12px 14px' }}>Status</th>
+                                            <th className="text-center" style={{ padding: '12px 14px' }}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredSheets.map((item, idx) => (
+                                            <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa' }}>
+                                                <td style={{ padding: '12px 14px' }}>
+                                                    {item.sheet_type === 'term_exam' ? (
+                                                        <span className="badge rounded-pill bg-indigo bg-opacity-10 text-indigo border px-2.5 py-1" style={{ color: '#4338ca', backgroundColor: '#e0e7ff', fontSize: '0.75rem' }}>
+                                                            <i className="bi bi-journal-bookmark-fill me-1"></i>Term Exam
+                                                        </span>
+                                                    ) : (
+                                                        <span className="badge rounded-pill bg-teal bg-opacity-10 text-teal border px-2.5 py-1" style={{ color: '#0d9488', backgroundColor: '#ccfbf1', fontSize: '0.75rem' }}>
+                                                            <i className="bi bi-file-earmark-text-fill me-1"></i>Class Test
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                <td style={{ padding: '12px 14px' }}>
+                                                    <div className="fw-bold text-dark">{item.sheet_name}</div>
+                                                    {item.term_name && <small className="text-muted">{item.term_name}</small>}
+                                                </td>
+
+                                                <td style={{ padding: '12px 14px' }}>
+                                                    <span className="fw-semibold text-dark">{item.class_name}</span>
+                                                    <span className="text-muted ms-1">({item.section_name})</span>
+                                                </td>
+
+                                                <td style={{ padding: '12px 14px' }}>
+                                                    <span className="badge bg-light text-dark border px-2 py-1" style={{ fontSize: '0.78rem' }}>
+                                                        {item.subject_name}
+                                                    </span>
+                                                </td>
+
+                                                <td className="text-center fw-bold text-secondary" style={{ padding: '12px 14px' }}>
+                                                    {item.total_students}
+                                                </td>
+
+                                                <td style={{ padding: '12px 14px' }}>
+                                                    <div className="small fw-semibold text-dark">{item.submitted_by}</div>
+                                                    {item.submitted_at && (
+                                                        <small className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                            {new Date(item.submitted_at).toLocaleDateString()}
+                                                        </small>
+                                                    )}
+                                                </td>
+
+                                                <td className="text-center" style={{ padding: '12px 14px' }}>
+                                                    {item.status === 'published' ? (
+                                                        <span className="badge rounded-pill bg-success bg-opacity-15 text-success border border-success px-2.5 py-1" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                                                            <i className="bi bi-globe me-1"></i>PUBLISHED
+                                                        </span>
+                                                    ) : item.status === 'approved' ? (
+                                                        <span className="badge rounded-pill bg-teal bg-opacity-15 text-teal border border-teal px-2.5 py-1" style={{ color: '#0d9488', backgroundColor: '#ccfbf1', fontSize: '0.75rem', fontWeight: 700 }}>
+                                                            <i className="bi bi-shield-check me-1"></i>APPROVED
+                                                        </span>
+                                                    ) : (
+                                                        <span className="badge rounded-pill bg-warning bg-opacity-15 text-warning-emphasis border border-warning px-2.5 py-1" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                                                            <i className="bi bi-hourglass-split me-1"></i>PENDING
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                <td className="text-center" style={{ padding: '12px 14px' }}>
+                                                    <button
+                                                        className="btn btn-sm text-white fw-semibold d-inline-flex align-items-center gap-1 shadow-sm px-3"
+                                                        style={{ backgroundColor: 'var(--primary-teal)', borderColor: 'var(--primary-teal)' }}
+                                                        onClick={() => openReviewModal(item)}
+                                                    >
+                                                        <i className="bi bi-eye-fill"></i>
+                                                        <span>Review &amp; Approve</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* 2. Mobile ListView Card Stack (Visible < 768px) */}
+                            <div className="d-block d-md-none p-2">
+                                {filteredSheets.map((item, idx) => (
+                                    <div key={idx} className="card border rounded-3 p-3 mb-2.5 shadow-sm bg-white">
+                                        <div className="d-flex justify-content-between align-items-start mb-2">
+                                            <div>
                                                 {item.sheet_type === 'term_exam' ? (
-                                                    <span className="badge rounded-pill bg-indigo bg-opacity-10 text-indigo border px-2.5 py-1" style={{ color: '#4338ca', backgroundColor: '#e0e7ff', fontSize: '0.75rem' }}>
+                                                    <span className="badge rounded-pill bg-indigo bg-opacity-10 text-indigo border px-2 py-0.5" style={{ color: '#4338ca', backgroundColor: '#e0e7ff', fontSize: '0.7rem' }}>
                                                         <i className="bi bi-journal-bookmark-fill me-1"></i>Term Exam
                                                     </span>
                                                 ) : (
-                                                    <span className="badge rounded-pill bg-teal bg-opacity-10 text-teal border px-2.5 py-1" style={{ color: '#0d9488', backgroundColor: '#ccfbf1', fontSize: '0.75rem' }}>
+                                                    <span className="badge rounded-pill bg-teal bg-opacity-10 text-teal border px-2 py-0.5" style={{ color: '#0d9488', backgroundColor: '#ccfbf1', fontSize: '0.7rem' }}>
                                                         <i className="bi bi-file-earmark-text-fill me-1"></i>Class Test
                                                     </span>
                                                 )}
-                                            </td>
-
-                                            {/* Sheet Name */}
-                                            <td style={{ padding: '12px 14px' }}>
-                                                <div className="fw-bold text-dark">{item.sheet_name}</div>
-                                                {item.term_name && <small className="text-muted">{item.term_name}</small>}
-                                            </td>
-
-                                            {/* Class & Section */}
-                                            <td style={{ padding: '12px 14px' }}>
-                                                <span className="fw-semibold text-dark">{item.class_name}</span>
-                                                <span className="text-muted ms-1">({item.section_name})</span>
-                                            </td>
-
-                                            {/* Subject */}
-                                            <td style={{ padding: '12px 14px' }}>
-                                                <span className="badge bg-light text-dark border px-2 py-1" style={{ fontSize: '0.78rem' }}>
-                                                    {item.subject_name}
-                                                </span>
-                                            </td>
-
-                                            {/* Total Students */}
-                                            <td className="text-center fw-bold text-secondary" style={{ padding: '12px 14px' }}>
-                                                {item.total_students}
-                                            </td>
-
-                                            {/* Submitted By */}
-                                            <td style={{ padding: '12px 14px' }}>
-                                                <div className="small fw-semibold text-dark">{item.submitted_by}</div>
-                                                {item.submitted_at && (
-                                                    <small className="text-muted" style={{ fontSize: '0.72rem' }}>
-                                                        {new Date(item.submitted_at).toLocaleDateString()}
-                                                    </small>
-                                                )}
-                                            </td>
-
-                                            {/* Status Badge */}
-                                            <td className="text-center" style={{ padding: '12px 14px' }}>
+                                                <h6 className="fw-bold text-dark mt-1 mb-0">{item.sheet_name}</h6>
+                                            </div>
+                                            <div>
                                                 {item.status === 'published' ? (
-                                                    <span className="badge rounded-pill bg-success bg-opacity-15 text-success border border-success px-2.5 py-1" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
-                                                        <i className="bi bi-globe me-1"></i>PUBLISHED
+                                                    <span className="badge rounded-pill bg-success bg-opacity-15 text-success border border-success px-2 py-1" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                                                        PUBLISHED
                                                     </span>
                                                 ) : item.status === 'approved' ? (
-                                                    <span className="badge rounded-pill bg-teal bg-opacity-15 text-teal border border-teal px-2.5 py-1" style={{ color: '#0d9488', backgroundColor: '#ccfbf1', fontSize: '0.75rem', fontWeight: 700 }}>
-                                                        <i className="bi bi-shield-check me-1"></i>APPROVED
+                                                    <span className="badge rounded-pill bg-teal bg-opacity-15 text-teal border border-teal px-2 py-1" style={{ color: '#0d9488', backgroundColor: '#ccfbf1', fontSize: '0.68rem', fontWeight: 700 }}>
+                                                        APPROVED
                                                     </span>
                                                 ) : (
-                                                    <span className="badge rounded-pill bg-warning bg-opacity-15 text-warning-emphasis border border-warning px-2.5 py-1" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
-                                                        <i className="bi bi-hourglass-split me-1"></i>PENDING
+                                                    <span className="badge rounded-pill bg-warning text-dark border border-warning px-2 py-1" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                                                        PENDING
                                                     </span>
                                                 )}
-                                            </td>
+                                            </div>
+                                        </div>
 
-                                            {/* Action Button */}
-                                            <td className="text-center" style={{ padding: '12px 14px' }}>
-                                                <button
-                                                    className="btn btn-sm text-white fw-semibold d-inline-flex align-items-center gap-1 shadow-sm px-3"
-                                                    style={{ backgroundColor: 'var(--primary-teal)', borderColor: 'var(--primary-teal)' }}
-                                                    onClick={() => openReviewModal(item)}
-                                                >
-                                                    <i className="bi bi-eye-fill"></i>
-                                                    <span>Review &amp; Approve</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                        <div className="row g-1 small text-muted mb-2.5" style={{ fontSize: '0.78rem' }}>
+                                            <div className="col-6">
+                                                <i className="bi bi-building me-1"></i>
+                                                <span className="fw-semibold text-dark">{item.class_name} ({item.section_name})</span>
+                                            </div>
+                                            <div className="col-6 text-end">
+                                                <i className="bi bi-book me-1"></i>
+                                                <span className="fw-semibold text-dark">{item.subject_name}</span>
+                                            </div>
+                                            <div className="col-6 mt-1">
+                                                <i className="bi bi-person me-1"></i>{item.submitted_by}
+                                            </div>
+                                            <div className="col-6 text-end mt-1">
+                                                <i className="bi bi-people me-1"></i>{item.total_students} Students
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            className="btn btn-sm text-white fw-semibold w-100 d-flex align-items-center justify-content-center gap-1 shadow-sm py-2"
+                                            style={{ backgroundColor: 'var(--primary-teal)', borderColor: 'var(--primary-teal)', borderRadius: '8px' }}
+                                            onClick={() => openReviewModal(item)}
+                                        >
+                                            <i className="bi bi-eye-fill"></i>
+                                            <span>Review &amp; Approve Sheet</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
                     )}
                 </div>
             </div>
 
-            {/* Review & Approve Modal */}
+            {/* Review & Approve Modal (100% Mobile Responsive Window) */}
             {activeSheet && (
-                <div className="modal show d-block" style={{ backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', zIndex: 1050 }}>
-                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable my-2 my-sm-4 mx-auto" style={{ maxWidth: '95%' }}>
                         <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                             {/* Modal Header */}
-                            <div className="modal-header text-white p-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark) 0%, #152d3e 100%)' }}>
+                            <div className="modal-header text-white p-2.5 p-sm-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark) 0%, #152d3e 100%)' }}>
                                 <div className="d-flex align-items-center gap-2">
-                                    <div className="rounded-circle p-2 bg-white bg-opacity-10">
+                                    <div className="rounded-circle p-1.5 p-sm-2 bg-white bg-opacity-10">
                                         <i className="bi bi-shield-check fs-5 text-warning"></i>
                                     </div>
                                     <div>
-                                        <h5 className="modal-title fw-bold mb-0 text-white" style={{ fontSize: '1.1rem' }}>
+                                        <h5 className="modal-title fw-bold mb-0 text-white" style={{ fontSize: 'clamp(0.95rem, 2vw, 1.15rem)' }}>
                                             {activeSheet.sheet_name}
                                         </h5>
-                                        <div className="small text-white-50" style={{ fontSize: '0.78rem' }}>
+                                        <div className="small text-white-50" style={{ fontSize: 'clamp(0.7rem, 1.5vw, 0.8rem)' }}>
                                             Class {activeSheet.class_name} ({activeSheet.section_name}) &bull; Subject: {activeSheet.subject_name}
                                         </div>
                                     </div>
@@ -585,30 +649,30 @@ export default function MarksApprovalPage() {
                             </div>
 
                             {/* Modal Sub-Header Status Pill */}
-                            <div className="bg-light p-2.5 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style={{ fontSize: '0.82rem' }}>
+                            <div className="bg-light p-2 p-sm-2.5 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2" style={{ fontSize: '0.8rem' }}>
                                 <div className="d-flex align-items-center gap-2">
-                                    <span className="text-muted fw-semibold">Current Status:</span>
+                                    <span className="text-muted fw-semibold">Status:</span>
                                     {activeSheet.status === 'published' ? (
                                         <span className="badge bg-success text-white px-2.5 py-1 rounded-pill fw-bold">
-                                            <i className="bi bi-globe me-1"></i>Published to Student Portal
+                                            <i className="bi bi-globe me-1"></i>Published
                                         </span>
                                     ) : activeSheet.status === 'approved' ? (
                                         <span className="badge bg-info text-white px-2.5 py-1 rounded-pill fw-bold">
-                                            <i className="bi bi-shield-check me-1"></i>Approved (Unpublished)
+                                            <i className="bi bi-shield-check me-1"></i>Approved
                                         </span>
                                     ) : (
                                         <span className="badge bg-warning text-dark px-2.5 py-1 rounded-pill fw-bold">
-                                            <i className="bi bi-hourglass-split me-1"></i>Pending Approval
+                                            <i className="bi bi-hourglass-split me-1"></i>Pending
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-muted">
-                                    Submitted by: <strong>{activeSheet.submitted_by}</strong>
+                                <div className="text-muted small">
+                                    Teacher: <strong>{activeSheet.submitted_by}</strong>
                                 </div>
                             </div>
 
-                            {/* Modal Body - Student Marks List */}
-                            <div className="modal-body p-3">
+                            {/* Modal Body - Responsive Student Marks List */}
+                            <div className="modal-body p-2 p-sm-3">
                                 {loadingDetails ? (
                                     <div className="text-center py-5">
                                         <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal)' }}></div>
@@ -619,70 +683,123 @@ export default function MarksApprovalPage() {
                                         No student records found in this sheet.
                                     </div>
                                 ) : (
-                                    <div className="table-responsive">
-                                        <table className="table align-middle table-hover mb-0" style={{ fontSize: '0.85rem' }}>
-                                            <thead className="table-dark">
-                                                <tr>
-                                                    <th className="text-center" style={{ width: '5%' }}>Roll</th>
-                                                    <th style={{ width: '35%' }}>Student Name</th>
-                                                    <th className="text-center" style={{ width: '15%' }}>Admission No</th>
-                                                    <th className="text-center" style={{ width: '20%' }}>Total Marks</th>
-                                                    <th className="text-center" style={{ width: '25%' }}>Obtained Marks</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {sheetStudents.map((std, sIdx) => {
-                                                    const initials = (std.student_name || '?').charAt(0).toUpperCase();
-                                                    const bgColors = ['#0f766e', '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
-                                                    const avatarColor = bgColors[sIdx % bgColors.length];
+                                    <>
+                                        {/* Desktop & Tablet Table (>= 576px) */}
+                                        <div className="table-responsive d-none d-sm-block">
+                                            <table className="table align-middle table-hover mb-0" style={{ fontSize: '0.85rem' }}>
+                                                <thead className="table-dark">
+                                                    <tr>
+                                                        <th className="text-center" style={{ width: '5%' }}>Roll</th>
+                                                        <th style={{ width: '35%' }}>Student Name</th>
+                                                        <th className="text-center" style={{ width: '15%' }}>Admission No</th>
+                                                        <th className="text-center" style={{ width: '20%' }}>Total Marks</th>
+                                                        <th className="text-center" style={{ width: '25%' }}>Obtained Marks</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sheetStudents.map((std, sIdx) => {
+                                                        const initials = (std.student_name || '?').charAt(0).toUpperCase();
+                                                        const bgColors = ['#0f766e', '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
+                                                        const avatarColor = bgColors[sIdx % bgColors.length];
 
-                                                    return (
-                                                        <tr key={std.student_id}>
-                                                            <td className="text-center fw-bold text-muted">{std.roll_no || '—'}</td>
-                                                            <td>
-                                                                <div className="d-flex align-items-center gap-2">
-                                                                    <div
-                                                                        className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
-                                                                        style={{ width: 28, height: 28, fontSize: 11, backgroundColor: avatarColor }}
-                                                                    >
-                                                                        {initials}
+                                                        return (
+                                                            <tr key={std.student_id}>
+                                                                <td className="text-center fw-bold text-muted">{std.roll_no || '—'}</td>
+                                                                <td>
+                                                                    <div className="d-flex align-items-center gap-2">
+                                                                        <div
+                                                                            className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                                                            style={{ width: 28, height: 28, fontSize: 11, backgroundColor: avatarColor }}
+                                                                        >
+                                                                            {initials}
+                                                                        </div>
+                                                                        <span className="fw-semibold text-dark">{std.student_name}</span>
                                                                     </div>
-                                                                    <span className="fw-semibold text-dark">{std.student_name}</span>
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    <span className="badge bg-light text-muted border">{std.admission_no}</span>
+                                                                </td>
+                                                                <td className="text-center fw-bold text-secondary">
+                                                                    {std.total_marks}
+                                                                </td>
+                                                                <td className="text-center">
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.5"
+                                                                        min="0"
+                                                                        max={std.total_marks}
+                                                                        className="form-control form-control-sm text-center fw-bold mx-auto"
+                                                                        style={{ width: '90px', borderColor: 'var(--primary-teal)' }}
+                                                                        value={std.obtained_marks}
+                                                                        onChange={e => handleMarksChange(std.student_id, e.target.value)}
+                                                                    />
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Mobile Phone Card List (< 576px) */}
+                                        <div className="d-block d-sm-none">
+                                            {sheetStudents.map((std, sIdx) => {
+                                                const initials = (std.student_name || '?').charAt(0).toUpperCase();
+                                                const bgColors = ['#0f766e', '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
+                                                const avatarColor = bgColors[sIdx % bgColors.length];
+
+                                                return (
+                                                    <div key={std.student_id} className="card border rounded-3 p-2.5 mb-2 bg-white shadow-xs">
+                                                        <div className="d-flex justify-content-between align-items-center mb-2">
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                <div
+                                                                    className="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                                                    style={{ width: 30, height: 30, fontSize: 12, backgroundColor: avatarColor }}
+                                                                >
+                                                                    {initials}
                                                                 </div>
-                                                            </td>
-                                                            <td className="text-center">
-                                                                <span className="badge bg-light text-muted border">{std.admission_no}</span>
-                                                            </td>
-                                                            <td className="text-center fw-bold text-secondary">
-                                                                {std.total_marks}
-                                                            </td>
-                                                            <td className="text-center">
+                                                                <div>
+                                                                    <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>{std.student_name}</div>
+                                                                    <small className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                                        Roll: <strong>{std.roll_no || '—'}</strong> &bull; Adm: <strong>{std.admission_no}</strong>
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="d-flex justify-content-between align-items-center pt-2 border-top">
+                                                            <span className="small text-muted fw-semibold" style={{ fontSize: '0.78rem' }}>
+                                                                Total: <strong className="text-dark">{std.total_marks}</strong>
+                                                            </span>
+
+                                                            <div className="d-flex align-items-center gap-1.5">
+                                                                <span className="small text-muted" style={{ fontSize: '0.75rem' }}>Obtained:</span>
                                                                 <input
                                                                     type="number"
                                                                     step="0.5"
                                                                     min="0"
                                                                     max={std.total_marks}
-                                                                    className="form-control form-control-sm text-center fw-bold mx-auto"
-                                                                    style={{ width: '90px', borderColor: 'var(--primary-teal)' }}
+                                                                    className="form-control form-control-sm text-center fw-bold"
+                                                                    style={{ width: '80px', borderColor: 'var(--primary-teal)' }}
                                                                     value={std.obtained_marks}
                                                                     onChange={e => handleMarksChange(std.student_id, e.target.value)}
                                                                 />
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
                                 )}
                             </div>
 
-                            {/* Modal Footer Controls */}
-                            <div className="modal-footer bg-light p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            {/* Modal Footer Controls (Stacking Buttons on Mobile) */}
+                            <div className="modal-footer bg-light p-2.5 p-sm-3 d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2">
                                 <div>
                                     <button
                                         type="button"
-                                        className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                                        className="btn btn-sm btn-outline-secondary w-100 w-sm-auto d-inline-flex align-items-center justify-content-center gap-1"
                                         onClick={handleSaveAdjustedMarks}
                                         disabled={updatingMarks}
                                     >
@@ -691,12 +808,12 @@ export default function MarksApprovalPage() {
                                     </button>
                                 </div>
 
-                                <div className="d-flex flex-wrap gap-2">
+                                <div className="d-flex flex-column flex-sm-row gap-2">
                                     {/* Action 1: Approve (For Head Teacher, Coordinator, VP, Principal, Admin - level >= 65) */}
                                     {activeSheet.status !== 'approved' && activeSheet.status !== 'published' && (
                                         <button
                                             type="button"
-                                            className="btn btn-sm btn-info text-white fw-bold px-3 d-inline-flex align-items-center gap-1 shadow-sm"
+                                            className="btn btn-sm btn-info text-white fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-1 shadow-sm"
                                             onClick={() => handleStatusAction('approve')}
                                             disabled={actionLoading}
                                         >
@@ -709,7 +826,7 @@ export default function MarksApprovalPage() {
                                     {activeSheet.status !== 'published' && (
                                         <button
                                             type="button"
-                                            className="btn btn-sm btn-success text-white fw-bold px-3 d-inline-flex align-items-center gap-1 shadow-sm"
+                                            className="btn btn-sm btn-success text-white fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-1 shadow-sm"
                                             onClick={() => handleStatusAction('publish')}
                                             disabled={actionLoading}
                                         >
@@ -722,7 +839,7 @@ export default function MarksApprovalPage() {
                                     {activeSheet.status === 'published' && (
                                         <button
                                             type="button"
-                                            className="btn btn-sm btn-outline-danger fw-bold px-3 d-inline-flex align-items-center gap-1"
+                                            className="btn btn-sm btn-outline-danger fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-1"
                                             onClick={() => handleStatusAction('unpublish')}
                                             disabled={actionLoading}
                                         >
