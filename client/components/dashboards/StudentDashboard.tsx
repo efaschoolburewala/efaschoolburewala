@@ -131,6 +131,12 @@ export default function StudentDashboard({ user }: { user: any }) {
         fetchAcademics();
     }, [currentId]);
 
+    useEffect(() => {
+        if (currentId) {
+            fetchAttendance(attMonth, attYear);
+        }
+    }, [currentId, attMonth, attYear]);
+
     const fetchFamilySlips = async () => {
         if (!currentId) return;
         setLoadingFamilySlips(true);
@@ -1451,11 +1457,12 @@ export default function StudentDashboard({ user }: { user: any }) {
                                                     ))}
                                                 </select>
                                             </div>
-                                            <button className="btn btn-sm" onClick={() => fetchAttendance()}
-                                                style={{ background: 'var(--primary-teal)', color: '#fff', borderRadius: 6 }}>
-                                                {attLoading ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-search me-1" />}
-                                                Load
-                                            </button>
+                                            {attLoading && (
+                                                <div className="d-flex align-items-center text-teal small ms-2 pb-1">
+                                                    <span className="spinner-border spinner-border-sm me-1" role="status" />
+                                                    <span>Updating...</span>
+                                                </div>
+                                            )}
                                         </div>
                                         {/* Stats */}
                                         <div className="row g-2 mb-4">
@@ -1522,7 +1529,7 @@ export default function StudentDashboard({ user }: { user: any }) {
                                             <div className="text-center py-5 text-muted">
                                                 <i className="bi bi-calendar-x fs-1 opacity-50"></i>
                                                 <p className="mt-3 mb-0">No attendance data found</p>
-                                                <small>Select month &amp; year and click Load</small>
+                                                <small>No attendance recorded for the selected month</small>
                                             </div>
                                         ) : null}
                                     </div>
