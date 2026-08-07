@@ -1093,27 +1093,29 @@ export default function StudentDashboard({ user }: { user: any }) {
                                         {/* Monthly Fee Card */}
                                         <div className="row g-4 mb-4">
                                             {/* Monthly / Family Fee Card */}
-                                            <div className="col-md-4">
-                                                <div className="card border-0 shadow-sm rounded-4 text-center overflow-hidden">
+                                            <div className="col-xl-4 col-lg-5 col-md-6">
+                                                <div className="card border-0 shadow-sm rounded-4 text-center overflow-hidden h-100">
                                                     <div className="card-header text-white py-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
                                                         <i className={`bi ${(student.family_size || 1) > 1 ? 'bi-people-fill' : 'bi-arrow-repeat'} fs-4 d-block mb-1`}></i>
                                                         <h6 className="mb-0 fw-bold">{(student.family_size || 1) > 1 ? 'Family Monthly Fee' : 'Monthly Fee (Tuition)'}</h6>
                                                     </div>
-                                                    <div className="card-body py-4">
-                                                        <div className="fw-bold" style={{ fontSize: '2rem', color: 'var(--primary-teal)' }}>
+                                                    <div className="card-body py-4 px-3 d-flex flex-column justify-content-center align-items-center">
+                                                        <div className="fw-bold text-break" style={{ fontSize: 'calc(1.3rem + 0.6vw)', color: 'var(--primary-teal)', lineHeight: 1.2 }}>
                                                             {(student.family_size || 1) > 1 ? fmt(student.family_fee || 0) : fmt(student?.monthly_fee || 0)}
                                                         </div>
                                                         {(student.family_size || 1) > 1 ? (
                                                             <>
                                                                 <div className="text-muted small mt-1">Shared by {student.family_size} family members</div>
-                                                                <div className="badge bg-warning bg-opacity-10 text-warning border border-warning mt-3">
-                                                                    <i className="bi bi-people-fill me-1"></i>Family Slip 1 slip per family
+                                                                <div className="badge bg-warning bg-opacity-10 text-warning border border-warning mt-3 text-wrap px-3 py-2" style={{ maxWidth: '100%', lineHeight: 1.4 }}>
+                                                                    <i className="bi bi-people-fill me-1"></i>Family Slip (1 slip per family)
                                                                 </div>
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <div className="text-muted small mt-1">Billed every month</div>
-                                                                <div className="badge bg-success bg-opacity-10 text-success border border-success mt-3">Auto-applied on slip generation</div>
+                                                                <div className="badge bg-success bg-opacity-10 text-success border border-success mt-3 text-wrap px-3 py-2" style={{ maxWidth: '100%', lineHeight: 1.4 }}>
+                                                                    Auto-applied on slip generation
+                                                                </div>
                                                             </>
                                                         )}
                                                     </div>
