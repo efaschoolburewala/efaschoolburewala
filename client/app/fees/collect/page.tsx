@@ -1245,9 +1245,10 @@ export default function CollectFeePage() {
                                                             <div className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
                                                                 <span className="small fw-bold text-dark">Total Balance</span>
                                                                 <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
-                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold">PKR</span>
+                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold" style={{ fontSize: '0.78rem' }}>PKR</span>
                                                                     <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
-                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
+                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
+                                                                        onWheel={e => (e.target as HTMLElement).blur()}
                                                                         value={headPayVals['fallback'] || ''}
                                                                         onChange={(e) => {
                                                                             const vStr = e.target.value;
@@ -1257,7 +1258,7 @@ export default function CollectFeePage() {
                                                                             if (totBal > 0 && val > totBal) val = totBal;
                                                                             setHeadPayVals({ ...headPayVals, fallback: val > 0 ? val.toString() : '' });
                                                                         }}
-                                                                        style={{ fontSize: '0.9rem', fontWeight: 600 }}
+                                                                        style={{ fontSize: '0.9rem', fontWeight: 600, padding: '4px 8px' }}
                                                                         min="0" />
                                                                 </div>
                                                             </div>
@@ -1319,9 +1320,10 @@ export default function CollectFeePage() {
                                                                                     </span>
                                                                                 )}
                                                                                 <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
-                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold">PKR</span>
+                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold" style={{ fontSize: '0.78rem' }}>PKR</span>
                                                                                     <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
-                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
+                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
+                                                                                        onWheel={e => (e.target as HTMLElement).blur()}
                                                                                         value={combInputVal > 0 ? combInputVal : ''}
                                                                                         onChange={(e) => {
                                                                                             const vStr = e.target.value;
@@ -1376,9 +1378,10 @@ export default function CollectFeePage() {
                                                                                     </span>
                                                                                 )}
                                                                                 <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
-                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold">PKR</span>
+                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold" style={{ fontSize: '0.78rem' }}>PKR</span>
                                                                                     <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
-                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
+                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
+                                                                                        onWheel={e => (e.target as HTMLElement).blur()}
                                                                                         value={headPayVals[headId] || ''}
                                                                                         onChange={(e) => {
                                                                                             const vStr = e.target.value;
@@ -1492,6 +1495,18 @@ export default function CollectFeePage() {
                             </div>
                         </div>
                     </div>
+                    <style jsx global>{`
+                        /* Hide spinner arrows for Chrome, Safari, Edge, Opera */
+                        input.no-spinner::-webkit-outer-spin-button,
+                        input.no-spinner::-webkit-inner-spin-button {
+                            -webkit-appearance: none !important;
+                            margin: 0 !important;
+                        }
+                        /* Hide spinner arrows for Firefox */
+                        input.no-spinner[type=number] {
+                            -moz-appearance: textfield !important;
+                        }
+                    `}</style>
                 </>
             )}
         </div>
