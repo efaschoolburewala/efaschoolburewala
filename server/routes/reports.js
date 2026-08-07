@@ -479,7 +479,7 @@ router.get('/monthly-tuition', async (req, res) => {
         const collectionRate = totalBilled > 0 ? ((totalCollected / totalBilled) * 100).toFixed(1) : 0;
 
         res.json({
-            month: monthNum,
+            month: monthArr.length === 1 ? monthArr[0] : monthArr.join(','),
             year: yearNum,
             summary: {
                 total_billed: totalBilled,
