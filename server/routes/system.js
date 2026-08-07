@@ -277,4 +277,36 @@ router.post('/reset-database', async (req, res) => {
     }
 });
 
+// ── Backup Notification Route (For Admin Toast Notification on Login/Startup) ──
+router.get('/backup-notification', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT setting_value FROM system_settings WHERE setting_key = 'last_backup_info'");
+        if (result.rows.length > 0 && result.rows[0].setting_value) {
+            const info = JSON.parse(result.rows[0].setting_value);
+            return res.json(info);
+        }
+        res.json(null);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Mark Backup Notification as Read
+router.post('/backup-notification/read', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT setting_value FROM system_settings WHERE setting_key = 'last_backup_info'");
+        if (result.rows.length > 0 && result.rows[0].setting_value) {
+            const info = JSON.parse(result.rows[0].setting_value);
+            info.read = true;
+            await pool.query(
+                "UPDATE system_settings SET setting_value = $1, updated_at = CURRENT_TIMESTAMP WHERE setting_key = 'last_backup_info'",
+                [JSON.stringify(info)]
+            );
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

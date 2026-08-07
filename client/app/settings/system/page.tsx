@@ -175,13 +175,26 @@ export default function SystemConfigPage() {
         setFormData({ ...formData, [key]: value });
     };
 
+    // Check for missed auto backups or new backup notifications on load
+    useEffect(() => {
+        fetch(`${API_URL}/system/backup-notification`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.filename && !data.read) {
+                    showToast.success(`🎉 Automatic Database Backup Completed!\nFile: ${data.filename}\nLocation: ${data.location || 'Server Backup Storage'}`);
+                    fetch(`${API_URL}/system/backup-notification/read`, { method: 'POST' }).catch(() => {});
+                }
+            })
+            .catch(() => {});
+    }, [API_URL]);
+
     const handleCreateBackup = async () => {
         setCreatingBackup(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system/backups/create`, { method: 'POST' });
+            const res = await fetch(`${API_URL}/system/backups/create`, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
-                showToast.success(data.message);
+                showToast.success(`🎉 ${data.message || 'Backup created successfully!'}\nFile: ${data.filename}`);
                 fetchBackups();
             } else {
                 showToast.error('Error: ' + data.error);
