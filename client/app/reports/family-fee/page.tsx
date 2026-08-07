@@ -17,10 +17,11 @@ type FeeSlip = {
 type HeadSummary = { head_name: string; total: number };
 type Collective = { total_billed: number; total_collected: number; total_pending: number };
 
-const MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-];
+interface AvailableMonth {
+    value: string;
+    label: string;
+    months: number[];
+}
 
 export default function FamilyFeeReportPage() {
     const now = new Date();
@@ -30,8 +31,10 @@ export default function FamilyFeeReportPage() {
     const [feeHeads, setFeeHeads] = useState<FeeHead[]>([]);
 
     // Filters
-    const [month, setMonth] = useState(String(now.getMonth() + 1));
-    const [year, setYear] = useState(String(now.getFullYear()));
+    const [month, setMonth] = useState<string>('');
+    const [year, setYear] = useState<string>(String(now.getFullYear()));
+    const [availableMonths, setAvailableMonths] = useState<AvailableMonth[]>([]);
+    const [loadingMonths, setLoadingMonths] = useState<boolean>(true);
     const [classId, setClassId] = useState('');
     const [sectionId, setSectionId] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -54,11 +57,45 @@ export default function FamilyFeeReportPage() {
     }, []);
 
     useEffect(() => {
+        setLoadingMonths(true);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/fee-slips/available-months?year=${year}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.months) {
+                    setAvailableMonths(data.months);
+                    if (data.months.length > 0) {
+                        const currentM = (new Date().getMonth() + 1);
+                        const exact = data.months.find((m: AvailableMonth) => m.months.includes(currentM));
+                        if (exact) {
+                            setMonth(exact.value);
+                        } else {
+                            setMonth(data.months[data.months.length - 1].value);
+                        }
+                    } else {
+                        setMonth('');
+                        setSlips([]);
+                        setHeadSummary([]);
+                        setCollective(null);
+                    }
+                }
+            })
+            .catch(() => {
+                setAvailableMonths([]);
+                setMonth('');
+            })
+            .finally(() => setLoadingMonths(false));
+    }, [year]);
+
+    useEffect(() => {
         setSectionId('');
         setFilteredSections(classId ? sections.filter(s => s.class_id === Number(classId)) : sections);
     }, [classId, sections]);
 
     const loadReport = async () => {
+        if (!month || !year) {
+            setSlips([]); setHeadSummary([]); setCollective(null); setError(''); setLoading(false);
+            return;
+        }
         setLoading(true); setError('');
         try {
             const params = new URLSearchParams({ month, year });
@@ -98,7 +135,10 @@ export default function FamilyFeeReportPage() {
     const partialCount = slips.filter(s => s.status === 'partial').length;
     const unpaidCount = slips.filter(s => s.status === 'unpaid').length;
 
-    const monthLabel = MONTHS[Number(month) - 1];
+    const currentSelMonth = availableMonths.find(m => m.value === month);
+    const monthLabel = currentSelMonth
+        ? currentSelMonth.label
+        : (month ? month : 'No Fee Slips');
     const classLabel = classId ? classes.find(c => String(c.class_id) === classId)?.class_name || '' : '';
     const secLabel = sectionId ? filteredSections.find(s => String(s.section_id) === sectionId)?.section_name || '' : '';
 
@@ -255,8 +295,17 @@ export default function FamilyFeeReportPage() {
                     <div className="row g-3 align-items-end">
                         <div className="col-6 col-md-2">
                             <label className="form-label fw-semibold small mb-1">Month <span className="text-danger">*</span></label>
-                            <select className="form-select form-select-sm" value={month} onChange={e => setMonth(e.target.value)}>
-                                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                            <select className="form-select form-select-sm"
+                                value={month}
+                                onChange={e => setMonth(e.target.value)}
+                                disabled={availableMonths.length === 0 || loadingMonths}>
+                                {availableMonths.length > 0 ? (
+                                    availableMonths.map(m => (
+                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    ))
+                                ) : (
+                                    <option value="">{loadingMonths ? 'Loading...' : 'No Fee Slips Created'}</option>
+                                )}
                             </select>
                         </div>
                         <div className="col-6 col-md-1">
