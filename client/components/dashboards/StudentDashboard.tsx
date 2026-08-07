@@ -364,98 +364,111 @@ export default function StudentDashboard({ user }: { user: any }) {
                 <div className="row g-4 profile-side-grid">
                     {/* LEFT SIDEBAR */}
                     <div className="col-lg-3 animate__animated animate__fadeInLeft">
-                        {/* Status Card */}
-                        <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden w-100">
-                            <div className="card-body p-3 p-md-4">
-                                <h6 className="fw-bold text-uppercase text-muted mb-4 small">Quick Info</h6>
-                                <div className="d-flex align-items-start mb-3">
-                                    <div className="me-3 text-secondary flex-shrink-0 mt-1" style={{ width: '24px' }}>
-                                        <i className="bi bi-person-badge fs-5"></i>
-                                    </div>
-                                    <div className="flex-grow-1 min-w-0" style={{ wordBreak: 'break-word' }}>
-                                        <small className="text-muted d-block text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>System Username</small>
-                                        <div className="fw-medium text-dark mt-1">
+                        <div className="row g-4">
+                            {/* Status Card */}
+                            <div className="col-12 col-md-6 col-lg-12">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
+                                    <div className="card-body p-3 p-md-4">
+                                        <h6 className="fw-bold text-uppercase text-muted mb-3 small">Quick Info</h6>
+                                        
+                                        {/* Credentials Block */}
+                                        <div className="mb-3">
+                                            <small className="text-muted d-block text-uppercase mb-1.5" style={{ fontSize: '0.68rem', letterSpacing: '0.8px' }}>
+                                                <i className="bi bi-shield-lock me-1"></i>System Credentials
+                                            </small>
                                             {student.username ? (
-                                                <div className="d-flex flex-column gap-2 w-100">
-                                                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-1">
-                                                        <div className="d-flex align-items-center gap-2" style={{ maxWidth: '100%' }}>
-                                                            <span className="font-monospace bg-light border px-2 py-1 rounded small text-primary text-truncate" style={{ display: 'inline-block', maxWidth: 'calc(100% - 35px)' }}>{student.username}</span>
-                                                            <button className="btn btn-sm text-secondary p-0 flex-shrink-0" title="Copy Username" onClick={() => { navigator.clipboard.writeText(student.username); notify.success('Username copied'); }}>
-                                                                <i className="bi bi-copy" style={{ fontSize: '0.85rem' }}></i>
+                                                <div className="bg-light p-2.5 rounded-3 border">
+                                                    {/* Username Row */}
+                                                    <div className="d-flex align-items-center justify-content-between gap-2 mb-2 pb-2 border-bottom border-secondary border-opacity-10">
+                                                        <div className="d-flex align-items-center gap-1.5 min-w-0">
+                                                            <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>User:</small>
+                                                            <span className="font-monospace text-primary fw-bold small text-truncate" style={{ fontSize: '0.82rem' }}>
+                                                                {student.username}
+                                                            </span>
+                                                        </div>
+                                                        <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                                                            <button className="btn btn-sm btn-white border shadow-xs text-secondary p-1 rounded-2" title="Copy Username" onClick={() => { navigator.clipboard.writeText(student.username); notify.success('Username copied'); }}>
+                                                                <i className="bi bi-copy" style={{ fontSize: '0.8rem' }}></i>
+                                                            </button>
+                                                            <button className="btn btn-sm btn-white border shadow-xs text-primary p-1 rounded-2" title="Change Password" onClick={() => setChangePwdModalOpen(true)}>
+                                                                <i className="bi bi-key-fill" style={{ fontSize: '0.8rem' }}></i>
                                                             </button>
                                                         </div>
-                                                        <button className="btn btn-sm text-primary p-0 flex-shrink-0" title="Change Password" onClick={() => setChangePwdModalOpen(true)}>
-                                                            <i className="bi bi-key-fill p-1 fs-6"></i>
-                                                        </button>
                                                     </div>
-                                                    <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
-                                                        <small className="text-muted text-uppercase me-1" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>Password:</small>
-                                                        <span className="font-monospace text-muted small user-select-all text-break bg-light border px-2 py-0.5 rounded" style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
-                                                            {showPwd ? (student.system_pwd || 'student123') : '••••••••'}
-                                                        </span>
+                                                    {/* Password Row */}
+                                                    <div className="d-flex align-items-center justify-content-between gap-2">
+                                                        <div className="d-flex align-items-center gap-1.5 min-w-0">
+                                                            <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>Pwd:</small>
+                                                            <span className="font-monospace text-dark small text-truncate" style={{ fontSize: '0.78rem' }}>
+                                                                {showPwd ? (student.system_pwd || 'student123') : '••••••••'}
+                                                            </span>
+                                                        </div>
                                                         <div className="d-flex align-items-center gap-1 flex-shrink-0">
-                                                            <button className="btn btn-sm text-secondary p-0" title={showPwd ? 'Hide Password' : 'Show Password'} onClick={() => setShowPwd(!showPwd)}>
-                                                                <i className={`bi bi-eye${showPwd ? '-slash' : ''}`} style={{ fontSize: '0.85rem' }}></i>
+                                                            <button className="btn btn-sm btn-white border shadow-xs text-secondary p-1 rounded-2" title={showPwd ? 'Hide Password' : 'Show Password'} onClick={() => setShowPwd(!showPwd)}>
+                                                                <i className={`bi bi-eye${showPwd ? '-slash' : ''}`} style={{ fontSize: '0.8rem' }}></i>
                                                             </button>
-                                                            <button className="btn btn-sm text-secondary p-0 ms-1" title="Copy Password" onClick={() => { navigator.clipboard.writeText(student.system_pwd || 'student123'); notify.success('Password copied'); }}>
-                                                                <i className="bi bi-copy" style={{ fontSize: '0.85rem' }}></i>
+                                                            <button className="btn btn-sm btn-white border shadow-xs text-secondary p-1 rounded-2" title="Copy Password" onClick={() => { navigator.clipboard.writeText(student.system_pwd || 'student123'); notify.success('Password copied'); }}>
+                                                                <i className="bi bi-copy" style={{ fontSize: '0.8rem' }}></i>
                                                             </button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <button className="btn btn-sm btn-outline-primary py-0" style={{ fontSize: '0.75rem' }} onClick={handleGenerateCredentials}>
-                                                    Generate Login
+                                                <button className="btn btn-sm btn-outline-primary w-100 py-1.5 rounded-3" style={{ fontSize: '0.78rem' }} onClick={handleGenerateCredentials}>
+                                                    <i className="bi bi-key me-1"></i>Generate Login Credentials
                                                 </button>
                                             )}
                                         </div>
-                                    </div>
-                                </div>
-                                <InfoRow icon="bi-person" label="Gender" value={student.gender} />
-                                <InfoRow icon="bi-calendar-event" label="Date of Birth" value={new Date(student.dob).toLocaleDateString()} />
-                                <InfoRow icon="bi-droplet" label="Blood Group" value={student.blood_group} />
-                                <InfoRow icon="bi-telephone" label="Mobile" value={student.student_mobile || student.mobile_no} />
-                                {student.family_id && (
-                                    <div className="d-flex align-items-center mb-3">
-                                        <div className="me-3 text-secondary" style={{ width: '24px' }}>
-                                            <i className="bi bi-people-fill fs-5"></i>
-                                        </div>
-                                        <div>
-                                            <small className="text-muted d-block text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>Family ID</small>
-                                            <div className="fw-medium text-dark">
-                                                <span className="badge bg-info bg-opacity-10 text-info border border-info">{student.family_id}</span>
+
+                                        <InfoRow icon="bi-person" label="Gender" value={student.gender} />
+                                        <InfoRow icon="bi-calendar-event" label="Date of Birth" value={new Date(student.dob).toLocaleDateString()} />
+                                        <InfoRow icon="bi-droplet" label="Blood Group" value={student.blood_group} />
+                                        <InfoRow icon="bi-telephone" label="Mobile" value={student.student_mobile || student.mobile_no} />
+                                        {student.family_id && (
+                                            <div className="d-flex align-items-center mb-3">
+                                                <div className="me-3 text-secondary" style={{ width: '24px' }}>
+                                                    <i className="bi bi-people-fill fs-5"></i>
+                                                </div>
+                                                <div>
+                                                    <small className="text-muted d-block text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>Family ID</small>
+                                                    <div className="fw-medium text-dark">
+                                                        <span className="badge bg-info bg-opacity-10 text-info border border-info">{student.family_id}</span>
+                                                    </div>
+                                                </div>
                                             </div>
+                                        )}
+                                        <hr className="text-secondary opacity-25" />
+                                        <div className="text-center text-success fw-bold py-2">
+                                            <i className="bi bi-shield-check me-2"></i>Student Portal Verified
                                         </div>
                                     </div>
-                                )}
-                                <hr className="text-secondary opacity-25" />
-                                <div className="text-center text-success fw-bold py-2">
-                                    <i className="bi bi-shield-check me-2"></i>Student Portal Verified
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Fees Card */}
-                        <div className="card border-0 shadow-sm rounded-4 mb-4 bg-white">
-                            <div className="card-body p-4 text-center">
-                                <div className="avatar-placeholder bg-success bg-opacity-10 text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style={{ width: '60px', height: '60px' }}>
-                                    <i className={`bi ${(student.family_size || 1) > 1 ? 'bi-people-fill' : 'bi-wallet2'} fs-3`}></i>
-                                </div>
-                                {(student.family_size || 1) > 1 ? (
-                                    <>
-                                        <div className="small text-muted text-uppercase">Family Monthly Fee</div>
-                                        <h3 className="fw-bold text-dark my-1">{fmt(student.family_fee || 0)}</h3>
-                                        <div className="badge bg-warning bg-opacity-10 text-warning mt-2 border border-warning">
-                                            <i className="bi bi-people-fill me-1"></i>{student.family_size} members
+                            {/* Fees Card */}
+                            <div className="col-12 col-md-6 col-lg-12">
+                                <div className="card border-0 shadow-sm rounded-4 bg-white h-100">
+                                    <div className="card-body p-4 text-center d-flex flex-column justify-content-center">
+                                        <div className="avatar-placeholder bg-success bg-opacity-10 text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>
+                                            <i className={`bi ${(student.family_size || 1) > 1 ? 'bi-people-fill' : 'bi-wallet2'} fs-3`}></i>
                                         </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="small text-muted text-uppercase">Monthly Fee</div>
-                                        <h3 className="fw-bold text-dark my-1">{fmt(student.monthly_fee || 0)}</h3>
-                                        <div className="badge bg-success bg-opacity-10 text-success mt-2">Individual</div>
-                                    </>
-                                )}
+                                        {(student.family_size || 1) > 1 ? (
+                                            <>
+                                                <div className="small text-muted text-uppercase">Family Monthly Fee</div>
+                                                <h3 className="fw-bold text-dark my-1">{fmt(student.family_fee || 0)}</h3>
+                                                <div className="badge bg-warning bg-opacity-10 text-warning mt-2 border border-warning">
+                                                    <i className="bi bi-people-fill me-1"></i>{student.family_size} members
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="small text-muted text-uppercase">Monthly Fee</div>
+                                                <h3 className="fw-bold text-dark my-1">{fmt(student.monthly_fee || 0)}</h3>
+                                                <div className="badge bg-success bg-opacity-10 text-success mt-2">Individual</div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
