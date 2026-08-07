@@ -27,10 +27,14 @@ async function runEssentialMigrations() {
             ALTER TABLE fee_plans ADD COLUMN IF NOT EXISTS applies_to_all BOOLEAN DEFAULT FALSE;
         `);
 
-        // 3. Print Tracking Migration
+        // 3. Print Tracking & Multi-Month Migration
         console.log("   → Checking monthly_fee_slips columns...");
         await client.query(`
             ALTER TABLE monthly_fee_slips 
+            ADD COLUMN IF NOT EXISTS issue_date DATE,
+            ADD COLUMN IF NOT EXISTS is_family_slip BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS has_multi_months BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS months_list INTEGER[],
             ADD COLUMN IF NOT EXISTS is_printed BOOLEAN DEFAULT FALSE,
             ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
         `);

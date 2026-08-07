@@ -783,6 +783,8 @@ async function runMasterSeeder() {
                     created_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+
+                CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
             `);
 
             console.log("   ✅ Expenses Module Tables set up successfully.");
@@ -910,6 +912,13 @@ async function runMasterSeeder() {
             for (const q of slipAlters) {
                 await pool.query(q);
             }
+
+            // Indexes for Fee Slips & Reports Query Optimization
+            await pool.query(`
+                CREATE INDEX IF NOT EXISTS idx_mfs_year_month ON monthly_fee_slips(year, month);
+                CREATE INDEX IF NOT EXISTS idx_mfs_months_list ON monthly_fee_slips USING GIN (months_list);
+                CREATE INDEX IF NOT EXISTS idx_mfs_family ON monthly_fee_slips(family_id);
+            `);
 
             // 8.6 slip_line_items Table
             await pool.query(`
