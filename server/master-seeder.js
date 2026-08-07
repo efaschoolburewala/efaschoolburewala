@@ -283,12 +283,16 @@ async function runMasterSeeder() {
                 { key: 'school_tagline', value: 'Excellence in Education', category: 'general', desc: 'School tagline' },
                 { key: 'school_logo_url', value: '', category: 'general', desc: 'School logo URL' },
                 { key: 'contact_email', value: 'admin@shaheenschool.edu', category: 'general', desc: 'Primary contact email' },
-                { key: 'session_timeout_minutes', value: '30', category: 'security', desc: 'User inactivity timeout in minutes' },
+                { key: 'session_timeout_minutes', value: '1440', category: 'security', desc: 'User inactivity timeout in minutes' },
                 { key: 'max_login_attempts', value: '5', category: 'security', desc: 'Lock account after X failed attempts' },
-                { key: 'password_min_length', value: '8', category: 'security', desc: 'Minimum allowed password length' },
+                { key: 'password_min_length', value: '6', category: 'security', desc: 'Minimum allowed password length' },
                 { key: 'auto_backup_enabled', value: 'false', category: 'backup', desc: 'Enable automatic scheduled backups' },
                 { key: 'backup_frequency', value: 'daily', category: 'backup', desc: 'Scheduled backup frequency' },
-                { key: 'backup_time', value: '00:00', category: 'backup', desc: 'Time to run backup' },
+                { key: 'backup_time', value: '08:00', category: 'backup', desc: 'Primary shift 1 time to run backup' },
+                { key: 'backup_time_1', value: '08:00', category: 'backup', desc: 'Shift 1 morning daily backup time' },
+                { key: 'backup_time_2', value: '20:00', category: 'backup', desc: 'Shift 2 evening daily backup time' },
+                { key: 'backup_path', value: '', category: 'backup', desc: 'Custom backup storage directory path' },
+                { key: 'last_backup_info', value: '', category: 'backup', desc: 'Latest database backup metadata & notification' },
                 { key: 'maintenance_mode', value: 'false', category: 'system', desc: 'Put system in read-only mode for maintenance' }
             ];
 

@@ -7,6 +7,7 @@ const EXPECTED_TABLES = [
     { name: 'app_roles', critical: true, desc: 'User roles (Admin, Teacher, etc.)' },
     { name: 'role_permissions', critical: true, desc: 'Permissions per role' },
     { name: 'app_users', critical: true, desc: 'Login users' },
+    { name: 'user_sessions', critical: true, desc: 'Active user login sessions & 24H persistence' },
     { name: 'school_settings', critical: true, desc: 'School name, logo, etc.' },
     { name: 'system_settings', critical: true, desc: 'Backup & system config' },
     // Academic Structure
@@ -57,7 +58,8 @@ const EXPECTED_TABLES = [
 // Critical columns to verify on key tables
 const CRITICAL_COLUMNS = {
     app_roles: ['id', 'role_name', 'role_level', 'is_custom', 'is_system_default'],
-    app_users: ['id', 'username', 'password_hash', 'role_id', 'is_active'],
+    app_users: ['id', 'username', 'password_hash', 'role_id', 'is_active', 'failed_login_attempts', 'locked_until'],
+    user_sessions: ['session_id', 'user_id', 'session_token', 'remember_me', 'expires_at', 'is_revoked'],
     students: ['student_id', 'first_name', 'class_id', 'section_id'],
     families: ['family_id', 'family_fee', 'opening_balance', 'opening_balance_paid'],
     monthly_fee_slips: ['slip_id', 'is_printed', 'printed_at', 'is_family_slip', 'has_multi_months'],
