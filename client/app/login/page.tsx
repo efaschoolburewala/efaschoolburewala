@@ -439,7 +439,8 @@ export default function LoginPage() {
                             </button>
                         </form>
 
-                        <div className="credentials-card mt-4">
+                        {/* Default System Admin (Commented Out per user request) */}
+                        {/* <div className="credentials-card mt-4">
                             <div className="credentials-content">
                                 <i className="bi bi-key-fill key-icon" />
                                 <div className="credentials-info">
@@ -455,14 +456,15 @@ export default function LoginPage() {
                             >
                                 Quick Fill
                             </button>
-                        </div>
+                        </div> */}
                     </div>
                 </main>
             </div>
 
-            {/* Developer Credits Footer */}
+            {/* Developer / Company Credits Footer */}
             <footer className="dev-footer">
-                <div className="dev-footer-title">
+                {/* Individual Person Credits (Commented Out per user request) */}
+                {/* <div className="dev-footer-title">
                     <span>Designed & Engineered By</span>
                 </div>
                 <div className="dev-cards-row">
@@ -494,6 +496,49 @@ export default function LoginPage() {
                             <p className="dev-bio">Search Engine Optimization Specialist</p>
                         </div>
                     </div>
+                </div> */}
+
+                {/* FalconSwift Official Company Profile */}
+                <div className="company-credit-card animate__animated animate__fadeInUp">
+                    <a
+                        href="https://falconswift.online"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="company-credit-link"
+                    >
+                        <div className="company-logo-wrapper">
+                            <img
+                                src="https://falconswift.online/FalconSwift.png"
+                                alt="FalconSwift Logo"
+                                className="company-logo-img"
+                                onError={(e: any) => {
+                                    e.target.onerror = null;
+                                    e.target.src = 'https://falconswift.online/FalconSwift.jpeg';
+                                }}
+                            />
+                            <div className="company-glow-ring" />
+                        </div>
+
+                        <div className="company-details">
+                            <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                <span className="company-badge">Software House & Technology Partner</span>
+                                <span className="company-ver-badge"><i className="bi bi-patch-check-fill me-1"></i>Official Developer</span>
+                            </div>
+                            <h3 className="company-name">
+                                FalconSwift <span className="company-domain">www.falconswift.online</span>
+                            </h3>
+                            <p className="company-tagline">
+                                Custom Web, Mobile Apps (iOS & Android) & AI Automation Solutions
+                            </p>
+                        </div>
+
+                        <div className="company-action">
+                            <span className="btn-visit-company">
+                                <span>Visit Website</span>
+                                <i className="bi bi-box-arrow-up-right ms-1" />
+                            </span>
+                        </div>
+                    </a>
                 </div>
             </footer>
 
@@ -1006,6 +1051,135 @@ export default function LoginPage() {
                         justify-content: center;
                         font-size: 28px;
                         margin: 0 auto;
+                    }
+                }
+
+                /* FalconSwift Official Company Profile Styles */
+                .company-credit-card {
+                    max-width: 700px;
+                    width: 100%;
+                    margin: 0 auto;
+                    background: rgba(15, 28, 36, 0.85);
+                    backdrop-filter: blur(24px);
+                    border: 1px solid rgba(254, 127, 45, 0.35);
+                    border-radius: 20px;
+                    padding: 16px 24px;
+                    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), 0 0 25px rgba(254, 127, 45, 0.15);
+                    transition: all 0.35s ease;
+                }
+                .company-credit-card:hover {
+                    border-color: #FE7F2D;
+                    transform: translateY(-3px);
+                    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6), 0 0 35px rgba(254, 127, 45, 0.3);
+                }
+                .company-credit-link {
+                    display: flex;
+                    align-items: center;
+                    gap: 18px;
+                    text-decoration: none;
+                    color: #ffffff;
+                }
+                .company-logo-wrapper {
+                    position: relative;
+                    width: 52px;
+                    height: 52px;
+                    flex-shrink: 0;
+                    border-radius: 50%;
+                    background: #001836;
+                    padding: 3px;
+                    border: 2px solid #FE7F2D;
+                    box-shadow: 0 0 15px rgba(254, 127, 45, 0.4);
+                }
+                .company-logo-img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    border-radius: 50%;
+                }
+                .company-glow-ring {
+                    position: absolute;
+                    inset: -4px;
+                    border-radius: 50%;
+                    border: 1px dashed rgba(254, 127, 45, 0.6);
+                    animation: spinRing 12s linear infinite;
+                }
+                .company-details {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .company-badge {
+                    background: rgba(33, 94, 97, 0.45);
+                    color: #8ce0e4;
+                    border: 1px solid rgba(33, 94, 97, 0.7);
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    padding: 2px 9px;
+                    border-radius: 12px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.04em;
+                }
+                .company-ver-badge {
+                    background: rgba(254, 127, 45, 0.15);
+                    color: #FE7F2D;
+                    border: 1px solid rgba(254, 127, 45, 0.4);
+                    font-size: 0.7rem;
+                    font-weight: 700;
+                    padding: 2px 9px;
+                    border-radius: 12px;
+                }
+                .company-name {
+                    font-size: 1.2rem;
+                    font-weight: 800;
+                    color: #ffffff;
+                    margin: 4px 0 2px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+                .company-domain {
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    color: #FE7F2D;
+                    opacity: 0.95;
+                }
+                .company-tagline {
+                    font-size: 0.8rem;
+                    color: rgba(255, 255, 255, 0.75);
+                    margin: 0;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .btn-visit-company {
+                    display: inline-flex;
+                    align-items: center;
+                    background: linear-gradient(135deg, #215e61, #164345);
+                    color: #ffffff;
+                    border: 1px solid rgba(140, 224, 228, 0.4);
+                    padding: 8px 16px;
+                    border-radius: 12px;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    transition: all 0.3s ease;
+                }
+                .company-credit-card:hover .btn-visit-company {
+                    background: linear-gradient(135deg, #FE7F2D, #d66418);
+                    border-color: #FE7F2D;
+                    box-shadow: 0 4px 15px rgba(254, 127, 45, 0.4);
+                }
+                @media (max-width: 640px) {
+                    .company-credit-link {
+                        flex-direction: column;
+                        text-align: center;
+                        gap: 12px;
+                    }
+                    .company-name {
+                        justify-content: center;
+                    }
+                    .company-tagline {
+                        white-space: normal;
                     }
                 }
             `}</style>
