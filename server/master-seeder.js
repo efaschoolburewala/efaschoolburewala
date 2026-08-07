@@ -918,6 +918,7 @@ async function runMasterSeeder() {
                 CREATE INDEX IF NOT EXISTS idx_mfs_year_month ON monthly_fee_slips(year, month);
                 CREATE INDEX IF NOT EXISTS idx_mfs_months_list ON monthly_fee_slips USING GIN (months_list);
                 CREATE INDEX IF NOT EXISTS idx_mfs_family ON monthly_fee_slips(family_id);
+                CREATE INDEX IF NOT EXISTS idx_mfs_student_month_year ON monthly_fee_slips(student_id, year, month);
             `);
 
             // 8.6 slip_line_items Table
@@ -931,6 +932,8 @@ async function runMasterSeeder() {
                     paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                     note TEXT
                 );
+                CREATE INDEX IF NOT EXISTS idx_sli_slip_id ON slip_line_items(slip_id);
+                CREATE INDEX IF NOT EXISTS idx_sli_head_id ON slip_line_items(head_id);
             `);
 
             // 8.7 fee_payments Table
