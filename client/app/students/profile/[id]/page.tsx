@@ -334,33 +334,31 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
             )}
 
             {/* HERO SECTION */}
-            <div className="position-relative profile-hero" style={{ height: '280px', background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-teal) 100%)' }}>
+            <div className="position-relative profile-hero" style={{ minHeight: '220px', background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-teal) 100%)' }}>
                 <div className="position-absolute top-0 start-0 w-100 h-100 opacity-10"
                     style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
 
-                <div className="container position-relative h-100">
-                    <button className="btn btn-outline-light position-absolute top-0 start-0 m-4 rounded-circle" onClick={() => router.back()}>
-                        <i className="bi bi-arrow-left"></i>
+                <div className="container position-relative py-4 px-3 px-sm-4">
+                    <button className="btn btn-outline-light rounded-circle shadow-sm mb-3" onClick={() => router.back()} style={{ width: 42, height: 42 }}>
+                        <i className="bi bi-arrow-left fs-5"></i>
                     </button>
 
-                    <div className="d-flex flex-column justify-content-end h-100 pb-5 ps-4">
-                        <div className="d-flex align-items-end gap-4" style={{ marginBottom: '-60px' }}>
-                            <div className="position-relative">
-                                <img
-                                    src={student.image_url ? `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/${student.image_url}` : "https://ui-avatars.com/api/?name=" + (student.first_name || 'Student') + "&background=random&size=150"}
-                                    className="rounded-circle border border-4 border-white shadow-lg bg-white"
-                                    style={{ width: '160px', height: '160px', objectFit: 'cover' }}
-                                />
-                                <span className={`position-absolute bottom-0 end-0 p-3 border border-4 border-white rounded-circle ${student.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}></span>
-                            </div>
-                            <div className="mb-5 text-white animate__animated animate__fadeInUp">
-                                <h1 className="fw-bold mb-1">{student.first_name} {student.last_name}</h1>
-                                <div className="d-flex gap-3 align-items-center opacity-75">
-                                    <span className="badge bg-white bg-opacity-25 border border-white border-opacity-25 backdrop-blur">
-                                        {student.class_name} • {student.section_name}
-                                    </span>
-                                    <span><i className="bi bi-upc-scan me-2"></i>{student.admission_no}</span>
-                                </div>
+                    <div className="d-flex flex-column flex-sm-row align-items-center align-items-sm-end gap-3 gap-sm-4 pb-2">
+                        <div className="position-relative flex-shrink-0" style={{ marginBottom: '-45px' }}>
+                            <img
+                                src={student.image_url ? `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/${student.image_url}` : "https://ui-avatars.com/api/?name=" + (student.first_name || 'Student') + "&background=random&size=150"}
+                                className="rounded-circle border border-4 border-white shadow-lg bg-white"
+                                style={{ width: '130px', height: '130px', objectFit: 'cover' }}
+                            />
+                            <span className={`position-absolute bottom-0 end-0 p-2.5 border border-4 border-white rounded-circle ${student.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}></span>
+                        </div>
+                        <div className="text-center text-sm-start text-white animate__animated animate__fadeInUp pb-2">
+                            <h2 className="fw-bold mb-1 fs-3 fs-md-2">{student.first_name} {student.last_name}</h2>
+                            <div className="d-flex flex-wrap justify-content-center justify-content-sm-start gap-2 align-items-center opacity-90">
+                                <span className="badge bg-white bg-opacity-25 border border-white border-opacity-25 backdrop-blur px-2.5 py-1.5">
+                                    {student.class_name} • {student.section_name}
+                                </span>
+                                <span className="small text-white-50"><i className="bi bi-upc-scan me-1"></i>{student.admission_no}</span>
                             </div>
                         </div>
                     </div>
@@ -368,7 +366,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
             </div>
 
             {/* CONTENT SECTION */}
-            <div className="container pt-5 mt-4 pb-5">
+            <div className="container pt-4 mt-3 mt-sm-4 pb-5 px-3 px-sm-4">
                 <div className="row g-4 profile-side-grid">
                     {/* LEFT SIDEBAR */}
                     <div className="col-lg-3 animate__animated animate__fadeInLeft">
@@ -483,14 +481,14 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                     {/* MAIN CONTENT */}
                     <div className="col-lg-9 animate__animated animate__fadeInUp">
                         <div className="card border-0 shadow-sm rounded-4 overflow-hidden" style={{ minHeight: '600px' }}>
-                            <div className="card-header bg-white border-bottom-0 p-0">
-                                <ul className="nav nav-tabs nav-fill" role="tablist">
+                            <div className="card-header bg-white border-bottom p-0 overflow-x-auto text-nowrap scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                <ul className="nav nav-tabs border-0 flex-nowrap" role="tablist">
                                     {['overview', 'academic', 'family', 'fees', 'attendance', 'documents'].map(tab => (
                                         <li className="nav-item" key={tab}>
                                             <button
-                                                className={`nav-link py-3 fw-bold text-uppercase border-0 rounded-0 ${activeTab === tab ? 'active border-bottom border-primary border-3 text-primary' : 'text-muted'}`}
+                                                className={`nav-link py-3 px-3 px-md-4 fw-bold text-uppercase border-0 rounded-0 ${activeTab === tab ? 'active border-bottom border-primary border-3 text-primary bg-transparent' : 'text-muted'}`}
                                                 onClick={() => setActiveTab(tab)}
-                                                style={{ fontSize: '0.85rem', letterSpacing: '1px' }}
+                                                style={{ fontSize: '0.82rem', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}
                                             >
                                                 {tab}
                                             </button>
