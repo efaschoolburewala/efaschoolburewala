@@ -590,8 +590,8 @@ export default function PrintSlipsPage() {
             width: 24mm;
             height: 20mm;
             flex: 0 0 auto;
-            border: 1pt solid #000;
-            background: repeating-linear-gradient(45deg, #fff, #fff 3px, #e2e2e2 3px, #e2e2e2 4px);
+            border: none;
+            background: transparent;
         }
         .school-name {
             flex: 1 1 auto;

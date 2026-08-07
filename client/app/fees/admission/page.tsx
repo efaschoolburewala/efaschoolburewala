@@ -200,7 +200,7 @@ export default function AdmissionFeePage() {
       .join(" ; ");
     const logoHtml = school.school_logo_url
       ? `<img src="${school.school_logo_url}" style="width:16mm;height:16mm;object-fit:contain;margin-right:3mm;flex-shrink:0;" />`
-      : `<div style="width:16mm;height:16mm;background-color:#007bff;margin-right:3mm;flex-shrink:0;"></div>`;
+      : `<div style="width:16mm;height:16mm;background-color:transparent;margin-right:3mm;flex-shrink:0;"></div>`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">

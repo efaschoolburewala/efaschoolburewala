@@ -435,7 +435,7 @@ export default function CollectFeePage() {
 
   .header { display: flex; align-items: center; gap: 2mm; margin-bottom: 2mm; }
   .logo-box {
-    width: 16mm; height: 16mm; border: ${logoUrl ? 'none' : '1.2px solid #000'}; border-radius: 2mm;
+    width: 16mm; height: 16mm; border: none; background: transparent;
     flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
   }
   .school-name { font-size: 11pt; font-weight: bold; line-height: 1.25; text-transform: uppercase; color: #000; }
