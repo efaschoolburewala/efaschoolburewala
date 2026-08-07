@@ -184,6 +184,29 @@ async function runEssentialMigrations() {
             UPDATE test_papers SET status = 'published' WHERE status IS NULL;
         `);
 
+        // 8. User Sessions & Login Security Migration
+        console.log("   → Checking user_sessions & security columns...");
+        await client.query(`
+            ALTER TABLE app_users 
+            ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP;
+
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                session_id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                session_token TEXT UNIQUE NOT NULL,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                remember_me BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                is_revoked BOOLEAN DEFAULT FALSE
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
+        `);
+
         await client.query('COMMIT');
         console.log("✅ All essential migrations completed successfully!");
     } catch (err) {

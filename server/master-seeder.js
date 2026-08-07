@@ -60,11 +60,33 @@ async function runMasterSeeder() {
                     email VARCHAR(100),
                     role_id INT REFERENCES app_roles(id) ON DELETE SET NULL,
                     is_active BOOLEAN DEFAULT TRUE,
+                    failed_login_attempts INTEGER DEFAULT 0,
+                    locked_until TIMESTAMP,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+                ALTER TABLE app_users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0;
+                ALTER TABLE app_users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP;
             `);
 
-            // 1.4 user_direct_permissions Table
+            // 1.4 user_sessions Table
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS user_sessions (
+                    session_id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                    session_token TEXT UNIQUE NOT NULL,
+                    ip_address VARCHAR(45),
+                    user_agent TEXT,
+                    remember_me BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP NOT NULL,
+                    is_revoked BOOLEAN DEFAULT FALSE
+                );
+                CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+                CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
+            `);
+
+            // 1.5 user_direct_permissions Table
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS user_direct_permissions (
                     id SERIAL PRIMARY KEY,

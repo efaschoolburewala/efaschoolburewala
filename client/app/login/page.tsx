@@ -11,9 +11,20 @@ export default function LoginPage() {
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    // Splash Screen State
+    const [showSplash, setShowSplash] = useState(true);
+
+    // Security Policies State
+    const [policies, setPolicies] = useState({
+        max_login_attempts: 5,
+        password_min_length: 6,
+        session_timeout_minutes: 1440
+    });
 
     // Dynamic State for Devs Info
     const [devUmar, setDevUmar] = useState({
@@ -30,34 +41,42 @@ export default function LoginPage() {
         url: 'https://muhammadabdullahwali.vercel.app/'
     });
 
+    // Dynamic School Settings State
+    const [schoolSettings, setSchoolSettings] = useState({
+        school_name: 'Shaheen English Model School Vehari',
+        logo_url: '',
+        tagline: 'Excellence in Education'
+    });
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+
     useEffect(() => {
         if (!isLoading && isLoggedIn) {
             router.replace('/');
         }
     }, [isLoading, isLoggedIn, router]);
 
-    // Dynamic School Settings State
-    const [schoolSettings, setSchoolSettings] = useState({
-        school_name: 'Smart School System',
-        logo_url: '',
-        tagline: 'Management Portal'
-    });
+    // Auto dismiss Splash Screen after 2.2 seconds
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowSplash(false);
+        }, 2200);
+        return () => clearTimeout(timer);
+    }, []);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-school-soxa.onrender.com";
-
-    // Fetch School Settings for Login Branding
+    // Fetch School Settings for Branding
     useEffect(() => {
         fetch(`${API_URL}/settings`)
             .then(res => res.json())
             .then(data => {
                 if (data && typeof data === 'object') {
-                    const name = data.school_name || 'Smart School System';
+                    const name = data.school_name || 'Shaheen English Model School Vehari';
                     const logo = data.logo_url ? (
                         data.logo_url.startsWith('data:') || data.logo_url.startsWith('http')
                             ? data.logo_url
                             : `${API_URL}${data.logo_url}`
                     ) : '';
-                    const tagline = data.tagline || 'Management Portal';
+                    const tagline = data.tagline || 'Excellence in Education';
 
                     setSchoolSettings({
                         school_name: name,
@@ -67,7 +86,19 @@ export default function LoginPage() {
                 }
             })
             .catch(() => { });
-    }, []);
+    }, [API_URL]);
+
+    // Fetch Dynamic Security Policies from Server
+    useEffect(() => {
+        fetch(`${API_URL}/auth/security-policies`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data === 'object') {
+                    setPolicies(prev => ({ ...prev, ...data }));
+                }
+            })
+            .catch(() => { });
+    }, [API_URL]);
 
     // Fetch dynamic GitHub data for Umar
     useEffect(() => {
@@ -93,9 +124,16 @@ export default function LoginPage() {
             setError('Please enter both username and password.');
             return;
         }
+
+        if (password.length < policies.password_min_length) {
+            setError(`Password must be at least ${policies.password_min_length} characters according to system policy.`);
+            return;
+        }
+
         setSubmitting(true);
-        const result = await login(username.trim(), password);
+        const result = await login(username.trim(), password, rememberMe);
         setSubmitting(false);
+
         if (result.success) {
             router.replace('/');
         } else {
@@ -117,6 +155,138 @@ export default function LoginPage() {
         );
     }
 
+    // ── Dedicated Mobile & Tablet Splash Screen ──
+    if (showSplash) {
+        return (
+            <div className="splash-screen-container">
+                <AnimatedBackground />
+                <div className="ambient-glow orb-teal" />
+                <div className="ambient-glow orb-orange" />
+
+                <div className="splash-card animate__animated animate__zoomIn">
+                    <div className="splash-logo-halo">
+                        {schoolSettings.logo_url ? (
+                            <img src={schoolSettings.logo_url} alt={schoolSettings.school_name} className="splash-logo-img" />
+                        ) : (
+                            <i className="bi bi-mortarboard-fill splash-icon" />
+                        )}
+                    </div>
+                    <h1 className="splash-title">{schoolSettings.school_name}</h1>
+                    <p className="splash-subtitle">{schoolSettings.tagline || 'Excellence in Education'}</p>
+
+                    <div className="splash-loader-bar">
+                        <div className="splash-loader-progress" />
+                    </div>
+
+                    <button className="btn-splash-enter" onClick={() => setShowSplash(false)}>
+                        <span>Enter Portal</span>
+                        <i className="bi bi-arrow-right ms-2" />
+                    </button>
+                </div>
+
+                <style jsx>{`
+                    .splash-screen-container {
+                        position: fixed;
+                        inset: 0;
+                        z-index: 9999;
+                        background: #0d2b38;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 24px;
+                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                    }
+                    .splash-card {
+                        text-align: center;
+                        color: #fff;
+                        max-width: 440px;
+                        width: 100%;
+                        background: rgba(15, 28, 36, 0.85);
+                        backdrop-filter: blur(28px);
+                        border-radius: 32px;
+                        border: 1px solid rgba(255, 255, 255, 0.15);
+                        padding: 44px 32px;
+                        box-shadow: 0 35px 70px rgba(0, 0, 0, 0.75), 0 0 50px rgba(33, 94, 97, 0.3);
+                        position: relative;
+                        z-index: 10;
+                    }
+                    .splash-logo-halo {
+                        width: 100px;
+                        height: 100px;
+                        margin: 0 auto 24px;
+                        border-radius: 50%;
+                        background: radial-gradient(circle, rgba(254, 127, 45, 0.3) 0%, rgba(33, 94, 97, 0.5) 100%);
+                        border: 3px solid #FE7F2D;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 6px;
+                        box-shadow: 0 0 35px rgba(254, 127, 45, 0.5);
+                    }
+                    .splash-logo-img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: contain;
+                        border-radius: 50%;
+                    }
+                    .splash-icon {
+                        font-size: 46px;
+                        color: #FE7F2D;
+                    }
+                    .splash-title {
+                        font-size: 1.55rem;
+                        font-weight: 800;
+                        margin-bottom: 8px;
+                        color: #ffffff;
+                        line-height: 1.3;
+                    }
+                    .splash-subtitle {
+                        font-size: 0.95rem;
+                        color: rgba(255, 255, 255, 0.7);
+                        margin-bottom: 28px;
+                    }
+                    .splash-loader-bar {
+                        height: 4px;
+                        width: 100%;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 10px;
+                        overflow: hidden;
+                        margin-bottom: 28px;
+                    }
+                    .splash-loader-progress {
+                        height: 100%;
+                        width: 100%;
+                        background: linear-gradient(90deg, #215e61, #FE7F2D);
+                        animation: progressAnim 2.2s ease-in-out infinite;
+                    }
+                    @keyframes progressAnim {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(100%); }
+                    }
+                    .btn-splash-enter {
+                        background: linear-gradient(135deg, #FE7F2D, #d66418);
+                        color: #fff;
+                        border: none;
+                        padding: 13px 32px;
+                        border-radius: 30px;
+                        font-weight: 700;
+                        font-size: 0.95rem;
+                        cursor: pointer;
+                        box-shadow: 0 10px 25px rgba(254, 127, 45, 0.4);
+                        transition: all 0.3s ease;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .btn-splash-enter:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 14px 30px rgba(254, 127, 45, 0.6);
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
     return (
         <div className="login-page">
             <AnimatedBackground />
@@ -131,11 +301,6 @@ export default function LoginPage() {
                     {/* Left Brand & Quote Panel */}
                     <div className="brand-panel">
                         <div className="brand-top">
-                            {/* <div className="brand-header-badge">
-                                <span className="brand-dot" />
-                                <span>Unified Access Portal</span>
-                            </div> */}
-
                             <div className="brand-hero">
                                 <div className="brand-icon-halo" style={{ overflow: 'hidden', padding: schoolSettings.logo_url ? 4 : 0 }}>
                                     {schoolSettings.logo_url ? (
@@ -172,22 +337,24 @@ export default function LoginPage() {
                         </div>
 
                         <div className="brand-footer-bar">
-                            {/* <div className="role-tags">
-                                <span className="role-tag"><i className="bi bi-shield-check" /> Admin</span>
-                                <span className="role-tag"><i className="bi bi-journal-text" /> Teacher</span>
-                                <span className="role-tag"><i className="bi bi-calculator" /> Accountant</span>
-                                <span className="role-tag"><i className="bi bi-person-badge" /> Student</span>
-                            </div> */}
+                            <span className="security-badge-pill">
+                                <i className="bi bi-shield-lock-fill me-1" /> 24H Session Persistence Active
+                            </span>
                         </div>
                     </div>
 
                     {/* Right Form Panel */}
                     <div className="form-panel">
                         <div className="form-header">
-                            <div className="form-avatar-icon">
-                                <i className="bi bi-person-workspace" />
+                            <div className="brand-logo-mobile d-md-none mb-3">
+                                {schoolSettings.logo_url ? (
+                                    <img src={schoolSettings.logo_url} alt={schoolSettings.school_name} className="mobile-logo-img" />
+                                ) : (
+                                    <div className="mobile-logo-icon"><i className="bi bi-mortarboard-fill" /></div>
+                                )}
                             </div>
                             <h2>Welcome Back</h2>
+                            <p className="school-subname-mobile d-md-none text-teal-light mb-1 fw-bold">{schoolSettings.school_name}</p>
                             <p>Sign in to access your portal account</p>
                         </div>
 
@@ -216,7 +383,7 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            <div className="form-group mb-4">
+                            <div className="form-group mb-3">
                                 <label htmlFor="password-input">Password</label>
                                 <div className="input-field-wrap">
                                     <i className="bi bi-lock-fill input-icon" />
@@ -241,6 +408,25 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
+                            {/* 24-Hour Remember Me & Security Policy Row */}
+                            <div className="form-group mb-4">
+                                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-1">
+                                    <label className="remember-me-label d-flex align-items-center gap-2 cursor-pointer mb-0">
+                                        <input
+                                            type="checkbox"
+                                            className="remember-checkbox"
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
+                                        />
+                                        <span className="remember-text">Remember me for 24 Hours</span>
+                                    </label>
+                                    <span className="policy-hint text-muted small">
+                                        <i className="bi bi-shield-check text-success me-1"></i>
+                                        Min {policies.password_min_length} chars
+                                    </span>
+                                </div>
+                            </div>
+
                             <button type="submit" className="btn-submit" disabled={submitting}>
                                 {submitting ? (
                                     <span className="submit-spinner" />
@@ -253,11 +439,11 @@ export default function LoginPage() {
                             </button>
                         </form>
 
-                        {/* <div className="credentials-card">
+                        <div className="credentials-card mt-4">
                             <div className="credentials-content">
                                 <i className="bi bi-key-fill key-icon" />
                                 <div className="credentials-info">
-                                    <span className="credentials-label">Default Demo Credentials</span>
+                                    <span className="credentials-label">Default System Admin</span>
                                     <span className="credentials-val">Username: <strong>root</strong> &bull; Password: <strong>root123</strong></span>
                                 </div>
                             </div>
@@ -267,9 +453,9 @@ export default function LoginPage() {
                                 onClick={handleQuickFill}
                                 title="Auto fill demo credentials"
                             >
-                                Auto Fill
+                                Quick Fill
                             </button>
-                        </div> */}
+                        </div>
                     </div>
                 </main>
             </div>
@@ -311,7 +497,7 @@ export default function LoginPage() {
                 </div>
             </footer>
 
-            {/* Premium Styled JSX */}
+            {/* Responsive & Theme Styles */}
             <style jsx>{`
                 /* Loader */
                 .loader-screen {
@@ -417,29 +603,6 @@ export default function LoginPage() {
                     position: relative;
                 }
 
-                .brand-header-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 0.73rem;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: 1.2px;
-                    background: rgba(254, 127, 45, 0.15);
-                    color: #FE7F2D;
-                    border: 1px solid rgba(254, 127, 45, 0.35);
-                    padding: 6px 16px;
-                    border-radius: 20px;
-                    margin-bottom: 30px;
-                }
-                .brand-dot {
-                    width: 7px;
-                    height: 7px;
-                    border-radius: 50%;
-                    background: #FE7F2D;
-                    box-shadow: 0 0 8px #FE7F2D;
-                }
-
                 .brand-hero {
                     display: flex;
                     align-items: center;
@@ -449,164 +612,127 @@ export default function LoginPage() {
                 .brand-icon-halo {
                     width: 68px;
                     height: 68px;
-                    min-width: 68px;
-                    border-radius: 20px;
-                    background: linear-gradient(135deg, rgba(254, 127, 45, 0.25), rgba(33, 94, 97, 0.5));
-                    border: 1.5px solid rgba(254, 127, 45, 0.45);
+                    border-radius: 50%;
+                    background: radial-gradient(circle, rgba(254, 127, 45, 0.2) 0%, rgba(33, 94, 97, 0.4) 100%);
+                    border: 2px solid #FE7F2D;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    box-shadow: 0 10px 25px rgba(254, 127, 45, 0.3);
-                }
-                .brand-icon-halo i {
-                    font-size: 2.2rem;
+                    font-size: 32px;
                     color: #FE7F2D;
+                    box-shadow: 0 0 25px rgba(254, 127, 45, 0.35);
+                    flex-shrink: 0;
                 }
                 .brand-title {
-                    font-size: 2.35rem;
+                    font-size: 1.6rem;
                     font-weight: 800;
-                    line-height: 1.15;
-                    letter-spacing: -0.5px;
                     margin: 0;
+                    line-height: 1.25;
+                    color: #ffffff;
                 }
                 .text-gradient {
-                    background: linear-gradient(135deg, #FFFFFF 30%, #FE7F2D 100%);
+                    background: linear-gradient(135deg, #FE7F2D 0%, #ffaa6e 100%);
                     -webkit-background-clip: text;
                     -webkit-text-fill-color: transparent;
                 }
 
-                /* Educational Quote Container */
                 .quote-container {
-                    position: relative;
                     background: rgba(255, 255, 255, 0.05);
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     border-radius: 20px;
-                    padding: 28px 30px;
-                    margin-bottom: 32px;
-                    backdrop-filter: blur(10px);
+                    padding: 24px;
+                    position: relative;
+                    margin: 30px 0;
                 }
-                .quote-icon-top i {
-                    font-size: 2.2rem;
+                .quote-icon-top {
+                    font-size: 28px;
                     color: #FE7F2D;
-                    opacity: 0.6;
-                    line-height: 1;
-                    display: block;
-                    margin-bottom: 8px;
+                    margin-bottom: 6px;
                 }
                 .quote-text {
-                    font-size: 1.05rem;
+                    font-size: 0.95rem;
                     font-style: italic;
-                    line-height: 1.6;
-                    color: rgba(240, 247, 236, 0.95);
-                    margin-bottom: 16px;
-                    font-weight: 300;
+                    color: rgba(255, 255, 255, 0.85);
+                    line-height: 1.5;
+                    margin-bottom: 12px;
                 }
                 .quote-author {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-                .author-dash {
-                    color: #FE7F2D;
-                    font-weight: bold;
-                }
-                .author-name {
-                    font-size: 0.92rem;
-                    font-weight: 700;
-                    color: #FE7F2D;
-                    letter-spacing: 0.5px;
-                    text-transform: uppercase;
-                }
-
-                .brand-footer-bar {
-                    padding-top: 20px;
-                    border-top: 1px solid rgba(255, 255, 255, 0.1);
-                }
-                .role-tags {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px;
-                }
-                .role-tag {
-                    font-size: 0.74rem;
+                    font-size: 0.82rem;
                     font-weight: 600;
-                    color: rgba(255, 255, 255, 0.75);
-                    background: rgba(255, 255, 255, 0.06);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    padding: 5px 12px;
-                    border-radius: 12px;
+                    color: #FE7F2D;
                     display: flex;
                     align-items: center;
                     gap: 6px;
                 }
-                .role-tag i {
-                    color: #FE7F2D;
-                    font-size: 0.85rem;
+
+                .security-badge-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: #215e61;
+                    background: rgba(33, 94, 97, 0.25);
+                    border: 1px solid rgba(33, 94, 97, 0.5);
+                    padding: 6px 14px;
+                    border-radius: 20px;
                 }
 
                 /* Form Panel (Right) */
                 .form-panel {
                     flex: 1;
-                    background: #ffffff;
-                    padding: 55px 44px;
+                    padding: 55px 48px;
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
+                    background: rgba(15, 28, 36, 0.4);
                 }
                 .form-header {
-                    text-align: center;
-                    margin-bottom: 28px;
+                    margin-bottom: 30px;
+                    color: white;
                 }
                 .form-avatar-icon {
-                    width: 54px;
-                    height: 54px;
-                    margin: 0 auto 14px;
-                    border-radius: 16px;
-                    background: rgba(33, 94, 97, 0.08);
-                    border: 1.5px solid rgba(33, 94, 97, 0.15);
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 14px;
+                    background: rgba(33, 94, 97, 0.25);
+                    border: 1px solid rgba(33, 94, 97, 0.4);
+                    color: #215e61;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: #215E61;
-                    font-size: 1.55rem;
+                    font-size: 24px;
+                    margin-bottom: 16px;
                 }
                 .form-header h2 {
                     font-size: 1.75rem;
                     font-weight: 800;
-                    color: #1a2f3b;
                     margin-bottom: 6px;
                 }
                 .form-header p {
-                    font-size: 0.88rem;
-                    color: #64748b;
+                    color: rgba(255, 255, 255, 0.6);
+                    font-size: 0.9rem;
+                    margin: 0;
                 }
 
-                /* Error Alert */
                 .error-alert {
+                    background: rgba(220, 53, 69, 0.15);
+                    border: 1px solid rgba(220, 53, 69, 0.4);
+                    color: #ff6b6b;
+                    padding: 12px 16px;
+                    border-radius: 12px;
+                    font-size: 0.85rem;
                     display: flex;
                     align-items: center;
                     gap: 10px;
-                    background: #fef2f2;
-                    border: 1px solid #fecaca;
-                    color: #dc2626;
-                    padding: 12px 14px;
-                    border-radius: 10px;
-                    font-size: 0.85rem;
-                    font-weight: 500;
                     margin-bottom: 20px;
                 }
-                .error-alert i {
-                    font-size: 1.1rem;
-                    flex-shrink: 0;
-                }
 
-                /* Form Groups & Inputs */
                 .form-group label {
+                    display: block;
                     font-size: 0.82rem;
                     font-weight: 600;
-                    color: #334155;
-                    margin-bottom: 6px;
-                    display: block;
+                    color: rgba(255, 255, 255, 0.8);
+                    margin-bottom: 8px;
                 }
                 .input-field-wrap {
                     position: relative;
@@ -615,114 +741,102 @@ export default function LoginPage() {
                 }
                 .input-icon {
                     position: absolute;
-                    left: 14px;
-                    color: #94a3b8;
-                    font-size: 1.05rem;
-                    transition: color 0.2s;
+                    left: 16px;
+                    color: rgba(255, 255, 255, 0.4);
+                    font-size: 18px;
                     pointer-events: none;
                 }
                 .form-input {
                     width: 100%;
-                    height: 48px;
-                    padding: 0 42px 0 42px;
-                    background: #f8fafc;
-                    border: 1.5px solid #e2e8f0;
-                    border-radius: 10px;
-                    font-size: 0.92rem;
-                    color: #0f172a;
-                    outline: none;
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    height: 50px;
+                    padding: 0 46px;
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 14px;
+                    color: white;
+                    font-size: 0.95rem;
+                    transition: all 0.25s ease;
                 }
                 .form-input:focus {
-                    background: #ffffff;
-                    border-color: #215E61;
-                    box-shadow: 0 0 0 4px rgba(33, 94, 97, 0.12);
-                }
-                .form-input:focus + .input-icon,
-                .input-field-wrap:focus-within .input-icon {
-                    color: #215E61;
+                    outline: none;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-color: #FE7F2D;
+                    box-shadow: 0 0 20px rgba(254, 127, 45, 0.25);
                 }
                 .btn-toggle-password {
                     position: absolute;
-                    right: 12px;
+                    right: 14px;
                     background: none;
                     border: none;
-                    color: #94a3b8;
+                    color: rgba(255, 255, 255, 0.4);
+                    font-size: 18px;
                     cursor: pointer;
-                    padding: 6px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.1rem;
-                    transition: color 0.2s;
-                }
-                .btn-toggle-password:hover {
-                    color: #215E61;
+                    padding: 4px;
                 }
 
-                /* Submit Button */
+                /* Remember Me Checkbox */
+                .remember-me-label {
+                    color: rgba(255, 255, 255, 0.75);
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                }
+                .remember-checkbox {
+                    width: 18px;
+                    height: 18px;
+                    accent-color: #FE7F2D;
+                    cursor: pointer;
+                }
+
                 .btn-submit {
                     width: 100%;
-                    height: 50px;
-                    background: linear-gradient(135deg, #215E61 0%, #233D4D 100%);
-                    border: none;
-                    border-radius: 10px;
+                    height: 52px;
+                    background: linear-gradient(135deg, #FE7F2D 0%, #e06512 100%);
                     color: white;
-                    font-size: 0.95rem;
+                    border: none;
+                    border-radius: 14px;
+                    font-size: 1rem;
                     font-weight: 700;
+                    cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     gap: 8px;
-                    cursor: pointer;
-                    box-shadow: 0 8px 20px rgba(33, 94, 97, 0.3);
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    margin-top: 6px;
+                    box-shadow: 0 12px 25px rgba(254, 127, 45, 0.35);
+                    transition: all 0.3s ease;
                 }
                 .btn-submit:hover:not(:disabled) {
                     transform: translateY(-2px);
-                    box-shadow: 0 12px 24px rgba(33, 94, 97, 0.4);
-                    background: linear-gradient(135deg, #1b4f52 0%, #1a2f3b 100%);
+                    box-shadow: 0 16px 30px rgba(254, 127, 45, 0.5);
                 }
-                .btn-submit:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-                .btn-arrow {
-                    font-size: 1.3rem;
-                    transition: transform 0.2s;
-                }
-                .btn-submit:hover:not(:disabled) .btn-arrow {
-                    transform: translateX(4px);
-                }
+
                 .submit-spinner {
                     width: 22px;
                     height: 22px;
-                    border: 2px solid rgba(255,255,255,0.3);
+                    border: 2.5px solid rgba(255,255,255,0.3);
                     border-top-color: white;
                     border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
+                    animation: spin 0.7s linear infinite;
                 }
 
-                /* Credentials Helper Box */
                 .credentials-card {
-                    margin-top: 24px;
-                    background: #f1f5f9;
-                    border: 1px dashed #cbd5e1;
-                    border-radius: 10px;
-                    padding: 12px 14px;
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px dashed rgba(255, 255, 255, 0.15);
+                    border-radius: 14px;
+                    padding: 14px 16px;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 10px;
+                    gap: 12px;
                 }
                 .credentials-content {
                     display: flex;
                     align-items: center;
                     gap: 10px;
+                    color: rgba(255, 255, 255, 0.8);
                 }
                 .key-icon {
-                    color: #215E61;
-                    font-size: 1.1rem;
+                    color: #FE7F2D;
+                    font-size: 18px;
                 }
                 .credentials-info {
                     display: flex;
@@ -732,195 +846,166 @@ export default function LoginPage() {
                     font-size: 0.72rem;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
-                    font-weight: 700;
-                    color: #64748b;
+                    color: rgba(255, 255, 255, 0.5);
                 }
                 .credentials-val {
-                    font-size: 0.8rem;
-                    color: #1e293b;
+                    font-size: 0.82rem;
                 }
                 .btn-quick-fill {
-                    background: #ffffff;
-                    border: 1px solid #cbd5e1;
-                    border-radius: 6px;
-                    padding: 4px 10px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    color: #215E61;
+                    background: rgba(254, 127, 45, 0.15);
+                    color: #FE7F2D;
+                    border: 1px solid rgba(254, 127, 45, 0.3);
+                    padding: 6px 14px;
+                    border-radius: 10px;
+                    font-size: 0.78rem;
+                    font-weight: 700;
                     cursor: pointer;
                     white-space: nowrap;
-                    transition: all 0.2s;
+                    transition: all 0.2s ease;
                 }
                 .btn-quick-fill:hover {
-                    background: #215E61;
+                    background: #FE7F2D;
                     color: white;
-                    border-color: #215E61;
                 }
 
-                /* Developer Footer */
+                /* Dev Footer */
                 .dev-footer {
                     position: relative;
                     z-index: 10;
-                    width: 100%;
-                    max-width: 1060px;
                     margin-top: 30px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
+                    text-align: center;
                 }
                 .dev-footer-title {
-                    margin-bottom: 16px;
-                    position: relative;
-                }
-                .dev-footer-title span {
-                    font-size: 0.72rem;
+                    font-size: 0.75rem;
                     text-transform: uppercase;
-                    letter-spacing: 2px;
-                    color: rgba(255, 255, 255, 0.45);
-                    font-weight: 700;
+                    letter-spacing: 1px;
+                    color: rgba(255, 255, 255, 0.4);
+                    margin-bottom: 12px;
                 }
                 .dev-cards-row {
                     display: flex;
+                    gap: 16px;
                     justify-content: center;
-                    gap: 20px;
                     flex-wrap: wrap;
-                    width: 100%;
                 }
                 .dev-card {
-                    background: rgba(15, 23, 42, 0.55);
-                    backdrop-filter: blur(16px);
-                    -webkit-backdrop-filter: blur(16px);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 16px;
-                    padding: 16px 20px;
                     display: flex;
                     align-items: center;
-                    gap: 16px;
-                    width: 360px;
-                    max-width: 100%;
-                    text-decoration: none;
+                    gap: 12px;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 16px;
+                    padding: 10px 16px;
                     color: white;
-                    position: relative;
-                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    text-decoration: none;
+                    transition: all 0.3s ease;
                 }
-                .dev-card:hover:not(.dev-card-static) {
-                    transform: translateY(-4px);
-                    background: rgba(33, 94, 97, 0.3);
-                    border-color: rgba(254, 127, 45, 0.4);
-                    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
-                }
-                .dev-card-static {
-                    cursor: default;
+                .dev-card:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    border-color: #FE7F2D;
+                    transform: translateY(-2px);
                 }
                 .dev-avatar-wrapper {
                     position: relative;
-                    width: 52px;
-                    height: 52px;
-                    flex-shrink: 0;
+                    width: 36px;
+                    height: 36px;
                 }
                 .dev-avatar-img {
                     width: 100%;
                     height: 100%;
-                    border-radius: 14px;
+                    border-radius: 50%;
                     object-fit: cover;
-                    border: 2px solid rgba(255, 255, 255, 0.15);
-                    transition: border-color 0.3s;
-                }
-                .dev-card:hover:not(.dev-card-static) .dev-avatar-img {
-                    border-color: #FE7F2D;
-                }
-                .dev-avatar-placeholder {
-                    width: 100%;
-                    height: 100%;
-                    border-radius: 14px;
-                    background: linear-gradient(135deg, #FE7F2D, #e66e20);
-                    color: white;
-                    font-size: 1.4rem;
-                    font-weight: 800;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
                 }
                 .dev-online-ring {
                     position: absolute;
-                    bottom: -2px;
-                    right: -2px;
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #10B981;
+                    bottom: 0;
+                    right: 0;
+                    width: 10px;
+                    height: 10px;
+                    background: #198754;
                     border: 2px solid #0f1c24;
+                    border-radius: 50%;
+                }
+                .dev-avatar-placeholder {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    background: #215e61;
+                    color: white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 700;
                 }
                 .dev-meta {
-                    display: flex;
-                    flex-direction: column;
-                    flex: 1;
-                    min-width: 0;
+                    text-align: left;
                 }
                 .dev-role-badge {
                     font-size: 0.65rem;
-                    text-transform: uppercase;
-                    letter-spacing: 0.8px;
-                    font-weight: 700;
                     color: #FE7F2D;
-                    margin-bottom: 2px;
+                    font-weight: 700;
+                    display: block;
                 }
                 .dev-name {
-                    font-size: 0.98rem;
+                    font-size: 0.85rem;
                     font-weight: 700;
-                    color: #ffffff;
-                    margin: 0 0 2px;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
+                    margin: 0;
+                    color: white;
                 }
                 .dev-bio {
-                    font-size: 0.78rem;
-                    color: rgba(255, 255, 255, 0.65);
+                    font-size: 0.72rem;
+                    color: rgba(255, 255, 255, 0.5);
                     margin: 0;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .dev-external-icon {
-                    color: rgba(255, 255, 255, 0.4);
-                    font-size: 0.9rem;
-                    transition: color 0.2s, transform 0.2s;
-                }
-                .dev-card:hover:not(.dev-card-static) .dev-external-icon {
-                    color: #FE7F2D;
-                    transform: translate(2px, -2px);
                 }
 
-                /* Responsive Breakpoints */
-                @media (max-width: 960px) {
+                /* ── Android & Tablet Responsive Media Queries ── */
+                @media (max-width: 991px) {
+                    .login-page {
+                        padding: 16px 12px 24px;
+                    }
                     .glass-board {
                         flex-direction: column;
+                        border-radius: 24px;
                     }
                     .brand-panel {
-                        padding: 40px 32px;
+                        padding: 30px 24px 20px;
                         border-right: none;
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        align-items: center;
+                        text-align: center;
+                    }
+                    .brand-hero {
+                        flex-direction: column;
+                        margin-bottom: 12px;
+                        gap: 12px;
+                    }
+                    .quote-container {
+                        display: none;
                     }
                     .form-panel {
-                        padding: 40px 32px;
-                    }
-                }
-                @media (max-width: 576px) {
-                    .login-page {
-                        padding: 16px 10px;
-                    }
-                    .brand-panel {
-                        padding: 28px 20px;
+                        padding: 32px 24px;
                     }
                     .brand-title {
-                        font-size: 1.85rem;
+                        font-size: 1.35rem;
                     }
-                    .form-panel {
-                        padding: 28px 20px;
+                    .mobile-logo-img {
+                        width: 64px;
+                        height: 64px;
+                        border-radius: 50%;
+                        border: 2px solid #FE7F2D;
+                        object-fit: contain;
                     }
-                    .dev-card {
-                        width: 100%;
+                    .mobile-logo-icon {
+                        width: 60px;
+                        height: 60px;
+                        border-radius: 50%;
+                        background: #215e61;
+                        color: #FE7F2D;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 28px;
+                        margin: 0 auto;
                     }
                 }
             `}</style>

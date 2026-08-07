@@ -23,6 +23,20 @@ type BackupFile = {
     created_at: string;
 };
 
+type ActiveSession = {
+    session_id: number;
+    user_id: number;
+    username: string;
+    full_name: string;
+    role_name: string;
+    ip_address: string;
+    user_agent: string;
+    remember_me: boolean;
+    created_at: string;
+    last_activity: string;
+    expires_at: string;
+};
+
 export default function SystemConfigPage() {
     const [settings, setSettings] = useState<SystemSetting[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,6 +45,10 @@ export default function SystemConfigPage() {
     const [formData, setFormData] = useState<any>({});
     const [saving, setSaving] = useState(false);
     const { hasPermission } = useAuth();
+
+    // Active Sessions State
+    const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
+    const [loadingSessions, setLoadingSessions] = useState(false);
 
     // Backup State
     const [backups, setBackups] = useState<BackupFile[]>([]);
@@ -42,7 +60,55 @@ export default function SystemConfigPage() {
         fetchSettings();
         fetchStats();
         fetchBackups();
+        fetchActiveSessions();
     }, []);
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+
+    const fetchActiveSessions = async () => {
+        setLoadingSessions(true);
+        try {
+            const res = await fetch(`${API_URL}/auth/active-sessions`);
+            if (res.ok) {
+                const data = await res.json();
+                setActiveSessions(data);
+            }
+        } catch (e) {
+            console.error('Failed to fetch active sessions', e);
+        } finally {
+            setLoadingSessions(false);
+        }
+    };
+
+    const handleRevokeSession = async (sessionId: number) => {
+        if (!confirm('Are you sure you want to terminate this user session?')) return;
+        try {
+            const res = await fetch(`${API_URL}/auth/revoke-session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId })
+            });
+            if (res.ok) {
+                showToast.success('Session terminated successfully.');
+                fetchActiveSessions();
+            }
+        } catch (e) {
+            showToast.error('Failed to terminate session.');
+        }
+    };
+
+    const handleRevokeAllSessions = async () => {
+        if (!confirm('WARNING: This will log out all currently active users across all devices. Proceed?')) return;
+        try {
+            const res = await fetch(`${API_URL}/auth/revoke-all-sessions`, { method: 'POST' });
+            if (res.ok) {
+                showToast.success('All active sessions terminated.');
+                fetchActiveSessions();
+            }
+        } catch (e) {
+            showToast.error('Failed to revoke all sessions.');
+        }
+    };
 
     const fetchSettings = async () => {
         try {
@@ -318,17 +384,109 @@ export default function SystemConfigPage() {
                     {/* Security Tab */}
                     {activeTab === 'security' && (
                         <div className="animate__animated animate__fadeIn">
-                            <h5 className="mb-4 text-primary-teal">Login & Session Policies</h5>
-                            <div className="row g-4">
+                            <h5 className="mb-4 text-primary-teal"><i className="bi bi-shield-check me-2"></i>Login & Session Policies</h5>
+                            <div className="row g-4 mb-5">
                                 {securitySettings.map(setting => (
                                     <div key={setting.setting_key} className="col-12 col-md-6">
                                         <label className="form-label fw-semibold">
                                             {setting.setting_key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                                         </label>
                                         {renderSettingInput(setting)}
-                                        <small className="text-muted">{setting.description}</small>
+                                        <small className="text-muted d-block mt-1">{setting.description}</small>
                                     </div>
                                 ))}
+                            </div>
+
+                            {/* Live Active Sessions Table */}
+                            <div className="border-top pt-4">
+                                <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                    <div>
+                                        <h5 className="mb-1 text-primary-dark">
+                                            <i className="bi bi-people-fill me-2 text-primary-teal"></i>
+                                            Active User Sessions ({activeSessions.length})
+                                        </h5>
+                                        <div className="text-muted small">Real-time active login sessions with IP, device info, and 24H persistence status</div>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                        <button className="btn btn-outline-secondary btn-sm" onClick={fetchActiveSessions} disabled={loadingSessions}>
+                                            <i className={`bi bi-arrow-clockwise me-1 ${loadingSessions ? 'spin' : ''}`}></i> Refresh
+                                        </button>
+                                        {activeSessions.length > 0 && hasPermission('settings', 'write') && (
+                                            <button className="btn btn-outline-danger btn-sm" onClick={handleRevokeAllSessions}>
+                                                <i className="bi bi-slash-circle me-1"></i> Revoke All Sessions
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="table-responsive rounded border">
+                                    <table className="table table-hover table-striped mb-0 align-middle">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Role</th>
+                                                <th>IP Address</th>
+                                                <th>Device / Browser</th>
+                                                <th>Session Type</th>
+                                                <th>Logged In</th>
+                                                <th>Expires</th>
+                                                <th className="text-end">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {activeSessions.length > 0 ? (
+                                                activeSessions.map(s => (
+                                                    <tr key={s.session_id}>
+                                                        <td>
+                                                            <div className="fw-bold text-dark">{s.full_name || s.username}</div>
+                                                            <div className="text-muted small">@{s.username}</div>
+                                                        </td>
+                                                        <td>
+                                                            <span className="badge bg-info text-dark">{s.role_name || 'User'}</span>
+                                                        </td>
+                                                        <td className="font-monospace small">{s.ip_address}</td>
+                                                        <td>
+                                                            <div className="text-truncate small" style={{ maxWidth: '220px' }} title={s.user_agent}>
+                                                                <i className="bi bi-display me-1 text-muted"></i>
+                                                                {s.user_agent.includes('Mobile') ? 'Mobile Device' : 'Desktop Browser'}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            {s.remember_me ? (
+                                                                <span className="badge bg-success-subtle text-success border border-success-subtle">
+                                                                    <i className="bi bi-clock-history me-1"></i> 24H Persistent
+                                                                </span>
+                                                            ) : (
+                                                                <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                                    Tab Session
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="small text-muted">{new Date(s.created_at).toLocaleString()}</td>
+                                                        <td className="small text-muted">{new Date(s.expires_at).toLocaleString()}</td>
+                                                        <td className="text-end">
+                                                            {hasPermission('settings', 'write') && (
+                                                                <button
+                                                                    className="btn btn-outline-danger btn-sm px-2 py-1"
+                                                                    onClick={() => handleRevokeSession(s.session_id)}
+                                                                    title="Force Logout Session"
+                                                                >
+                                                                    <i className="bi bi-box-arrow-right me-1"></i> Terminate
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={8} className="text-center py-4 text-muted">
+                                                        {loadingSessions ? 'Loading active user sessions...' : 'No active sessions found.'}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )}

@@ -23,13 +23,16 @@ export interface AuthUser {
     permissions: Permission[];
     employee_id?: number;
     incharge_class?: { class_id: number, section_id: number } | null;
+    token?: string;
+    remember_me?: boolean;
+    expires_at?: string;
 }
 
 interface AuthContextType {
     user: AuthUser | null;
     isLoggedIn: boolean;
     isLoading: boolean;
-    login: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
+    login: (username: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
     logout: () => void;
     hasPermission: (module: string, action?: 'read' | 'write' | 'delete') => boolean;
 }
@@ -37,6 +40,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_KEY = 'sms_user_session';
+const REMEMBER_KEY = 'sms_remember_session';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -44,26 +48,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
-    // Restore session from sessionStorage on mount
+    // Restore session from sessionStorage or 24H localStorage on mount
     useEffect(() => {
         try {
-            const stored = sessionStorage.getItem(SESSION_KEY);
-            if (stored) {
-                setUser(JSON.parse(stored));
+            const storedSession = sessionStorage.getItem(SESSION_KEY);
+            if (storedSession) {
+                const parsed = JSON.parse(storedSession);
+                setUser(parsed);
+            } else {
+                const storedRemember = localStorage.getItem(REMEMBER_KEY);
+                if (storedRemember) {
+                    const parsed = JSON.parse(storedRemember);
+                    const expiresAt = parsed.expires_at ? new Date(parsed.expires_at).getTime() : 0;
+                    if (expiresAt > Date.now()) {
+                        setUser(parsed);
+                        sessionStorage.setItem(SESSION_KEY, JSON.stringify(parsed));
+                    } else {
+                        localStorage.removeItem(REMEMBER_KEY);
+                    }
+                }
             }
         } catch {
             sessionStorage.removeItem(SESSION_KEY);
+            localStorage.removeItem(REMEMBER_KEY);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    const login = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
         try {
             const res = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, remember_me: rememberMe }),
             });
 
             const data = await res.json();
@@ -74,21 +92,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             setUser(data);
             sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+
+            if (rememberMe) {
+                localStorage.setItem(REMEMBER_KEY, JSON.stringify(data));
+            } else {
+                localStorage.removeItem(REMEMBER_KEY);
+            }
+
             return { success: true };
         } catch (err) {
             return { success: false, message: 'Cannot connect to server. Please try again.' };
         }
     }, []);
 
-    const logout = useCallback(() => {
+    const logout = useCallback(async () => {
+        try {
+            if (user?.token) {
+                fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${user.token}`
+                    }
+                }).catch(() => {});
+            }
+        } catch (e) {}
+
         setUser(null);
         sessionStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(REMEMBER_KEY);
         router.push('/login');
-    }, [router]);
+    }, [user, router]);
 
     // Returns true if Administrator/Supervisor can access, OR if role has explicit permission.
-    // Supports both module-level ('attendance') and page-level ('attendance.daily') keys.
-    // Hierarchy: Admin (>=90) > Supervisor (>=65) > Role permissions
     const hasPermission = useCallback((module: string, action: 'read' | 'write' | 'delete' = 'read'): boolean => {
         if (!user) return false;
         
@@ -105,14 +141,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         
         if (roleLevel >= 65 && isModuleAllowed) {
-            // Supervisors can read and write (not delete)
             if (action === 'delete') return false;
             return true;
         }
 
         const perms = user.permissions || [];
 
-        // 3. Try exact match (e.g., 'students.admission')
+        // 3. Try exact match
         const exact = perms.find(p => p.module_name.toLowerCase() === moduleLower);
         if (exact) {
             if (action === 'read') return exact.can_read;
@@ -120,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (action === 'delete') return exact.can_delete;
         }
 
-        // 4. Fallback to parent module (e.g., 'students' for 'students.admission')
+        // 4. Fallback to parent module
         const parentModule = module.includes('.') ? module.split('.')[0] : null;
         if (parentModule) {
             const parent = perms.find(p => p.module_name.toLowerCase() === parentModule.toLowerCase());
@@ -131,9 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        // 5. Module-level check: if called with a bare module key (e.g. 'students') and no
-        //    module-level row exists, check if ANY page-level row in that module grants access.
-        //    This allows sidebar nav & layout guards to work when only page-level keys are stored.
+        // 5. Module-level check
         if (!module.includes('.')) {
             const prefix = moduleLower + '.';
             const anyPageAccess = perms.some(p => {
