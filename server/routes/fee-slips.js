@@ -388,11 +388,55 @@ router.get('/available-months', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+const cleanupCorruptLineItems = async () => {
+    try {
+        await pool.query(`
+            UPDATE slip_line_items 
+            SET paid_amount = 0 
+            WHERE slip_id IN (SELECT slip_id FROM monthly_fee_slips WHERE paid_amount <= 0 OR paid_amount IS NULL)
+        `);
+        await pool.query(`
+            UPDATE slip_line_items 
+            SET paid_amount = LEAST(paid_amount, amount) 
+            WHERE paid_amount > amount
+        `);
+        const mismatchSlips = await pool.query(`
+            SELECT mfs.slip_id, mfs.paid_amount
+            FROM monthly_fee_slips mfs
+            JOIN (
+                SELECT slip_id, SUM(paid_amount) as sum_paid
+                FROM slip_line_items
+                GROUP BY slip_id
+            ) sli ON sli.slip_id = mfs.slip_id
+            WHERE ABS(sli.sum_paid - mfs.paid_amount) > 0.01
+        `);
+        for (const s of mismatchSlips.rows) {
+            const slipId = s.slip_id;
+            const slipPaid = parseFloat(s.paid_amount) || 0;
+            await pool.query('UPDATE slip_line_items SET paid_amount = 0 WHERE slip_id = $1', [slipId]);
+            if (slipPaid > 0) {
+                const items = await pool.query('SELECT item_id, amount FROM slip_line_items WHERE slip_id = $1 ORDER BY item_id', [slipId]);
+                let remAlloc = slipPaid;
+                for (const item of items.rows) {
+                    if (remAlloc <= 0) break;
+                    const itemAmt = parseFloat(item.amount) || 0;
+                    const itemPaid = parseFloat(Math.min(remAlloc, itemAmt).toFixed(2));
+                    await pool.query('UPDATE slip_line_items SET paid_amount = $1 WHERE item_id = $2', [itemPaid, item.item_id]);
+                    remAlloc = parseFloat((remAlloc - itemPaid).toFixed(2));
+                }
+            }
+        }
+    } catch (e) { }
+};
+
 // GET /fee-slips?class_id=&year=&month= (class_id optional, month optional)
 router.get('/', async (req, res) => {
     try {
         const { class_id, month, year } = req.query;
         if (!year) return res.status(400).json({ error: 'year is required' });
+
+        // Auto-cleanup any corrupt line item paid amounts before returning slips
+        await cleanupCorruptLineItems();
 
         // Build WHERE conditions dynamically
         const params = [year];
@@ -1061,6 +1105,20 @@ router.delete('/payments/:payment_id', async (req, res) => {
             'UPDATE monthly_fee_slips SET paid_amount=$1, status=$2 WHERE slip_id=$3 RETURNING *',
             [newPaid, newStatus, p.slip_id]
         );
+
+        // ── Re-sync slip_line_items paid_amount for this slip ─────────────
+        await client.query('UPDATE slip_line_items SET paid_amount = 0 WHERE slip_id = $1', [p.slip_id]);
+        if (newPaid > 0) {
+            const itemsRes = await client.query('SELECT item_id, amount FROM slip_line_items WHERE slip_id = $1 ORDER BY item_id', [p.slip_id]);
+            let remAlloc = newPaid;
+            for (const item of itemsRes.rows) {
+                if (remAlloc <= 0) break;
+                const itemAmt = parseFloat(item.amount) || 0;
+                const itemPaid = parseFloat(Math.min(remAlloc, itemAmt).toFixed(2));
+                await client.query('UPDATE slip_line_items SET paid_amount = $1 WHERE item_id = $2', [itemPaid, item.item_id]);
+                remAlloc = parseFloat((remAlloc - itemPaid).toFixed(2));
+            }
+        }
 
         // ── Reverse OPB Waterfall ─────────────────────────────────────────────
         // When a payment was recorded, the waterfall may have:
