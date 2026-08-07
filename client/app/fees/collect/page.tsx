@@ -178,25 +178,36 @@ export default function CollectFeePage() {
 
     const openPayModal = async (slip: SlipRow) => {
         setActiveSlip(slip);
-        const initialHeads: Record<string, string> = {};
-        if (slip.line_items && slip.line_items.length > 0) {
-            slip.line_items.forEach((item: any) => {
-                const headId = item.item_id.toString(); // Map correctly to table row ID
-                const rem = parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0);
-                initialHeads[headId] = rem > 0 ? rem.toString() : '';
-            });
-        } else {
-            const balance = parseFloat(slip.total_amount as any) - parseFloat(slip.paid_amount as any);
-            initialHeads['fallback'] = balance > 0 ? balance.toString() : '';
-        }
-        setHeadPayVals(initialHeads);
+        const buildInitialHeads = (targetSlip: SlipRow) => {
+            const initialHeads: Record<string, string> = {};
+            if (targetSlip.line_items && targetSlip.line_items.length > 0) {
+                targetSlip.line_items.forEach((item: any) => {
+                    const headId = item.item_id ? item.item_id.toString() : item.head_name;
+                    const rem = Math.max(0, parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0));
+                    initialHeads[headId] = rem > 0 ? rem.toString() : '';
+                });
+            } else {
+                const balance = Math.max(0, parseFloat(targetSlip.total_amount as any) - parseFloat(targetSlip.paid_amount as any));
+                initialHeads['fallback'] = balance > 0 ? balance.toString() : '';
+            }
+            return initialHeads;
+        };
+
+        setHeadPayVals(buildInitialHeads(slip));
         setPayMethod('cash'); setPayDate(new Date().toISOString().split('T')[0]);
         setReceivedBy(''); setRefNo(''); setNotes('');
         setPayModal(true);
         setLoadingHistory(true); setSlipPayments([]);
         try {
             const r = await fetch(`${API}/fee-slips/${slip.slip_id}`);
-            const d = await r.json(); setSlipPayments(d.payments || []);
+            const d = await r.json();
+            setSlipPayments(d.payments || []);
+            if (d.slip) {
+                setActiveSlip(d.slip);
+                if (d.slip.line_items && d.slip.line_items.length > 0) {
+                    setHeadPayVals(buildInitialHeads(d.slip));
+                }
+            }
         } catch { setSlipPayments([]); }
         finally { setLoadingHistory(false); }
     };

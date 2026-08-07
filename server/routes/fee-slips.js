@@ -417,7 +417,7 @@ router.get('/', async (req, res) => {
         const result = await pool.query(`
             SELECT mfs.*, s.first_name, s.last_name, s.admission_no, s.family_id,
                      s.father_name, s.father_phone, c.class_name, sec.section_name, s.category,
-                COALESCE(JSON_AGG(JSON_BUILD_OBJECT('item_id',sli.item_id,'head_name',sli.head_name,'amount',sli.amount,'note',sli.note) ORDER BY sli.item_id) FILTER (WHERE sli.item_id IS NOT NULL),'[]') as line_items
+                COALESCE(JSON_AGG(JSON_BUILD_OBJECT('item_id',sli.item_id,'head_name',sli.head_name,'amount',sli.amount,'paid_amount',COALESCE(sli.paid_amount,0),'note',sli.note) ORDER BY sli.item_id) FILTER (WHERE sli.item_id IS NOT NULL),'[]') as line_items
             FROM monthly_fee_slips mfs
             JOIN students s ON mfs.student_id = s.student_id
             LEFT JOIN classes c ON mfs.class_id = c.class_id
