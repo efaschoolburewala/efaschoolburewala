@@ -1240,15 +1240,25 @@ export default function CollectFeePage() {
                                             <div className="row g-2 mt-2">
                                                 <div className="col-12 w-100 mb-2">
                                                     <label className="form-label small fw-bold text-muted mb-2">Amount Breakdown <span className="text-danger">*</span></label>
-                                                    <div className="d-flex flex-column gap-2 p-2 bg-light border rounded" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                                                    <div className="d-flex flex-column gap-2 p-2 bg-light border rounded" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                                                         {(!activeSlip.line_items || activeSlip.line_items.length === 0) ? (
-                                                            <div className="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm">
+                                                            <div className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
                                                                 <span className="small fw-bold text-dark">Total Balance</span>
-                                                                <div className="input-group input-group-sm w-auto" style={{ maxWidth: '120px' }}>
-                                                                    <span className="input-group-text bg-white small">PKR</span>
-                                                                    <input type="number" className="form-control form-control-sm text-end" placeholder="0"
-                                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
-                                                                        value={headPayVals['fallback'] || ''} onChange={e => setHeadPayVals({ ...headPayVals, fallback: e.target.value })} min="0" />
+                                                                <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
+                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold">PKR</span>
+                                                                    <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
+                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
+                                                                        value={headPayVals['fallback'] || ''}
+                                                                        onChange={(e) => {
+                                                                            const vStr = e.target.value;
+                                                                            if (vStr === '') { setHeadPayVals({ ...headPayVals, fallback: '' }); return; }
+                                                                            let val = Math.max(0, parseFloat(vStr) || 0);
+                                                                            const totBal = Math.max(0, parseFloat(activeSlip.total_amount as any) - parseFloat(activeSlip.paid_amount as any));
+                                                                            if (totBal > 0 && val > totBal) val = totBal;
+                                                                            setHeadPayVals({ ...headPayVals, fallback: val > 0 ? val.toString() : '' });
+                                                                        }}
+                                                                        style={{ fontSize: '0.9rem', fontWeight: 600 }}
+                                                                        min="0" />
                                                                 </div>
                                                             </div>
                                                         ) : (
@@ -1290,23 +1300,28 @@ export default function CollectFeePage() {
                                                                     const dsDis = parseFloat(combRem) <= 0 && combPaid > 0;
 
                                                                     elements.push(
-                                                                        <div key={'comb-' + (keyIdx++)} className="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm">
-                                                                            <div className="d-flex flex-column" style={{ width: '55%' }}>
-                                                                                <span className="text-dark fw-bold" style={{ fontSize: '0.85rem' }}>
+                                                                        <div key={'comb-' + (keyIdx++)} className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
+                                                                            <div className="d-flex flex-column flex-grow-1 min-w-0 me-2" style={{ maxWidth: '100%' }}>
+                                                                                <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>
                                                                                     {(tItem && pbItem) ? 'Tuition Fee + Prev. Balance' : (tItem ? (tItem.head_name || 'Tuition Fee') : (pbItem?.head_name || 'Previous Balance'))}
                                                                                 </span>
-                                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Billed: {combAmtB.toLocaleString('en-PK')} {combPaid > 0 ? ' • Paid: ' + combPaid.toLocaleString('en-PK') : ''}</span>
+                                                                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>Billed: {combAmtB.toLocaleString('en-PK')} {combPaid > 0 ? ' • Paid: ' + combPaid.toLocaleString('en-PK') : ''}</span>
                                                                                 {(tItem && pbItem) && (
-                                                                                    <span className="text-muted" style={{ fontSize: '0.65rem' }}>
+                                                                                    <span className="text-muted fw-semibold" style={{ fontSize: '0.68rem' }}>
                                                                                         (Remaining Tuition: {tRem.toLocaleString('en-PK')} | Prev: {pbRem.toLocaleString('en-PK')})
                                                                                     </span>
                                                                                 )}
                                                                             </div>
-                                                                            <div className="d-flex align-items-center gap-2 justify-content-end" style={{ width: '45%' }}>
-                                                                                {combAmtB > 0 && <span className="text-danger fw-bold" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Bal: {combRem}</span>}
-                                                                                <div className="input-group input-group-sm w-auto" style={{ maxWidth: '100px' }}>
-                                                                                    <input type="number" className="form-control form-control-sm text-end" placeholder="0"
-                                                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
+                                                                            <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                                                                                {combAmtB > 0 && (
+                                                                                    <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold py-1.5 px-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                                                                        Bal: {combRem}
+                                                                                    </span>
+                                                                                )}
+                                                                                <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
+                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold">PKR</span>
+                                                                                    <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
+                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
                                                                                         value={combInputVal > 0 ? combInputVal : ''}
                                                                                         onChange={(e) => {
                                                                                             const vStr = e.target.value;
@@ -1314,7 +1329,11 @@ export default function CollectFeePage() {
                                                                                                 setHeadPayVals({ ...headPayVals, ...(pbId ? { [pbId]: '' } : {}), ...(tId ? { [tId]: '' } : {}) });
                                                                                                 return;
                                                                                             }
-                                                                                            const val = parseFloat(vStr) || 0;
+                                                                                            let val = Math.max(0, parseFloat(vStr) || 0);
+                                                                                            const maxComb = parseFloat(combRem) || 0;
+                                                                                            if (maxComb > 0 && val > maxComb) {
+                                                                                                val = maxComb; // Cap at remaining balance
+                                                                                            }
                                                                                             let newPb = 0, newT = 0;
                                                                                             if (val <= pbRem) {
                                                                                                 newPb = Math.max(0, val);
@@ -1330,6 +1349,7 @@ export default function CollectFeePage() {
                                                                                                 ...(tId ? { [tId]: newT > 0 ? newT.toString() : '' } : {})
                                                                                             });
                                                                                         }}
+                                                                                        style={{ fontSize: '0.9rem', fontWeight: 600, padding: '4px 8px' }}
                                                                                         disabled={dsDis} min="0" />
                                                                                 </div>
                                                                             </div>
@@ -1342,19 +1362,38 @@ export default function CollectFeePage() {
                                                                     const amtB = parseFloat(item.amount || 0);
                                                                     const paid = parseFloat(item.paid_amount || 0);
                                                                     const rem = (amtB - paid).toFixed(2);
+                                                                    const remNum = Math.max(0, parseFloat(rem) || 0);
                                                                     elements.push(
-                                                                        <div key={'other-' + (keyIdx++)} className="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm">
-                                                                            <div className="d-flex flex-column" style={{ width: '55%' }}>
-                                                                                <span className="text-dark fw-bold" style={{ fontSize: '0.85rem' }}>{item.head_name || 'Previous Balance'}</span>
-                                                                                <span className="text-muted" style={{ fontSize: '0.7rem' }}>Billed: {amtB.toLocaleString('en-PK')} {paid > 0 ? ' • Paid: ' + paid.toLocaleString('en-PK') : ''}</span>
+                                                                        <div key={'other-' + (keyIdx++)} className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
+                                                                            <div className="d-flex flex-column flex-grow-1 min-w-0 me-2" style={{ maxWidth: '100%' }}>
+                                                                                <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>{item.head_name || 'Previous Balance'}</span>
+                                                                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>Billed: {amtB.toLocaleString('en-PK')} {paid > 0 ? ' • Paid: ' + paid.toLocaleString('en-PK') : ''}</span>
                                                                             </div>
-                                                                            <div className="d-flex align-items-center gap-2 justify-content-end" style={{ width: '45%' }}>
-                                                                                {amtB > 0 && <span className="text-danger fw-bold" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Bal: {rem}</span>}
-                                                                                <div className="input-group input-group-sm w-auto" style={{ maxWidth: '100px' }}>
-                                                                                    <input type="number" className="form-control form-control-sm text-end" placeholder="0"
-                                                                                        onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
-                                                                                        value={headPayVals[headId] || ''} onChange={e => setHeadPayVals({ ...headPayVals, [headId]: e.target.value })}
-                                                                                        disabled={parseFloat(rem) <= 0 && paid > 0} min="0" />
+                                                                            <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                                                                                {amtB > 0 && (
+                                                                                    <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold py-1.5 px-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                                                                        Bal: {rem}
+                                                                                    </span>
+                                                                                )}
+                                                                                <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
+                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold">PKR</span>
+                                                                                    <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
+                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
+                                                                                        value={headPayVals[headId] || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const vStr = e.target.value;
+                                                                                            if (vStr === '') {
+                                                                                                setHeadPayVals({ ...headPayVals, [headId]: '' });
+                                                                                                return;
+                                                                                            }
+                                                                                            let val = Math.max(0, parseFloat(vStr) || 0);
+                                                                                            if (remNum > 0 && val > remNum) {
+                                                                                                val = remNum; // Cap at remaining balance
+                                                                                            }
+                                                                                            setHeadPayVals({ ...headPayVals, [headId]: val > 0 ? val.toString() : '' });
+                                                                                        }}
+                                                                                        style={{ fontSize: '0.9rem', fontWeight: 600, padding: '4px 8px' }}
+                                                                                        disabled={remNum <= 0 && paid > 0} min="0" />
                                                                                 </div>
                                                                             </div>
                                                                         </div>
