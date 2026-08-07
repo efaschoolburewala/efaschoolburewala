@@ -373,21 +373,21 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                     {/* LEFT SIDEBAR */}
                     <div className="col-lg-3 animate__animated animate__fadeInLeft">
                         {/* Status Card */}
-                        <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-                            <div className="card-body p-4">
+                        <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden w-100">
+                            <div className="card-body p-3 p-md-4">
                                 <h6 className="fw-bold text-uppercase text-muted mb-4 small">Quick Info</h6>
-                                <div className="d-flex align-items-center mb-3">
-                                    <div className="me-3 text-secondary" style={{ width: '24px' }}>
+                                <div className="d-flex align-items-start mb-3">
+                                    <div className="me-3 text-secondary flex-shrink-0 mt-1" style={{ width: '24px' }}>
                                         <i className="bi bi-person-badge fs-5"></i>
                                     </div>
-                                    <div className="flex-grow-1">
+                                    <div className="flex-grow-1 min-w-0" style={{ wordBreak: 'break-word' }}>
                                         <small className="text-muted d-block text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>System Username</small>
                                         <div className="fw-medium text-dark mt-1">
                                             {student.username ? (
                                                 <div className="d-flex flex-column gap-2 w-100">
                                                     <div className="d-flex flex-wrap align-items-center justify-content-between gap-1">
                                                         <div className="d-flex align-items-center gap-2" style={{ maxWidth: '100%' }}>
-                                                            <span className="font-monospace bg-light border px-2 py-1 rounded small text-primary text-truncate" style={{ display: 'inline-block', maxWidth: 'calc(100% - 30px)' }}>{student.username}</span>
+                                                            <span className="font-monospace bg-light border px-2 py-1 rounded small text-primary text-truncate" style={{ display: 'inline-block', maxWidth: 'calc(100% - 35px)' }}>{student.username}</span>
                                                             <button className="btn btn-sm text-secondary p-0 flex-shrink-0" title="Copy Username" onClick={() => { navigator.clipboard.writeText(student.username); notify.success('Username copied'); }}>
                                                                 <i className="bi bi-copy" style={{ fontSize: '0.85rem' }}></i>
                                                             </button>
@@ -397,13 +397,19 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                         </button>
                                                     </div>
                                                     {(user?.role_level || 0) >= 90 && (
-                                                        <div className="d-flex align-items-center gap-2 mt-1">
-                                                            <span className="font-monospace text-muted small user-select-all text-break" style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
+                                                        <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                                                            <small className="text-muted text-uppercase me-1" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>Password:</small>
+                                                            <span className="font-monospace text-muted small user-select-all text-break bg-light border px-2 py-0.5 rounded" style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
                                                                 {showPwd ? (student.system_pwd || 'student123') : '••••••••'}
                                                             </span>
-                                                            <button className="btn btn-sm text-secondary p-0" title={showPwd ? 'Hide Password' : 'Show Password'} onClick={() => setShowPwd(!showPwd)}>
-                                                                <i className={`bi bi-eye${showPwd ? '-slash' : ''}`} style={{ fontSize: '0.85rem' }}></i>
-                                                            </button>
+                                                            <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                                                                <button className="btn btn-sm text-secondary p-0" title={showPwd ? 'Hide Password' : 'Show Password'} onClick={() => setShowPwd(!showPwd)}>
+                                                                    <i className={`bi bi-eye${showPwd ? '-slash' : ''}`} style={{ fontSize: '0.85rem' }}></i>
+                                                                </button>
+                                                                <button className="btn btn-sm text-secondary p-0 ms-1" title="Copy Password" onClick={() => { navigator.clipboard.writeText(student.system_pwd || 'student123'); notify.success('Password copied'); }}>
+                                                                    <i className="bi bi-copy" style={{ fontSize: '0.85rem' }}></i>
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1264,32 +1270,67 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                             {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthSlip.month - 1]} {monthSlip.year}
                                                                         </td>
                                                                         <td>
-                                                                            <div className="d-flex flex-column gap-2 py-2">
+                                                                            <div className="d-flex flex-column gap-2 py-2" style={{ minWidth: '280px' }}>
                                                                                 {monthSlip.students.map((st: any, i: number) => {
                                                                                     const stRemaining = Math.max(0, Number(st.billed || 0) - Number(st.paid || 0));
                                                                                     const stSubDate = st.last_payment_date
                                                                                         ? new Date(st.last_payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                                                                                         : '';
                                                                                     return (
-                                                                                        <div key={i} className="d-flex flex-column bg-light p-2 rounded-3 border">
-                                                                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-1">
-                                                                                                <div>
-                                                                                                    <span className="fw-semibold text-dark mx-1 text-uppercase" style={{ fontSize: '0.8rem' }}>{st.admission_no}</span>
-                                                                                                    <span className="fw-bold text-primary" style={{ fontSize: '0.8rem' }}>&bull; {st.name}</span>
+                                                                                        <div key={i} className="card border shadow-2xs rounded-3 mb-2 overflow-hidden bg-white">
+                                                                                            <div className="card-header bg-light py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom">
+                                                                                                <div className="d-flex align-items-center gap-2">
+                                                                                                    <span className="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle font-monospace fw-bold" style={{ fontSize: '0.75rem' }}>
+                                                                                                        {st.admission_no}
+                                                                                                    </span>
+                                                                                                    <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>
+                                                                                                        {st.name}
+                                                                                                    </span>
+                                                                                                    {st.class_name && (
+                                                                                                        <span className="badge bg-secondary-subtle text-secondary small">
+                                                                                                            {st.class_name} {st.section_name ? `- ${st.section_name}` : ''}
+                                                                                                        </span>
+                                                                                                    )}
                                                                                                 </div>
-                                                                                                <div className="small">
-                                                                                                    <span className="text-muted me-2">Billed: {fmt(st.billed)}</span>
-                                                                                                    <span className="text-success fw-semibold me-2">Paid: {fmt(st.paid)}</span>
+                                                                                                <div className="d-flex align-items-center gap-2 flex-wrap" style={{ fontSize: '0.75rem' }}>
+                                                                                                    <span className="badge bg-light text-dark border">
+                                                                                                        Billed: <strong>{fmt(st.billed)}</strong>
+                                                                                                    </span>
+                                                                                                    <span className="badge bg-success-subtle text-success border border-success-subtle">
+                                                                                                        Paid: <strong>{fmt(st.paid)}</strong>
+                                                                                                    </span>
                                                                                                     {stRemaining > 0 ? (
-                                                                                                        <span className="text-danger fw-bold">Rem: {fmt(stRemaining)}</span>
+                                                                                                        <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">
+                                                                                                            Rem: {fmt(stRemaining)}
+                                                                                                        </span>
                                                                                                     ) : (
-                                                                                                        <span className="text-muted">Rem: 0</span>
+                                                                                                        <span className="badge bg-light text-muted border">Rem: 0</span>
                                                                                                     )}
                                                                                                 </div>
                                                                                             </div>
-                                                                                            <div className="text-muted mt-1 d-flex justify-content-between align-items-center" style={{ fontSize: '0.75rem' }}>
-                                                                                                <span>{st.heads?.map((h: any) => `${h.head_name} (${fmt(h.amount)})`).join(' • ') || 'No specific heads'}</span>
-                                                                                                {stSubDate && <span className="text-dark fw-semibold ms-2"><i className="bi bi-clock me-1 text-primary"></i>Submitted: {stSubDate}</span>}
+                                                                                            <div className="card-body p-2 bg-body-tertiary">
+                                                                                                <div className="d-flex flex-wrap align-items-center gap-1">
+                                                                                                    <span className="text-muted fw-semibold small me-1" style={{ fontSize: '0.72rem' }}>
+                                                                                                        <i className="bi bi-tags-fill me-1 text-primary"></i>Applied Heads:
+                                                                                                    </span>
+                                                                                                    {st.heads && st.heads.length > 0 ? (
+                                                                                                        st.heads.map((h: any, hIdx: number) => (
+                                                                                                            <span key={hIdx} className="badge bg-white text-dark border shadow-2xs py-1 px-2 d-inline-flex align-items-center gap-1" style={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                                                                                                                <span className="text-secondary">{h.head_name}:</span>
+                                                                                                                <span className="fw-bold text-success">{fmt(h.amount)}</span>
+                                                                                                            </span>
+                                                                                                        ))
+                                                                                                    ) : (
+                                                                                                        <span className="text-muted italic small" style={{ fontSize: '0.72rem' }}>No specific heads applied</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                                {stSubDate && (
+                                                                                                    <div className="mt-1 pt-1 border-top border-dashed text-end" style={{ fontSize: '0.72rem' }}>
+                                                                                                        <span className="text-muted">
+                                                                                                            <i className="bi bi-clock-history me-1 text-info"></i>Submitted: <strong className="text-dark">{stSubDate}</strong>
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                )}
                                                                                             </div>
                                                                                         </div>
                                                                                     );

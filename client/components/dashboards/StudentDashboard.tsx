@@ -367,21 +367,21 @@ export default function StudentDashboard({ user }: { user: any }) {
                     {/* LEFT SIDEBAR */}
                     <div className="col-lg-3 animate__animated animate__fadeInLeft">
                         {/* Status Card */}
-                        <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
-                            <div className="card-body p-4">
+                        <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden w-100">
+                            <div className="card-body p-3 p-md-4">
                                 <h6 className="fw-bold text-uppercase text-muted mb-4 small">Quick Info</h6>
-                                <div className="d-flex align-items-center mb-3">
-                                    <div className="me-3 text-secondary" style={{ width: '24px' }}>
+                                <div className="d-flex align-items-start mb-3">
+                                    <div className="me-3 text-secondary flex-shrink-0 mt-1" style={{ width: '24px' }}>
                                         <i className="bi bi-person-badge fs-5"></i>
                                     </div>
-                                    <div className="flex-grow-1">
+                                    <div className="flex-grow-1 min-w-0" style={{ wordBreak: 'break-word' }}>
                                         <small className="text-muted d-block text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>System Username</small>
                                         <div className="fw-medium text-dark mt-1">
                                             {student.username ? (
                                                 <div className="d-flex flex-column gap-2 w-100">
                                                     <div className="d-flex flex-wrap align-items-center justify-content-between gap-1">
                                                         <div className="d-flex align-items-center gap-2" style={{ maxWidth: '100%' }}>
-                                                            <span className="font-monospace bg-light border px-2 py-1 rounded small text-primary text-truncate" style={{ display: 'inline-block', maxWidth: 'calc(100% - 30px)' }}>{student.username}</span>
+                                                            <span className="font-monospace bg-light border px-2 py-1 rounded small text-primary text-truncate" style={{ display: 'inline-block', maxWidth: 'calc(100% - 35px)' }}>{student.username}</span>
                                                             <button className="btn btn-sm text-secondary p-0 flex-shrink-0" title="Copy Username" onClick={() => { navigator.clipboard.writeText(student.username); notify.success('Username copied'); }}>
                                                                 <i className="bi bi-copy" style={{ fontSize: '0.85rem' }}></i>
                                                             </button>
@@ -389,6 +389,20 @@ export default function StudentDashboard({ user }: { user: any }) {
                                                         <button className="btn btn-sm text-primary p-0 flex-shrink-0" title="Change Password" onClick={() => setChangePwdModalOpen(true)}>
                                                             <i className="bi bi-key-fill p-1 fs-6"></i>
                                                         </button>
+                                                    </div>
+                                                    <div className="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                                                        <small className="text-muted text-uppercase me-1" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>Password:</small>
+                                                        <span className="font-monospace text-muted small user-select-all text-break bg-light border px-2 py-0.5 rounded" style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>
+                                                            {showPwd ? (student.system_pwd || 'student123') : '••••••••'}
+                                                        </span>
+                                                        <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                                                            <button className="btn btn-sm text-secondary p-0" title={showPwd ? 'Hide Password' : 'Show Password'} onClick={() => setShowPwd(!showPwd)}>
+                                                                <i className={`bi bi-eye${showPwd ? '-slash' : ''}`} style={{ fontSize: '0.85rem' }}></i>
+                                                            </button>
+                                                            <button className="btn btn-sm text-secondary p-0 ms-1" title="Copy Password" onClick={() => { navigator.clipboard.writeText(student.system_pwd || 'student123'); notify.success('Password copied'); }}>
+                                                                <i className="bi bi-copy" style={{ fontSize: '0.85rem' }}></i>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ) : (
@@ -1305,72 +1319,74 @@ export default function StudentDashboard({ user }: { user: any }) {
                                     </div>
                                 )}
 
-                                {/* Opening Balance (OPB) Section */}
-                                {activeTab === 'fees' && parseFloat(student.opening_balance || '0') > 0 && (
-                                    <div className="card border-0 shadow-sm rounded-4 mt-4 overflow-hidden animate__animated animate__fadeInUp">
-                                        <div className="card-header py-3 d-flex justify-content-between align-items-center"
-                                            style={{ borderLeft: parseFloat(student.opb_remaining || '0') > 0 ? '4px solid #e13232' : '4px solid #0d9e6e', backgroundColor: 'white' }}>
-                                            <h6 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
-                                                <i className="bi bi-clock-history me-2" style={{ color: 'var(--accent-orange)' }}></i>
-                                                Opening Balance <span className="fw-normal text-muted" style={{ fontSize: '0.8rem' }}>(Family Previous Dues)</span>
-                                            </h6>
-                                            {parseFloat(student.opb_remaining || '0') <= 0 ? (
-                                                <span className="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-2">
-                                                    <i className="bi bi-check-circle-fill me-1" />Fully Cleared
-                                                </span>
-                                            ) : (
-                                                <span className="badge rounded-pill px-3 py-2" style={{ background: '#fde8e8', color: '#e13232', border: '1px solid #e1323244', fontWeight: 600 }}>
-                                                    <i className="bi bi-exclamation-circle-fill me-1" />
-                                                    Remaining: {fmt(student.opb_remaining)}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="card-body p-4">
-                                            <div className="row g-3 text-center mb-3">
-                                                {[
-                                                    { label: 'Original OPB', value: fmt(student.opening_balance), color: 'var(--primary-dark)', bg: 'rgba(35,61,77,0.07)' },
-                                                    { label: 'Collected via Slips', value: fmt(student.opening_balance_paid), color: '#0d9e6e', bg: '#e6f9f3' },
-                                                    { label: 'Still Remaining', value: fmt(student.opb_remaining), color: parseFloat(student.opb_remaining || '0') > 0 ? '#e13232' : '#0d9e6e', bg: parseFloat(student.opb_remaining || '0') > 0 ? '#fde8e8' : '#e6f9f3' },
-                                                ].map((s, i) => (
-                                                    <div className="col-4" key={i}>
-                                                        <div className="rounded-3 py-3" style={{ background: s.bg }}>
-                                                            <div className="text-muted small">{s.label}</div>
-                                                            <div className="fw-bold fs-6" style={{ color: s.color }}>{s.value}</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {parseFloat(student.opening_balance || '0') > 0 && (
-                                                <div className="mb-2">
-                                                    <div className="d-flex justify-content-between small text-muted mb-1">
-                                                        <span>OPB Collection Progress</span>
-                                                        <span>{Math.round((parseFloat(student.opening_balance_paid || '0') / parseFloat(student.opening_balance)) * 100)}%</span>
-                                                    </div>
-                                                    <div className="progress" style={{ height: 10, borderRadius: 10 }}>
-                                                        <div className="progress-bar" role="progressbar"
-                                                            style={{
-                                                                width: `${Math.min(100, Math.round((parseFloat(student.opening_balance_paid || '0') / parseFloat(student.opening_balance)) * 100))}%`,
-                                                                background: parseFloat(student.opb_remaining || '0') <= 0 ? '#0d9e6e' : 'linear-gradient(90deg, var(--primary-teal), #34d399)',
-                                                                borderRadius: 10
-                                                            }}>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {student.opb_notes && (
-                                                <p className="text-muted mb-0 mt-2" style={{ fontSize: '0.82rem' }}>
-                                                    <i className="bi bi-sticky me-1" style={{ color: 'var(--accent-orange)' }} /><em>{student.opb_notes}</em>
-                                                </p>
-                                            )}
-                                            {parseFloat(student.opb_remaining || '0') > 0 && (
-                                                <div className="alert border-0 rounded-3 mt-3 py-2 px-3 mb-0" style={{ background: 'rgba(254,127,45,0.1)', fontSize: '0.82rem' }}>
-                                                    <i className="bi bi-info-circle me-1" style={{ color: 'var(--accent-orange)' }} />
-                                                    OPB is the manually-set prior due. It is collected automatically when fee slips containing the <strong>Previous Balance</strong> head are paid via Collect Fee.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+                                 {/* Opening Balance (OPB) Section - Hidden on Student Portal as requested */}
+                                 {/* 
+                                 {activeTab === 'fees' && parseFloat(student.opening_balance || '0') > 0 && (
+                                     <div className="card border-0 shadow-sm rounded-4 mt-4 overflow-hidden animate__animated animate__fadeInUp">
+                                         <div className="card-header py-3 d-flex justify-content-between align-items-center"
+                                             style={{ borderLeft: parseFloat(student.opb_remaining || '0') > 0 ? '4px solid #e13232' : '4px solid #0d9e6e', backgroundColor: 'white' }}>
+                                             <h6 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
+                                                 <i className="bi bi-clock-history me-2" style={{ color: 'var(--accent-orange)' }}></i>
+                                                 Opening Balance <span className="fw-normal text-muted" style={{ fontSize: '0.8rem' }}>(Family Previous Dues)</span>
+                                             </h6>
+                                             {parseFloat(student.opb_remaining || '0') <= 0 ? (
+                                                 <span className="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3 py-2">
+                                                     <i className="bi bi-check-circle-fill me-1" />Fully Cleared
+                                                 </span>
+                                             ) : (
+                                                 <span className="badge rounded-pill px-3 py-2" style={{ background: '#fde8e8', color: '#e13232', border: '1px solid #e1323244', fontWeight: 600 }}>
+                                                     <i className="bi bi-exclamation-circle-fill me-1" />
+                                                     Remaining: {fmt(student.opb_remaining)}
+                                                 </span>
+                                             )}
+                                         </div>
+                                         <div className="card-body p-4">
+                                             <div className="row g-3 text-center mb-3">
+                                                 {[
+                                                     { label: 'Original OPB', value: fmt(student.opening_balance), color: 'var(--primary-dark)', bg: 'rgba(35,61,77,0.07)' },
+                                                     { label: 'Collected via Slips', value: fmt(student.opening_balance_paid), color: '#0d9e6e', bg: '#e6f9f3' },
+                                                     { label: 'Still Remaining', value: fmt(student.opb_remaining), color: parseFloat(student.opb_remaining || '0') > 0 ? '#e13232' : '#0d9e6e', bg: parseFloat(student.opb_remaining || '0') > 0 ? '#fde8e8' : '#e6f9f3' },
+                                                 ].map((s, i) => (
+                                                     <div className="col-4" key={i}>
+                                                         <div className="rounded-3 py-3" style={{ background: s.bg }}>
+                                                             <div className="text-muted small">{s.label}</div>
+                                                             <div className="fw-bold fs-6" style={{ color: s.color }}>{s.value}</div>
+                                                         </div>
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                             {parseFloat(student.opening_balance || '0') > 0 && (
+                                                 <div className="mb-2">
+                                                     <div className="d-flex justify-content-between small text-muted mb-1">
+                                                         <span>OPB Collection Progress</span>
+                                                         <span>{Math.round((parseFloat(student.opening_balance_paid || '0') / parseFloat(student.opening_balance)) * 100)}%</span>
+                                                     </div>
+                                                     <div className="progress" style={{ height: 10, borderRadius: 10 }}>
+                                                         <div className="progress-bar" role="progressbar"
+                                                             style={{
+                                                                 width: `${Math.min(100, Math.round((parseFloat(student.opening_balance_paid || '0') / parseFloat(student.opening_balance)) * 100))}%`,
+                                                                 background: parseFloat(student.opb_remaining || '0') <= 0 ? '#0d9e6e' : 'linear-gradient(90deg, var(--primary-teal), #34d399)',
+                                                                 borderRadius: 10
+                                                             }}>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             )}
+                                             {student.opb_notes && (
+                                                 <p className="text-muted mb-0 mt-2" style={{ fontSize: '0.82rem' }}>
+                                                     <i className="bi bi-sticky me-1" style={{ color: 'var(--accent-orange)' }} /><em>{student.opb_notes}</em>
+                                                 </p>
+                                             )}
+                                             {parseFloat(student.opb_remaining || '0') > 0 && (
+                                                 <div className="alert border-0 rounded-3 mt-3 py-2 px-3 mb-0" style={{ background: 'rgba(254,127,45,0.1)', fontSize: '0.82rem' }}>
+                                                     <i className="bi bi-info-circle me-1" style={{ color: 'var(--accent-orange)' }} />
+                                                     OPB is the manually-set prior due. It is collected automatically when fee slips containing the <strong>Previous Balance</strong> head are paid via Collect Fee.
+                                                 </div>
+                                             )}
+                                         </div>
+                                     </div>
+                                 )}
+                                 */}
 
                                 {/* Admission Fee Payment Modal (in profile) */}
                                 {showPayModal && admissionFee && (
