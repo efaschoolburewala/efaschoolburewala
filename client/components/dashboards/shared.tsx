@@ -1004,9 +1004,9 @@ export function DailyFeeReceipts() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: '#f8fafc' }}>
-                        {['Student', 'Class', 'Month', 'Amount', 'Method', 'Status'].map(h => (
+                        {['Student', 'Class', 'Month', 'Amount', 'Method', 'Status', 'Action'].map(h => (
                           <th key={h} style={{
-                            padding: '9px 14px', textAlign: 'left', fontWeight: 700,
+                            padding: '9px 14px', textAlign: h === 'Action' ? 'center' : 'left', fontWeight: 700,
                             fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em',
                             color: '#64748b', borderBottom: '2px solid #f1f5f9', whiteSpace: 'nowrap',
                           }}>{h}</th>
@@ -1057,6 +1057,35 @@ export function DailyFeeReceipts() {
                               <i className={`bi ${p.is_printed ? 'bi-printer-fill' : 'bi-exclamation-circle'} me-1`} />
                               {p.is_printed ? 'Printed' : 'Not Printed'}
                             </span>
+                          </td>
+                          <td style={{ padding: '11px 14px', textAlign: 'center' }}>
+                            <Link
+                              href={`/fees/collect?search=${encodeURIComponent(p.is_family_slip ? (p.family_id || '') : (p.student_name || ''))}`}
+                              title="Go to Fee Collection Page"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #FE7F2D 0%, #d66418 100%)',
+                                color: '#ffffff',
+                                textDecoration: 'none',
+                                boxShadow: '0 3px 10px rgba(254,127,45,0.4)',
+                                transition: 'all 0.2s ease',
+                              }}
+                              onMouseEnter={e => {
+                                (e.currentTarget as HTMLElement).style.transform = 'scale(1.12)';
+                                (e.currentTarget as HTMLElement).style.boxShadow = '0 5px 15px rgba(254,127,45,0.6)';
+                              }}
+                              onMouseLeave={e => {
+                                (e.currentTarget as HTMLElement).style.transform = 'none';
+                                (e.currentTarget as HTMLElement).style.boxShadow = '0 3px 10px rgba(254,127,45,0.4)';
+                              }}
+                            >
+                              <i className="bi bi-arrow-right-short" style={{ fontSize: 20, fontWeight: 800 }} />
+                            </Link>
                           </td>
                         </tr>
                       ))}
