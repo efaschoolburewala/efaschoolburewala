@@ -16,12 +16,18 @@ function fmtPKR(val: number) {
     return `PKR ${Number(val || 0).toLocaleString('en-PK')}`;
 }
 
+interface AvailableMonth {
+    value: string;
+    label: string;
+    months: number[];
+}
+
 export default function MonthlyReportPage() {
     const { hasPermission } = useAuth();
 
     // Filters
     const now = new Date();
-    const [month, setMonth] = useState<number>(now.getMonth() + 1);
+    const [month, setMonth] = useState<string>('');
     const [year, setYear] = useState<string>(now.getFullYear().toString());
     const [classId, setClassId] = useState<string>('');
     const [sectionId, setSectionId] = useState<string>('');
@@ -31,6 +37,8 @@ export default function MonthlyReportPage() {
     // Data
     const [classes, setClasses] = useState<any[]>([]);
     const [sections, setSections] = useState<any[]>([]);
+    const [availableMonths, setAvailableMonths] = useState<AvailableMonth[]>([]);
+    const [loadingMonths, setLoadingMonths] = useState<boolean>(true);
     const [reportData, setReportData] = useState<{ summary: any; families: any[] } | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [schoolInfo, setSchoolInfo] = useState<{ name: string; address: string; phone: string; logo: string }>({
@@ -54,6 +62,34 @@ export default function MonthlyReportPage() {
     }, []);
 
     useEffect(() => {
+        setLoadingMonths(true);
+        fetch(`${API}/fee-slips/available-months?year=${year}`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.months) {
+                    setAvailableMonths(data.months);
+                    if (data.months.length > 0) {
+                        const currentM = (new Date().getMonth() + 1);
+                        const exact = data.months.find((m: AvailableMonth) => m.months.includes(currentM));
+                        if (exact) {
+                            setMonth(exact.value);
+                        } else {
+                            setMonth(data.months[data.months.length - 1].value);
+                        }
+                    } else {
+                        setMonth('');
+                        setReportData(null);
+                    }
+                }
+            })
+            .catch(() => {
+                setAvailableMonths([]);
+                setMonth('');
+            })
+            .finally(() => setLoadingMonths(false));
+    }, [year]);
+
+    useEffect(() => {
         if (classId) {
             fetch(`${API}/academic/sections`).then(r => r.json()).then((allSecs: any[]) => {
                 setSections(allSecs.filter((s: any) => s.class_id === Number(classId)));
@@ -65,10 +101,15 @@ export default function MonthlyReportPage() {
     }, [classId]);
 
     const fetchReport = async () => {
+        if (!month || !year) {
+            setReportData(null);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const params = new URLSearchParams({
-                month: month.toString(),
+                month: month,
                 year: year
             });
             if (classId) params.append('class_id', classId);
@@ -108,7 +149,11 @@ export default function MonthlyReportPage() {
         return true;
     });
 
-    const monthName = MONTHS.find(m => m.num === Number(month))?.name || 'Selected Month';
+    const currentSelMonth = availableMonths.find(m => m.value === month);
+    const monthName = currentSelMonth
+        ? currentSelMonth.label
+        : (month ? month : 'No Fee Slips');
+
     const summary = reportData?.summary || {
         total_billed: 0, total_collected: 0, total_remaining: 0, total_expenses: 0,
         expected_surplus: 0, net_cash_balance: 0, collection_rate: 0,
@@ -341,8 +386,17 @@ export default function MonthlyReportPage() {
                             <label className="form-label small text-muted text-uppercase fw-bold mb-1" style={{ fontSize: 10, letterSpacing: '0.05em' }}>
                                 <i className="bi bi-calendar3 me-1 text-primary"></i>Month
                             </label>
-                            <select className="form-select form-select-sm fw-bold border-0 bg-light rounded-3" value={month} onChange={e => setMonth(Number(e.target.value))}>
-                                {MONTHS.map(m => <option key={m.num} value={m.num}>{m.name}</option>)}
+                            <select className="form-select form-select-sm fw-bold border-0 bg-light rounded-3"
+                                value={month}
+                                onChange={e => setMonth(e.target.value)}
+                                disabled={availableMonths.length === 0 || loadingMonths}>
+                                {availableMonths.length > 0 ? (
+                                    availableMonths.map(m => (
+                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    ))
+                                ) : (
+                                    <option value="">{loadingMonths ? 'Loading...' : 'No Fee Slips Created'}</option>
+                                )}
                             </select>
                         </div>
                         <div className="col-6 col-sm-4 col-md-2">

@@ -372,8 +372,12 @@ router.get('/monthly-tuition', async (req, res) => {
             return res.status(400).json({ error: 'month and year are required' });
         }
 
-        const monthNum = parseInt(month.toString(), 10);
+        const monthArr = month.toString().split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
         const yearNum = parseInt(year.toString(), 10);
+
+        if (monthArr.length === 0) {
+            return res.status(400).json({ error: 'valid month is required' });
+        }
 
         // 1. Get Slips with Tuition Fee calculation & student/family metadata
         let slipQuery = `
@@ -415,10 +419,10 @@ router.get('/monthly-tuition', async (req, res) => {
             LEFT JOIN families f ON ms.family_id = f.family_id
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
-            WHERE ms.month = $1 AND ms.year = $2
+            WHERE COALESCE(ms.months_list, ARRAY[ms.month]) && $1::int[] AND ms.year = $2
               AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
         `;
-        const params = [monthNum, yearNum];
+        const params = [monthArr, yearNum];
         let idx = 3;
 
         if (class_id && class_id !== '') {
@@ -458,11 +462,11 @@ router.get('/monthly-tuition', async (req, res) => {
         const expenseQuery = `
             SELECT COALESCE(SUM(amount), 0) as total_expense
             FROM expenses
-            WHERE EXTRACT(MONTH FROM expense_date) = $1 
+            WHERE EXTRACT(MONTH FROM expense_date) = ANY($1::int[]) 
               AND EXTRACT(YEAR FROM expense_date) = $2
               AND (status IS NULL OR LOWER(status) != 'cancelled')
         `;
-        const expenseRes = await pool.query(expenseQuery, [monthNum, yearNum]);
+        const expenseRes = await pool.query(expenseQuery, [monthArr, yearNum]);
         const totalExpenses = parseFloat(expenseRes.rows[0]?.total_expense || 0);
 
         // 3. Compute Financial Summary Statistics
