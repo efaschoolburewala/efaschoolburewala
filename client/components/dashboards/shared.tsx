@@ -33,9 +33,10 @@ export function QuickActionsDropdown() {
   ];
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative', zIndex: 200 }}>
+    <div ref={dropdownRef} className="quick-actions-dropdown-wrapper" style={{ position: 'relative', zIndex: 200 }}>
       <button
         onClick={() => setOpen(!open)}
+        className="quick-actions-btn"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -60,7 +61,7 @@ export function QuickActionsDropdown() {
       </button>
 
       {open && (
-        <div style={{
+        <div className="quick-actions-dropdown-panel" style={{
           position: 'absolute',
           top: 'calc(100% + 10px)',
           right: 0,
