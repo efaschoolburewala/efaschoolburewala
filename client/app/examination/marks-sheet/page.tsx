@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { showToast } from '@/utils/toastHelper';
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
 type Term = { id: number; term_name: string };
 type ClassItem = { class_id: number; class_name: string };
@@ -94,7 +94,7 @@ function fmtN(v: number | null | undefined): string {
 }
 
 function getLogoUrl(rawLogo?: string): string {
-    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
     if (!rawLogo || !rawLogo.trim()) return `${API_URL}/icon.png`;
     const logoStr = rawLogo.trim();
     if (logoStr.startsWith('data:') || logoStr.startsWith('http://') || logoStr.startsWith('https://')) {

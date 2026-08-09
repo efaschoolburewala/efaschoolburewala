@@ -48,7 +48,7 @@ export default function LoginPage() {
         tagline: 'Excellence in Education'
     });
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
     useEffect(() => {
         if (!isLoading && isLoggedIn) {

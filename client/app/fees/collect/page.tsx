@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notify } from '@/app/utils/notify';
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -100,7 +100,7 @@ export default function CollectFeePage() {
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
                 const getLogo = (raw?: string) => {
-                    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+                    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
                     if (!raw || !raw.trim()) return `${API_URL}/icon.png`;
                     const s = raw.trim();
                     if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://')) return s;
@@ -416,7 +416,7 @@ export default function CollectFeePage() {
             </tr>`;
 
         const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
-        const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com").replace(/\/+$/, '');
+        const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
         const logoUrl = school.school_logo_url || `${API_URL}/icon.png`;
         const schoolNameFormatted = (school.school_name || 'Shaheen English Model School\nVehari').split('\n').join('<br>');
         const schoolAddress = school.school_address || '83/M Madina Colony Vehari';

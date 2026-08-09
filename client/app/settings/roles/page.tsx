@@ -196,7 +196,7 @@ export default function RolesPage() {
 
     const fetchRoles = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/roles`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles`);
             const data = await res.json();
             setRoles(data);
         } catch { showToastMsg('danger', 'Failed to load roles'); }
@@ -228,8 +228,8 @@ export default function RolesPage() {
             role_level: role.role_level || 50,
             dashboard_access: role.dashboard_access || (
                 (role.role_level || 50) >= 90 ? 'admin' :
-                (role.role_level || 50) >= 50 ? 'teacher' :
-                (role.role_level || 50) >= 20 ? 'accountant' : 'student'
+                    (role.role_level || 50) >= 50 ? 'teacher' :
+                        (role.role_level || 50) >= 20 ? 'accountant' : 'student'
             ),
             permissions: buildFormPerms(role.permissions || [])
         });
@@ -240,7 +240,7 @@ export default function RolesPage() {
     const handleClone = async (roleId: number) => {
         try {
             setSaving(true);
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/roles/${roleId}/clone`, { method: 'POST' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles/${roleId}/clone`, { method: 'POST' });
             if (res.ok) {
                 fetchRoles();
                 showToastMsg('success', 'Role cloned successfully! Edit the new role to customize it.');
@@ -261,7 +261,7 @@ export default function RolesPage() {
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure? This role will be permanently deleted.')) return;
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/roles/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles/${id}`, { method: 'DELETE' });
             if (res.ok) { fetchRoles(); showToastMsg('success', 'Role deleted'); }
             else showToastMsg('danger', 'Failed to delete role');
         } catch { showToastMsg('danger', 'Server error'); }
@@ -281,7 +281,7 @@ export default function RolesPage() {
 
     const performSave = async (applyToAssigned: boolean = true) => {
         setSaving(true);
-        const url = formData.id === 0 ? `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/roles` : `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/roles/${formData.id}?apply_to_assigned=${applyToAssigned}`;
+        const url = formData.id === 0 ? `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles` : `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles/${formData.id}?apply_to_assigned=${applyToAssigned}`;
         const method = formData.id === 0 ? 'POST' : 'PUT';
         try {
             const res = await fetch(url, {
@@ -437,17 +437,17 @@ export default function RolesPage() {
                                         <div className="card-body p-4">
                                             <div className="d-flex justify-content-between align-items-start mb-3">
                                                 <div>
-                                                     <h5 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>{role.role_name}</h5>
-                                                     <p className="text-muted small mb-1" style={{ minHeight: 28 }}>{role.description || 'No description'}</p>
-                                                     {(() => {
-                                                         const dashInfo = DASHBOARD_OPTIONS.find(d => d.value === (role.dashboard_access || 'admin')) || DASHBOARD_OPTIONS[0];
-                                                         return (
-                                                             <span className="badge rounded-pill px-2.5 py-1 border text-dark shadow-sm mb-2" style={{ background: '#f8fafc', fontSize: '0.68rem', fontWeight: 700 }}>
-                                                                 <i className={`bi ${dashInfo.icon} me-1`} style={{ color: dashInfo.color }} />
-                                                                 {dashInfo.label}
-                                                             </span>
-                                                         );
-                                                     })()}
+                                                    <h5 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>{role.role_name}</h5>
+                                                    <p className="text-muted small mb-1" style={{ minHeight: 28 }}>{role.description || 'No description'}</p>
+                                                    {(() => {
+                                                        const dashInfo = DASHBOARD_OPTIONS.find(d => d.value === (role.dashboard_access || 'admin')) || DASHBOARD_OPTIONS[0];
+                                                        return (
+                                                            <span className="badge rounded-pill px-2.5 py-1 border text-dark shadow-sm mb-2" style={{ background: '#f8fafc', fontSize: '0.68rem', fontWeight: 700 }}>
+                                                                <i className={`bi ${dashInfo.icon} me-1`} style={{ color: dashInfo.color }} />
+                                                                {dashInfo.label}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <div className="d-flex flex-column gap-1 ms-2 flex-shrink-0">
                                                     {role.is_system_default && (

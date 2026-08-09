@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { notify } from '@/app/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
 const MONTHS = [
     { num: 1, name: 'January' }, { num: 2, name: 'February' }, { num: 3, name: 'March' },
@@ -656,7 +656,7 @@ export default function MonthlyReportPage() {
                                             </td>
                                             <td className="text-center pe-3">
                                                 <span className={`badge rounded-pill px-2.5 py-1 ${f.payment_status === 'paid' ? 'bg-success bg-opacity-15 text-success border border-success' :
-                                                        f.payment_status === 'partial' ? 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning' : 'bg-danger bg-opacity-15 text-danger border border-danger'
+                                                    f.payment_status === 'partial' ? 'bg-warning bg-opacity-15 text-warning-emphasis border border-warning' : 'bg-danger bg-opacity-15 text-danger border border-danger'
                                                     }`} style={{ fontSize: 9.5, fontWeight: 700 }}>
                                                     {f.payment_status === 'paid' ? 'FULLY PAID' :
                                                         f.payment_status === 'partial' ? 'PARTIAL' : 'UNPAID DUES'}

@@ -67,7 +67,7 @@ export default function SystemConfigPage() {
         fetchActiveSessions();
     }, []);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
     const fetchActiveSessions = async () => {
         setLoadingSessions(true);
@@ -116,7 +116,7 @@ export default function SystemConfigPage() {
 
     const fetchSettings = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system`);
             const data = await res.json();
             setSettings(data);
 
@@ -135,14 +135,14 @@ export default function SystemConfigPage() {
 
     const fetchStats = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system/db-stats`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system/db-stats`);
             if (res.ok) setStats(await res.json());
         } catch (err) { console.error(err); }
     };
 
     const fetchBackups = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system/backups`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system/backups`);
             if (res.ok) {
                 const data = await res.json();
                 setBackups(data);
@@ -154,7 +154,7 @@ export default function SystemConfigPage() {
         e.preventDefault();
         setSaving(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -182,10 +182,10 @@ export default function SystemConfigPage() {
             .then(data => {
                 if (data && data.filename && !data.read) {
                     showToast.success(`🎉 Automatic Database Backup Completed!\nFile: ${data.filename}\nLocation: ${data.location || 'Server Backup Storage'}`);
-                    fetch(`${API_URL}/system/backup-notification/read`, { method: 'POST' }).catch(() => {});
+                    fetch(`${API_URL}/system/backup-notification/read`, { method: 'POST' }).catch(() => { });
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, [API_URL]);
 
     const handleCreateBackup = async () => {
@@ -209,7 +209,7 @@ export default function SystemConfigPage() {
     const handleDeleteBackup = async (filename: string) => {
         if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system/backups/${filename}`, { method: 'DELETE' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system/backups/${filename}`, { method: 'DELETE' });
             if (res.ok) {
                 showToast.success('Backup deleted successfully');
                 fetchBackups();
@@ -218,7 +218,7 @@ export default function SystemConfigPage() {
     };
 
     const handleDownloadBackup = (filename: string) => {
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system/backups/download/${filename}`;
+        window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system/backups/download/${filename}`;
     };
 
     const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,7 +235,7 @@ export default function SystemConfigPage() {
         formData.append('backup_file', file);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/system/backups/restore`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/system/backups/restore`, {
                 method: 'POST',
                 body: formData
             });

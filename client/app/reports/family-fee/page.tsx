@@ -51,14 +51,14 @@ export default function FamilyFeeReportPage() {
 
     // Load dropdowns on mount
     useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/reports/fee-heads`).then(r => r.json()).then(setFeeHeads).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/fee-heads`).then(r => r.json()).then(setFeeHeads).catch(console.error);
     }, []);
 
     useEffect(() => {
         setLoadingMonths(true);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/fee-slips/available-months?year=${year}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?year=${year}`)
             .then(r => r.json())
             .then(data => {
                 if (data.months) {
@@ -104,7 +104,7 @@ export default function FamilyFeeReportPage() {
             if (statusFilter) params.append('status', statusFilter);
             if (headId) params.append('head_id', headId);
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/reports/family-fee?${params}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/family-fee?${params}`);
             if (!res.ok) throw new Error((await res.json()).error || 'Failed to load report');
             const data = await res.json();
 

@@ -34,7 +34,7 @@ type SheetResponse = {
     students: StudentMarkRow[];
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
 async function fetchJson(url: string, options?: RequestInit) {
     const r = await fetch(url, options);

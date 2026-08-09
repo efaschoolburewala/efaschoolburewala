@@ -42,7 +42,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_KEY = 'sms_user_session';
 const REMEMBER_KEY = 'sms_remember_session';
 const OFFLINE_SESSION_KEY = 'sms_offline_user_session';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -117,9 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${user.token}`
                     }
-                }).catch(() => {});
+                }).catch(() => { });
             }
-        } catch (e) {}
+        } catch (e) { }
 
         setUser(null);
         sessionStorage.removeItem(SESSION_KEY);
@@ -131,19 +131,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Returns true if Administrator/Supervisor can access, OR if role has explicit permission.
     const hasPermission = useCallback((module: string, action: 'read' | 'write' | 'delete' = 'read'): boolean => {
         if (!user) return false;
-        
+
         const roleLevel = user.role_level || 0;
         const moduleLower = module.toLowerCase();
-        
+
         // 1. Admin (role_level >= 90): Full access to everything
         if (roleLevel >= 90) return true;
 
         // 2. Supervisor (role_level >= 65): Access to academic & operational modules
         const supervisorModules = ['attendance', 'academic', 'exams', 'marks', 'result', 'exam_fees', 'fees', 'classes', 'sections', 'dashboard'];
-        const isModuleAllowed = supervisorModules.some(m => 
+        const isModuleAllowed = supervisorModules.some(m =>
             moduleLower === m || moduleLower.startsWith(m + '.')
         );
-        
+
         if (roleLevel >= 65 && isModuleAllowed) {
             if (action === 'delete') return false;
             return true;

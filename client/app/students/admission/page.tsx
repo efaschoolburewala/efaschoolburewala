@@ -147,14 +147,14 @@ export default function NewAdmission() {
 
     const fetchClasses = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/academic`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`);
             if (res.ok) setClasses(await res.json());
         } catch (e) { console.error(e); }
     };
 
     const fetchSections = async (classId: string) => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/academic/sections`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`);
             if (res.ok) {
                 const allSections = await res.json();
                 setSections(allSections.filter((s: any) => s.class_id === Number(classId)));
@@ -171,7 +171,7 @@ export default function NewAdmission() {
 
         setSearchingSiblings(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/students/search-siblings?query=${encodeURIComponent(query)}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students/search-siblings?query=${encodeURIComponent(query)}`);
             if (res.ok) {
                 const results = await res.json();
                 setSearchResults(results);
@@ -239,7 +239,7 @@ export default function NewAdmission() {
         const qLower = query.trim().toLowerCase();
         setSearchingFathers(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/students/search-siblings?query=${encodeURIComponent(query)}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students/search-siblings?query=${encodeURIComponent(query)}`);
             if (res.ok) {
                 const results = await res.json();
                 const fatherMap = new Map();
@@ -380,7 +380,7 @@ export default function NewAdmission() {
                 }
             }
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/students`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students`, {
                 method: 'POST',
                 // HEADERS MUST NOT BE SET MANUALLY FOR MULTIPART
                 body: formData
@@ -684,7 +684,7 @@ export default function NewAdmission() {
                                                             <div className="flex-shrink-0 me-3">
                                                                 {student.image_url ? (
                                                                     <img
-                                                                        src={`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/${student.image_url}`}
+                                                                        src={`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/${student.image_url}`}
                                                                         alt={student.first_name}
                                                                         className="rounded-circle"
                                                                         style={{ width: '45px', height: '45px', objectFit: 'cover' }}
@@ -749,7 +749,7 @@ export default function NewAdmission() {
                                                             <div className="me-2">
                                                                 {sibling.image_url ? (
                                                                     <img
-                                                                        src={`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/${sibling.image_url}`}
+                                                                        src={`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/${sibling.image_url}`}
                                                                         alt={sibling.first_name}
                                                                         className="rounded-circle"
                                                                         style={{ width: '40px', height: '40px', objectFit: 'cover' }}
@@ -913,50 +913,50 @@ export default function NewAdmission() {
                                 */}
                                 <div className={`row g-3 ${form.is_orphan ? 'opacity-50' : ''}`}>
                                     <h6 className="fw-bold text-muted border-bottom pb-2">Parents Information <span className="small text-secondary fw-normal">(Required even if not Guardian)</span></h6>
-                                     {/* FATHER */}
-                                     <div className="col-md-3 position-relative">
-                                         <label className="form-label fw-bold">Father Name <span className="text-danger">*</span></label>
-                                         <input type="text" className="form-control" required={!form.is_orphan}
-                                             value={form.father_name}
-                                             onChange={e => {
-                                                 const val = e.target.value;
-                                                 handleTextChange("father_name", val);
-                                                 searchFatherSuggestions(val);
-                                             }}
-                                             onFocus={() => {
-                                                 if (form.father_name && form.father_name.length >= 2) {
-                                                     searchFatherSuggestions(form.father_name);
-                                                 }
-                                             }} />
-                                         {/* Father Auto-Suggestions Dropdown */}
-                                         {showFatherSuggestions && fatherSuggestions.length > 0 && (
-                                             <div className="position-absolute start-0 end-0 bg-white border rounded-3 shadow-lg z-3 mt-1 p-2"
-                                                  style={{ maxHeight: '220px', overflowY: 'auto', top: '100%', minWidth: '260px' }}>
-                                                 <div className="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                                                     <small className="fw-bold text-muted">Matching Existing Fathers:</small>
-                                                     <button type="button" className="btn-close btn-sm" onClick={() => setShowFatherSuggestions(false)}></button>
-                                                 </div>
-                                                 {fatherSuggestions.map((item, idx) => (
-                                                     <div key={idx}
-                                                          className="p-2 border-bottom cursor-pointer rounded mb-1 bg-light-subtle"
-                                                          style={{ cursor: 'pointer' }}
-                                                          onClick={() => applyFatherDetails(item)}>
-                                                         <div className="fw-bold text-primary" style={{ fontSize: '0.85rem' }}>
-                                                             <i className="bi bi-person-fill me-1"></i>{item.father_name}
-                                                         </div>
-                                                         <div className="small text-dark" style={{ fontSize: '0.78rem' }}>
-                                                             <i className="bi bi-telephone-fill text-success me-1"></i>Phone: <strong>{item.father_phone || 'N/A'}</strong>
-                                                         </div>
-                                                         {item.first_name && (
-                                                             <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                                                 Student: {item.first_name} {item.last_name} ({item.admission_no})
-                                                             </div>
-                                                         )}
-                                                     </div>
-                                                 ))}
-                                             </div>
-                                         )}
-                                     </div>
+                                    {/* FATHER */}
+                                    <div className="col-md-3 position-relative">
+                                        <label className="form-label fw-bold">Father Name <span className="text-danger">*</span></label>
+                                        <input type="text" className="form-control" required={!form.is_orphan}
+                                            value={form.father_name}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                handleTextChange("father_name", val);
+                                                searchFatherSuggestions(val);
+                                            }}
+                                            onFocus={() => {
+                                                if (form.father_name && form.father_name.length >= 2) {
+                                                    searchFatherSuggestions(form.father_name);
+                                                }
+                                            }} />
+                                        {/* Father Auto-Suggestions Dropdown */}
+                                        {showFatherSuggestions && fatherSuggestions.length > 0 && (
+                                            <div className="position-absolute start-0 end-0 bg-white border rounded-3 shadow-lg z-3 mt-1 p-2"
+                                                style={{ maxHeight: '220px', overflowY: 'auto', top: '100%', minWidth: '260px' }}>
+                                                <div className="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                                                    <small className="fw-bold text-muted">Matching Existing Fathers:</small>
+                                                    <button type="button" className="btn-close btn-sm" onClick={() => setShowFatherSuggestions(false)}></button>
+                                                </div>
+                                                {fatherSuggestions.map((item, idx) => (
+                                                    <div key={idx}
+                                                        className="p-2 border-bottom cursor-pointer rounded mb-1 bg-light-subtle"
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => applyFatherDetails(item)}>
+                                                        <div className="fw-bold text-primary" style={{ fontSize: '0.85rem' }}>
+                                                            <i className="bi bi-person-fill me-1"></i>{item.father_name}
+                                                        </div>
+                                                        <div className="small text-dark" style={{ fontSize: '0.78rem' }}>
+                                                            <i className="bi bi-telephone-fill text-success me-1"></i>Phone: <strong>{item.father_phone || 'N/A'}</strong>
+                                                        </div>
+                                                        {item.first_name && (
+                                                            <div className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                                                Student: {item.first_name} {item.last_name} ({item.admission_no})
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="col-md-3">
                                         <label className="form-label fw-bold">Father Phone</label>
                                         <input type="text" className="form-control"

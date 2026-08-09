@@ -36,8 +36,8 @@ export default function UsersPage() {
     const fetchData = async () => {
         try {
             const [uRes, rRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/users`),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/roles`)
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/users`),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles`)
             ]);
             const uData = await uRes.json();
             const rData = await rRes.json();
@@ -60,14 +60,14 @@ export default function UsersPage() {
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this user?")) return;
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/users/${id}`, { method: 'DELETE' });
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/users/${id}`, { method: 'DELETE' });
             fetchData();
         } catch (err) { console.error(err); }
     };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        const url = formData.id === 0 ? `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/users` : `${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/users/${formData.id}`;
+        const url = formData.id === 0 ? `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/users` : `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/users/${formData.id}`;
         const method = formData.id === 0 ? 'POST' : 'PUT';
 
         try {

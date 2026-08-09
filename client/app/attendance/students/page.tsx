@@ -45,7 +45,7 @@ export default function StudentAttendancePage() {
 
   useEffect(() => {
     const loadMeta = async () => {
-      const API = process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com";
+      const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
       if (!user?.id) return;
 
       try {
@@ -67,7 +67,7 @@ export default function StudentAttendancePage() {
     if (!classId || !sectionId || !date) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/attendance/students/daily?class_id=${classId}&section_id=${sectionId}&date=${date}&user_id=${user?.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/students/daily?class_id=${classId}&section_id=${sectionId}&date=${date}&user_id=${user?.id}`);
       const data = await res.json();
       if (!Array.isArray(data)) { notify.error('Failed to load students'); setLoading(false); return; }
       setStudents(data);
@@ -102,7 +102,7 @@ export default function StudentAttendancePage() {
         status: statuses[s.student_id] || 'Present',
         remarks: remarks[s.student_id] || ''
       }));
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://shaheenschool.onrender.com"}/attendance/students/daily`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/students/daily`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ class_id: classId, section_id: sectionId, date, records, user_id: user?.id })
       });
