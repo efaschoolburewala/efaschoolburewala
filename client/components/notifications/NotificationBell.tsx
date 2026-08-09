@@ -168,10 +168,11 @@ export function NotificationBell({ role = 'all', familyId = '', userId = '', stu
     });
 
     return (
-        <div ref={dropdownRef} style={{ position: 'relative', zIndex: 250 }}>
+        <div ref={dropdownRef} className="notif-bell-wrapper" style={{ position: 'relative', zIndex: 250 }}>
             {/* Sleek Bell Toggle Button */}
             <button
                 onClick={() => setOpen(!open)}
+                className="notif-bell-btn"
                 title="Notifications"
                 style={{
                     position: 'relative',
