@@ -8,7 +8,7 @@
  *   npm run generate-icons
  */
 
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
@@ -28,15 +28,15 @@ function readPng(filePath) {
   const idatBuffers = [];
 
   while (offset < buf.length) {
-    const chunkLen  = buf.readUInt32BE(offset);   offset += 4;
+    const chunkLen = buf.readUInt32BE(offset); offset += 4;
     const chunkType = buf.slice(offset, offset + 4).toString('ascii'); offset += 4;
-    const chunkData = buf.slice(offset, offset + chunkLen);            offset += chunkLen;
+    const chunkData = buf.slice(offset, offset + chunkLen); offset += chunkLen;
     offset += 4; // skip CRC
 
     if (chunkType === 'IHDR') {
-      width     = chunkData.readUInt32BE(0);
-      height    = chunkData.readUInt32BE(4);
-      bitDepth  = chunkData[8];
+      width = chunkData.readUInt32BE(0);
+      height = chunkData.readUInt32BE(4);
+      bitDepth = chunkData[8];
       colorType = chunkData[9];
       if (bitDepth !== 8) throw new Error(`Only 8-bit PNG supported (got ${bitDepth}-bit)`);
     } else if (chunkType === 'IDAT') {
@@ -50,7 +50,7 @@ function readPng(filePath) {
 
   // channels per colorType: 0=Gray,2=RGB,3=Indexed,4=Gray+A,6=RGBA
   const channelMap = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
-  const channels   = channelMap[colorType];
+  const channels = channelMap[colorType];
   if (!channels) throw new Error(`Unsupported PNG colorType: ${colorType}`);
 
   // Decompress IDAT
@@ -63,28 +63,28 @@ function readPng(filePath) {
     return (pa <= pb && pa <= pc) ? a : pb <= pc ? b : c;
   }
 
-  const rowBytes  = width * channels;
-  const pixelBuf  = Buffer.alloc(height * rowBytes);
-  let rawOffset   = 0;
+  const rowBytes = width * channels;
+  const pixelBuf = Buffer.alloc(height * rowBytes);
+  let rawOffset = 0;
 
   for (let y = 0; y < height; y++) {
     const filter = raw[rawOffset++];
     const rowStart = y * rowBytes;
 
     for (let i = 0; i < rowBytes; i++) {
-      const x       = raw[rawOffset++];
-      const ch      = i % channels;
-      const left    = i >= channels ? pixelBuf[rowStart + i - channels] : 0;
-      const up      = y > 0         ? pixelBuf[rowStart - rowBytes + i] : 0;
-      const upLeft  = (y > 0 && i >= channels) ? pixelBuf[rowStart - rowBytes + i - channels] : 0;
+      const x = raw[rawOffset++];
+      const ch = i % channels;
+      const left = i >= channels ? pixelBuf[rowStart + i - channels] : 0;
+      const up = y > 0 ? pixelBuf[rowStart - rowBytes + i] : 0;
+      const upLeft = (y > 0 && i >= channels) ? pixelBuf[rowStart - rowBytes + i - channels] : 0;
 
       let v;
       switch (filter) {
-        case 0: v = x;                                           break;
-        case 1: v = (x + left)                         & 0xff;  break;
-        case 2: v = (x + up)                           & 0xff;  break;
-        case 3: v = (x + Math.floor((left + up) / 2))  & 0xff;  break;
-        case 4: v = (x + paeth(left, up, upLeft))      & 0xff;  break;
+        case 0: v = x; break;
+        case 1: v = (x + left) & 0xff; break;
+        case 2: v = (x + up) & 0xff; break;
+        case 3: v = (x + Math.floor((left + up) / 2)) & 0xff; break;
+        case 4: v = (x + paeth(left, up, upLeft)) & 0xff; break;
         default: throw new Error(`Unknown PNG filter type: ${filter}`);
       }
       pixelBuf[rowStart + i] = v;
@@ -98,17 +98,17 @@ function readPng(filePath) {
       const src = (y * rowBytes) + x * channels;
       const dst = (y * width + x) * 4;
       if (colorType === 6) {                                    // RGBA
-        rgba[dst]   = pixelBuf[src];     rgba[dst+1] = pixelBuf[src+1];
-        rgba[dst+2] = pixelBuf[src+2];   rgba[dst+3] = pixelBuf[src+3];
+        rgba[dst] = pixelBuf[src]; rgba[dst + 1] = pixelBuf[src + 1];
+        rgba[dst + 2] = pixelBuf[src + 2]; rgba[dst + 3] = pixelBuf[src + 3];
       } else if (colorType === 2) {                             // RGB
-        rgba[dst]   = pixelBuf[src];     rgba[dst+1] = pixelBuf[src+1];
-        rgba[dst+2] = pixelBuf[src+2];   rgba[dst+3] = 255;
+        rgba[dst] = pixelBuf[src]; rgba[dst + 1] = pixelBuf[src + 1];
+        rgba[dst + 2] = pixelBuf[src + 2]; rgba[dst + 3] = 255;
       } else if (colorType === 0 || colorType === 3) {         // Gray / Indexed
         const v = pixelBuf[src];
-        rgba[dst] = rgba[dst+1] = rgba[dst+2] = v;             rgba[dst+3] = 255;
+        rgba[dst] = rgba[dst + 1] = rgba[dst + 2] = v; rgba[dst + 3] = 255;
       } else if (colorType === 4) {                             // Gray + Alpha
         const v = pixelBuf[src];
-        rgba[dst] = rgba[dst+1] = rgba[dst+2] = v;             rgba[dst+3] = pixelBuf[src+1];
+        rgba[dst] = rgba[dst + 1] = rgba[dst + 2] = v; rgba[dst + 3] = pixelBuf[src + 1];
       }
     }
   }
@@ -119,20 +119,20 @@ function readPng(filePath) {
 // ─── Bilinear Resize ──────────────────────────────────────────────────────────
 
 function resizeRgba(src, srcW, srcH, dstW, dstH) {
-  const dst   = Buffer.alloc(dstW * dstH * 4);
+  const dst = Buffer.alloc(dstW * dstH * 4);
   const xRatio = srcW / dstW;
   const yRatio = srcH / dstH;
 
   for (let y = 0; y < dstH; y++) {
     for (let x = 0; x < dstW; x++) {
-      const sx  = (x + 0.5) * xRatio - 0.5;
-      const sy  = (y + 0.5) * yRatio - 0.5;
-      const x0  = Math.max(0, Math.floor(sx));
-      const y0  = Math.max(0, Math.floor(sy));
-      const x1  = Math.min(srcW - 1, x0 + 1);
-      const y1  = Math.min(srcH - 1, y0 + 1);
-      const xf  = sx - x0;
-      const yf  = sy - y0;
+      const sx = (x + 0.5) * xRatio - 0.5;
+      const sy = (y + 0.5) * yRatio - 0.5;
+      const x0 = Math.max(0, Math.floor(sx));
+      const y0 = Math.max(0, Math.floor(sy));
+      const x1 = Math.min(srcW - 1, x0 + 1);
+      const y1 = Math.min(srcH - 1, y0 + 1);
+      const xf = sx - x0;
+      const yf = sy - y0;
       const out = (y * dstW + x) * 4;
 
       for (let c = 0; c < 4; c++) {
@@ -153,7 +153,7 @@ function applyCircleMask(rgba, size) {
   const result = Buffer.from(rgba);
   const cx = size / 2;
   const cy = size / 2;
-  const r  = size / 2 - 0.5;
+  const r = size / 2 - 0.5;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -172,15 +172,15 @@ function applyCircleMask(rgba, size) {
 function writePng(rgba, width, height) {
   // Build raw scanline data (filter type 0 = None for each row)
   const rowSize = width * 4 + 1;
-  const raw     = Buffer.alloc(height * rowSize);
+  const raw = Buffer.alloc(height * rowSize);
 
   for (let y = 0; y < height; y++) {
     raw[y * rowSize] = 0; // filter = None
     for (let x = 0; x < width; x++) {
       const src = (y * width + x) * 4;
       const dst = y * rowSize + 1 + x * 4;
-      raw[dst]   = rgba[src];   raw[dst+1] = rgba[src+1];
-      raw[dst+2] = rgba[src+2]; raw[dst+3] = rgba[src+3];
+      raw[dst] = rgba[src]; raw[dst + 1] = rgba[src + 1];
+      raw[dst + 2] = rgba[src + 2]; raw[dst + 3] = rgba[src + 3];
     }
   }
 
@@ -195,10 +195,10 @@ function writePng(rgba, width, height) {
   }
 
   function mkChunk(type, data) {
-    const lenBuf  = Buffer.alloc(4); lenBuf.writeUInt32BE(data.length, 0);
+    const lenBuf = Buffer.alloc(4); lenBuf.writeUInt32BE(data.length, 0);
     const typeBuf = Buffer.from(type, 'ascii');
-    const body    = Buffer.concat([typeBuf, data]);
-    const crcBuf  = Buffer.alloc(4); crcBuf.writeUInt32BE(crc32(body), 0);
+    const body = Buffer.concat([typeBuf, data]);
+    const crcBuf = Buffer.alloc(4); crcBuf.writeUInt32BE(crc32(body), 0);
     return Buffer.concat([lenBuf, body, crcBuf]);
   }
 
@@ -216,8 +216,14 @@ function writePng(rgba, width, height) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const SOURCE  = path.join(__dirname, 'appicon.png');
-const RES_DIR = path.join(__dirname, '../android/app/src/main/res');
+const SOURCE = path.join(__dirname, 'appicon.png');
+
+const candidateResDirs = [
+  path.join(__dirname, '../android [D_P_School]/app/src/main/res'),
+  path.join(__dirname, '../android/app/src/main/res')
+];
+
+const resDirs = candidateResDirs.filter(d => fs.existsSync(path.dirname(d)));
 
 if (!fs.existsSync(SOURCE)) {
   console.error('❌  appicon.png not found in scripts/ folder.');
@@ -226,10 +232,10 @@ if (!fs.existsSync(SOURCE)) {
 }
 
 const mipmaps = [
-  { dir: 'mipmap-mdpi',    size: 48  },
-  { dir: 'mipmap-hdpi',    size: 72  },
-  { dir: 'mipmap-xhdpi',   size: 96  },
-  { dir: 'mipmap-xxhdpi',  size: 144 },
+  { dir: 'mipmap-mdpi', size: 48 },
+  { dir: 'mipmap-hdpi', size: 72 },
+  { dir: 'mipmap-xhdpi', size: 96 },
+  { dir: 'mipmap-xxhdpi', size: 144 },
   { dir: 'mipmap-xxxhdpi', size: 192 },
 ];
 
@@ -240,20 +246,23 @@ if (srcW !== srcH) {
   console.warn('⚠️   Warning: appicon.png is not square — icons may appear stretched.');
 }
 console.log('');
-console.log('🤖  Generating Android launcher icons...');
+console.log('🤖  Generating Android launcher icons for target res directories...');
 
-for (const { dir, size } of mipmaps) {
-  const folder = path.join(RES_DIR, dir);
-  fs.mkdirSync(folder, { recursive: true });
+for (const targetResDir of resDirs) {
+  console.log(`   ➔ Output target: ${targetResDir}`);
+  for (const { dir, size } of mipmaps) {
+    const folder = path.join(targetResDir, dir);
+    fs.mkdirSync(folder, { recursive: true });
 
-  const scaled  = resizeRgba(srcRgba, srcW, srcH, size, size);
-  const rounded = applyCircleMask(Buffer.from(scaled), size);
+    const scaled = resizeRgba(srcRgba, srcW, srcH, size, size);
+    const rounded = applyCircleMask(Buffer.from(scaled), size);
 
-  fs.writeFileSync(path.join(folder, 'ic_launcher.png'),           writePng(scaled,  size, size));
-  fs.writeFileSync(path.join(folder, 'ic_launcher_round.png'),     writePng(rounded, size, size));
-  fs.writeFileSync(path.join(folder, 'ic_launcher_foreground.png'),writePng(scaled,  size, size));
+    fs.writeFileSync(path.join(folder, 'ic_launcher.png'), writePng(scaled, size, size));
+    fs.writeFileSync(path.join(folder, 'ic_launcher_round.png'), writePng(rounded, size, size));
+    fs.writeFileSync(path.join(folder, 'ic_launcher_foreground.png'), writePng(scaled, size, size));
 
-  console.log(`   ✓  ${dir} — ${size}×${size}px`);
+    console.log(`      ✓  ${dir} — ${size}×${size}px`);
+  }
 }
 
 // ─── PWA / Web icons ──────────────────────────────────────────────────────────
@@ -262,10 +271,10 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 
 const pwa512 = resizeRgba(srcRgba, srcW, srcH, 512, 512);
-const fav64  = resizeRgba(srcRgba, srcW, srcH, 64,  64);
+const fav64 = resizeRgba(srcRgba, srcW, srcH, 64, 64);
 
-fs.writeFileSync(path.join(PUBLIC_DIR, 'icon.png'),    writePng(pwa512, 512, 512));
-fs.writeFileSync(path.join(PUBLIC_DIR, 'favicon.ico'), writePng(fav64,  64,  64));
+fs.writeFileSync(path.join(PUBLIC_DIR, 'icon.png'), writePng(pwa512, 512, 512));
+fs.writeFileSync(path.join(PUBLIC_DIR, 'favicon.ico'), writePng(fav64, 64, 64));
 
 console.log('');
 console.log('🌐  Web PWA icons:');
