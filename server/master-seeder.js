@@ -807,12 +807,18 @@ async function runMasterSeeder() {
                     paid_to VARCHAR(150),
                     status VARCHAR(20) DEFAULT 'Approved',
                     description TEXT,
+                    attachment VARCHAR(255),
                     receipt_url TEXT,
                     created_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                    approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-                ALTER TABLE expenses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                ALTER TABLE expenses 
+                    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ADD COLUMN IF NOT EXISTS attachment VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                    ADD COLUMN IF NOT EXISTS receipt_url TEXT;
 
                 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
             `);

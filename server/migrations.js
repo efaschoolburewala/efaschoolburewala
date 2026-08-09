@@ -67,11 +67,15 @@ async function runEssentialMigrations() {
             ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0;
         `);
 
-        // 4.2 Expense tables updated_at column migration
+        // 4.2 Expense tables updated_at, attachment & approved_by column migration
         console.log("   → Checking expense_categories and expenses columns...");
         await client.query(`
             ALTER TABLE expense_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-            ALTER TABLE expenses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            ALTER TABLE expenses 
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS attachment VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                ADD COLUMN IF NOT EXISTS receipt_url TEXT;
         `).catch(() => { /* Tables may not exist yet on fresh install, seeder will create them */ });
 
 
