@@ -35,7 +35,7 @@ That's it! The menu will guide you:
 
 ---
 
-## 2️⃣ STOP Application
+### 2️⃣ STOP Application
 - ✅ Stops all servers
 - ✅ Clears port locks
 
@@ -43,7 +43,7 @@ That's it! The menu will guide you:
 
 ---
 
-## 3️⃣ RESTART Application
+### 3️⃣ RESTART Application
 - ✅ Complete clean restart
 - ✅ Clears all caches
 - ✅ Fixes most issues automatically
@@ -56,7 +56,7 @@ That's it! The menu will guide you:
 
 ---
 
-## 4️⃣ EXIT
+### 4️⃣ EXIT
 - Asks if you want to stop servers
 - Closes the menu
 

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
+import { NotificationBell } from '../notifications/NotificationBell';
+
 // Quick Actions Dropdown Component
 export function QuickActionsDropdown() {
   const [open, setOpen] = useState(false);
@@ -190,9 +192,10 @@ export function DashShell({
             </div>
           </div>
 
-          {/* Right Side: Quick Actions Dropdown */}
-          <div className="dash-actions-wrapper" style={{ flexShrink: 0 }}>
+          {/* Right Side: Quick Actions & Notification Bell (Bell Icon Most Right) */}
+          <div className="dash-actions-wrapper" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             {actions || <QuickActionsDropdown />}
+            <NotificationBell />
           </div>
         </div>
       </div>
