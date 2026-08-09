@@ -826,13 +826,7 @@ async function runMasterSeeder() {
         try {
             console.log("💰 Setting up Fee Management Module Tables...");
 
-            // Cleanup duplicate fee_heads before enforcing uniqueness or seeding
-            await pool.query(`
-                DELETE FROM fee_heads a USING fee_heads b
-                WHERE a.head_id > b.head_id AND a.head_name = b.head_name;
-            `);
-
-            // 8.1 fee_heads Table
+            // 8.1 fee_heads Table (Create Table FIRST before any queries)
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS fee_heads (
                     head_id SERIAL PRIMARY KEY,
@@ -843,6 +837,16 @@ async function runMasterSeeder() {
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
+            `);
+
+            // Cleanup duplicate fee_heads if table existed with duplicates
+            await pool.query(`
+                DELETE FROM fee_heads a USING fee_heads b
+                WHERE a.head_id > b.head_id AND a.head_name = b.head_name;
+            `).catch(() => { });
+
+            // Enforce unique constraint
+            await pool.query(`
                 ALTER TABLE fee_heads ADD CONSTRAINT fee_heads_head_name_key UNIQUE (head_name);
             `).catch(() => { /* Ignore constraint already exists error */ });
 
@@ -1004,6 +1008,7 @@ async function runMasterSeeder() {
                     student_id INTEGER NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
                     total_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                     paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+                    discount NUMERIC(10,2) DEFAULT 0,
                     discount_amount NUMERIC(10,2) DEFAULT 0,
                     status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
                     admission_date DATE,
@@ -1011,6 +1016,8 @@ async function runMasterSeeder() {
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(student_id)
                 );
+                ALTER TABLE admission_fee_ledger ADD COLUMN IF NOT EXISTS discount NUMERIC(10,2) DEFAULT 0;
+                ALTER TABLE admission_fee_ledger ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0;
             `);
 
             // 8.10 admission_fee_payments Table
