@@ -467,20 +467,24 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                             <i className="bi bi-shield-check me-2"></i>Student Profile Verified
                                         </div>
 
-                                        {student?.student_id && (
-                                            <div className="mt-3 pt-1">
-                                                <Link
-                                                    href={`/students/edit/${student.student_id}`}
-                                                    className="btn w-100 py-2.5 rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 text-white transition"
+                                        {(student?.student_id || params.id) && (
+                                            <div className="mt-2 pt-1">
+                                                <button
+                                                    onClick={() => router.push(`/students/edit/${student?.student_id || params.id}`)}
+                                                    className="btn w-100 py-2.5 rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 text-white"
                                                     style={{
-                                                        background: 'linear-gradient(135deg, var(--primary-teal, #215e61) 0%, var(--primary-dark, #0f1c24) 100%)',
+                                                        background: 'linear-gradient(135deg, #195053 0%, #1e3644 100%)',
                                                         border: 'none',
-                                                        fontSize: '0.85rem'
+                                                        fontSize: '0.85rem',
+                                                        letterSpacing: '0.3px',
+                                                        boxShadow: '0 4px 12px rgba(25, 80, 83, 0.25)',
+                                                        transition: 'all 0.2s ease',
+                                                        cursor: 'pointer'
                                                     }}
                                                 >
                                                     <i className="bi bi-pencil-square fs-6"></i>
                                                     <span>Edit Student Profile</span>
-                                                </Link>
+                                                </button>
                                             </div>
                                         )}
                                     </div>
