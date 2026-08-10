@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { notify } from '@/app/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 import { API } from './shared';
@@ -80,16 +81,36 @@ export default function StudentDashboard({ user }: { user: any }) {
         if (!user || currentId) return;
         const fetchMe = async () => {
             try {
-                const adm = user.username.replace('STU-', '');
-                const res = await fetch(`${API}/students?keyword=${adm}`);
+                const rawUsername = user.username || '';
+                const adm = rawUsername.replace(/^STU-/i, '').replace(/^FAM-/i, '');
+                
+                const res = await fetch(`${API}/students?keyword=${encodeURIComponent(adm || rawUsername)}`);
                 if (res.ok) {
                     const data = await res.json();
                     const list = data.rows || data;
-                    if (list && list.length > 0) setCurrentId(String(list[0].student_id));
-                    else { setInitError('Profile not found.'); setLoading(false); }
+                    if (list && list.length > 0) {
+                        setCurrentId(String(list[0].student_id));
+                        return;
+                    }
                 }
+
+                if (user.id) {
+                    const resUser = await fetch(`${API}/students?user_id=${user.id}`);
+                    if (resUser.ok) {
+                        const dataUser = await resUser.json();
+                        const listUser = dataUser.rows || dataUser;
+                        if (listUser && listUser.length > 0) {
+                            setCurrentId(String(listUser[0].student_id));
+                            return;
+                        }
+                    }
+                }
+
+                setInitError('Profile not found.');
+                setLoading(false);
             } catch (e) {
-                setInitError('Error finding account'); setLoading(false);
+                setInitError('Error finding account');
+                setLoading(false);
             }
         };
         fetchMe();
@@ -394,7 +415,20 @@ export default function StudentDashboard({ user }: { user: any }) {
                             <div className="col-12 col-md-6 col-lg-12">
                                 <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
                                     <div className="card-body p-3 p-md-4">
-                                        <h6 className="fw-bold text-uppercase text-muted mb-3 small">Quick Info</h6>
+                                        <div className="d-flex align-items-center justify-content-between mb-3">
+                                            <h6 className="fw-bold text-uppercase text-muted mb-0 small">Quick Info</h6>
+                                            {student?.student_id && hasPermission('students', 'write') && (
+                                                <Link
+                                                    href={`/students/edit/${student.student_id}`}
+                                                    className="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
+                                                    style={{ fontSize: '0.75rem' }}
+                                                    title="Edit Student Info"
+                                                >
+                                                    <i className="bi bi-pencil-fill" style={{ fontSize: '0.7rem' }}></i>
+                                                    <span>Edit Profile</span>
+                                                </Link>
+                                            )}
+                                        </div>
                                         
                                         {/* Credentials Block */}
                                         <div className="mb-3">

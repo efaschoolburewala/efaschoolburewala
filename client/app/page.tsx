@@ -15,12 +15,24 @@ export default function Dashboard() {
   const roleLevel = user.role_level || 0;
   const name = user.full_name || user.username || 'User';
 
+  const roleName = (user.role_name || '').toLowerCase();
+  const username = (user.username || '').toUpperCase();
+  const isStudentOrFamily =
+    user.dashboard_access === 'student' ||
+    roleName.includes('student') ||
+    roleName.includes('family') ||
+    username.startsWith('STU-') ||
+    username.startsWith('FAM-') ||
+    (user.role_level !== undefined && user.role_level > 0 && user.role_level <= 15);
+
   // Determine dynamic assigned dashboard (fallback to legacy roleLevel)
-  const dashAccess = user.dashboard_access || (
-    roleLevel >= 90 ? 'admin' :
-    roleLevel >= 50 ? 'teacher' :
-    roleLevel >= 20 ? 'accountant' : 'student'
-  );
+  const dashAccess = isStudentOrFamily
+    ? 'student'
+    : (user.dashboard_access || (
+        roleLevel >= 90 ? 'admin' :
+        roleLevel >= 50 ? 'teacher' :
+        roleLevel >= 20 ? 'accountant' : 'student'
+      ));
 
   if (dashAccess === 'admin') {
     return <AdminDashboard userName={name} />;
