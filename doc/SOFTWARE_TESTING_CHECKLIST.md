@@ -1,4 +1,4 @@
-# Shaheen School Management System - Complete QA & System Testing Checklist
+# Falcon School System Management System - Complete QA & System Testing Checklist
 
 Is testing checklist file mein software ke tamam modules, key concepts, business rules, UI validation aur workflows ki testing list mojood hai. Test karte waqt har feature ke aage checkbox `[x]` mark karein.
 

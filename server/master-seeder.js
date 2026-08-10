@@ -259,7 +259,7 @@ async function runMasterSeeder() {
             if (ssCheck.rows.length === 0) {
                 await pool.query(`
                     INSERT INTO school_settings (school_name, tagline, address, contact_number) 
-                    VALUES ('Shaheen English Model School Vehari', 'Excellence in Education', '83/M Madina Colony Vehari', '0300-7730141')
+                    VALUES ('Falcon School System', 'Excellence in Education', '83/M Madina Colony Vehari', '0300-7730141')
                 `);
             }
 
@@ -275,7 +275,7 @@ async function runMasterSeeder() {
             `);
 
             const sysDefaults = [
-                { key: 'school_name', value: 'Shaheen English Model School Vehari', category: 'general', desc: 'Official name of the institution' },
+                { key: 'school_name', value: 'Falcon School System', category: 'general', desc: 'Official name of the institution' },
                 { key: 'school_address', value: '83/M Madina Colony Vehari', category: 'general', desc: 'School address' },
                 { key: 'phone_number', value: '0300-7730141', category: 'general', desc: 'Primary school phone number' },
                 { key: 'school_phone2', value: '0308-7696430', category: 'general', desc: 'Secondary phone number' },

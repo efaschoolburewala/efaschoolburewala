@@ -711,7 +711,7 @@ export default function SystemConfigPage() {
                                                 <input
                                                     type="text"
                                                     className="form-control font-monospace"
-                                                    placeholder="e.g. D:\ShaheenSchool\Backups"
+                                                    placeholder="e.g. D:\Falcon School System\Backups"
                                                     value={formData['backup_path'] || ''}
                                                     disabled={!backupEnabled}
                                                     onChange={e => handleChange('backup_path', e.target.value)}

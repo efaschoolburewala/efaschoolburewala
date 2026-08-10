@@ -418,7 +418,7 @@ export default function CollectFeePage() {
         const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
         const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
         const logoUrl = school.school_logo_url || `${API_URL}/icon.png`;
-        const schoolNameFormatted = (school.school_name || 'Shaheen English Model School\nVehari').split('\n').join('<br>');
+        const schoolNameFormatted = (school.school_name || 'Falcon School System\nVehari').split('\n').join('<br>');
         const schoolAddress = school.school_address || '83/M Madina Colony Vehari';
 
         const logoImgHtml = logoUrl

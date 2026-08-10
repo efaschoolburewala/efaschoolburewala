@@ -89,7 +89,7 @@ export default function FamilyListPage() {
                             return `${API}/${s.replace(/^\/+/, '')}`;
                         };
                         setSchool({
-                            school_name: data.school_name || 'Shaheen Model High School',
+                            school_name: data.school_name || 'Falcon School System',
                             school_address: data.address || 'Main Campus, Vehari',
                             phone_number: data.contact_number || '',
                             school_phone2: '',
@@ -216,7 +216,7 @@ export default function FamilyListPage() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Family Directory");
         const dateStr = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `Shaheen_School_Family_Directory_${dateStr}.xlsx`);
+        XLSX.writeFile(wb, `Falcon School System_School_Family_Directory_${dateStr}.xlsx`);
     };
 
     // 2. Export CSV
@@ -256,7 +256,7 @@ export default function FamilyListPage() {
         const link = document.createElement("a");
         link.setAttribute("href", url);
         const dateStr = new Date().toISOString().split('T')[0];
-        link.setAttribute("download", `Shaheen_School_Family_Directory_${dateStr}.csv`);
+        link.setAttribute("download", `Falcon School System_School_Family_Directory_${dateStr}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -325,7 +325,7 @@ export default function FamilyListPage() {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Family Directory Report - ${school.school_name || 'Shaheen School'}</title>
+                <title>Family Directory Report - ${school.school_name || 'Falcon School System'}</title>
                 <style>
                     body { font-family: Arial, sans-serif; margin: 12mm 10mm; color: #000; background: #fff; }
                     .header { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
@@ -343,7 +343,7 @@ export default function FamilyListPage() {
                 <div class="header">
                     ${school.school_logo_url ? `<img src="${school.school_logo_url}" class="logo" alt="Logo" />` : ''}
                     <div>
-                        <div class="school-name">${school.school_name || 'SHAHEEN MODEL HIGH SCHOOL'}</div>
+                        <div class="school-name">${school.school_name || 'Falcon School System'}</div>
                         <div class="school-sub">${school.school_address} ${school.phone_number ? `| Ph: ${school.phone_number}` : ''}</div>
                     </div>
                 </div>

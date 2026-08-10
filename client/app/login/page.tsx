@@ -43,7 +43,7 @@ export default function LoginPage() {
 
     // Dynamic School Settings State
     const [schoolSettings, setSchoolSettings] = useState({
-        school_name: 'Shaheen English Model School Vehari',
+        school_name: 'Falcon School System',
         logo_url: '',
         tagline: 'Excellence in Education'
     });
@@ -70,7 +70,7 @@ export default function LoginPage() {
             .then(res => res.json())
             .then(data => {
                 if (data && typeof data === 'object') {
-                    const name = data.school_name || 'Shaheen English Model School Vehari';
+                    const name = data.school_name || 'Falcon School System';
                     const logo = data.logo_url ? (
                         data.logo_url.startsWith('data:') || data.logo_url.startsWith('http')
                             ? data.logo_url

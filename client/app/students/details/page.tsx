@@ -390,7 +390,7 @@ export default function StudentDetails() {
                         return `${API}/${s.replace(/^\/+/, '')}`;
                     };
                     setSchool({
-                        school_name: data.school_name || 'Shaheen Model High School',
+                        school_name: data.school_name || 'Falcon School System',
                         address: data.address || '',
                         contact_number: data.contact_number || '',
                         logo_url: getLogo(data.logo_url)
@@ -411,7 +411,7 @@ export default function StudentDetails() {
         }).join('') + '</tr>').join('');
 
         const logoUrl = school?.logo_url || `${(process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '')}/icon.png`;
-        const schoolName = school?.school_name || 'Shaheen Model High School';
+        const schoolName = school?.school_name || 'Falcon School System';
         const address = school?.address || '';
         const contact = school?.contact_number || '';
 

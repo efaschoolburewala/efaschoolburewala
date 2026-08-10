@@ -228,7 +228,7 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
     const extraRows = (studentCount - MIN_STUDENTS) + (feeCount - MIN_FEES);
     const compactClass = extraRows >= 3 ? ' table-compact' : '';
 
-    const schoolName = school.school_name || 'Shaheen English Model School Vehari';
+    const schoolName = school.school_name || 'Falcon School System';
     const schoolAddress = school.school_address || '83/M Madina Colony Vehari';
     const schoolPhones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
 

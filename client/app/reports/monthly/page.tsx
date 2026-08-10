@@ -42,7 +42,7 @@ export default function MonthlyReportPage() {
     const [reportData, setReportData] = useState<{ summary: any; families: any[] } | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [schoolInfo, setSchoolInfo] = useState<{ name: string; address: string; phone: string; logo: string }>({
-        name: 'Shaheen Public School', address: '', phone: '', logo: ''
+        name: 'Falcon School System', address: '', phone: '', logo: ''
     });
 
     useEffect(() => {
@@ -52,7 +52,7 @@ export default function MonthlyReportPage() {
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object') {
                 setSchoolInfo({
-                    name: data.school_name || 'Shaheen Public School',
+                    name: data.school_name || 'Falcon School System',
                     address: data.address || '',
                     phone: data.contact_number || '',
                     logo: data.logo_url ? `${API}${data.logo_url}` : ''
@@ -672,7 +672,7 @@ export default function MonthlyReportPage() {
 
                 <div className="card-footer bg-light p-3 text-center border-top">
                     <span className="text-muted small fw-semibold">
-                        Shaheen Public School • Monthly Financial Audit Report • {monthName} {year}
+                        Falcon School System • Monthly Financial Audit Report • {monthName} {year}
                     </span>
                 </div>
             </div>

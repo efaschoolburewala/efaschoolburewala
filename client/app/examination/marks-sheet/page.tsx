@@ -145,7 +145,7 @@ function buildPrintHtml(payload: SheetPayload): string {
     const { meta, school, subjects } = payload;
     const sortedStudents = sortStudentsByPosition(payload.students || []);
 
-    const schoolName = school.school_name || 'Shaheen English Model School';
+    const schoolName = school.school_name || 'Falcon School System';
     const address = school.school_address || '83/m Madina colony Vehari';
     const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(', ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
     const fullAddressPhone = [address, phones ? `Ph: ${phones}` : ''].filter(Boolean).join(' | ');

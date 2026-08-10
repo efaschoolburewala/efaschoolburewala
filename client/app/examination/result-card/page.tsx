@@ -136,7 +136,7 @@ function getLogoUrl(rawLogo?: string): string {
 
 function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
   const { meta, school, students } = payload;
-  const schoolName = school.school_name || 'Shaheen English Model School Vehari';
+  const schoolName = school.school_name || 'Falcon School System';
   const address = school.school_address || '83m Madina Colony Vehari';
   const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
   const logo = getLogoUrl(school.school_logo_url);
@@ -177,7 +177,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
             <!-- Header -->
             <div class="header">
               <div class="logo">
-                ${logo ? `<img src="${esc(logo)}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>` : 'DEEDS NOT WORDS<br>SHAHEEN SCHOOL'}
+                ${logo ? `<img src="${esc(logo)}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>` : 'DEEDS NOT WORDS<br>Falcon School System'}
               </div>
               <div class="school-info">
                 <div class="school-name">${esc(schoolName)}</div>
@@ -307,7 +307,7 @@ function buildPrintHtml(payload: CardPayload, autoPrint = false): string {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Shaheen English Model School Vehari - Annual Result Card</title>
+<title>Falcon School System - Annual Result Card</title>
 <style>
   @page {
     size: A4 portrait;
