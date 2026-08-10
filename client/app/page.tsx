@@ -25,14 +25,16 @@ export default function Dashboard() {
     username.startsWith('FAM-') ||
     (user.role_level !== undefined && user.role_level > 0 && user.role_level <= 15);
 
+  if (isStudentOrFamily) {
+    return <StudentDashboard key={`dashboard-${user.id}`} user={user} />;
+  }
+
   // Determine dynamic assigned dashboard (fallback to legacy roleLevel)
-  const dashAccess = isStudentOrFamily
-    ? 'student'
-    : (user.dashboard_access || (
-        roleLevel >= 90 ? 'admin' :
-        roleLevel >= 50 ? 'teacher' :
-        roleLevel >= 20 ? 'accountant' : 'student'
-      ));
+  const dashAccess = user.dashboard_access || (
+    roleLevel >= 90 ? 'admin' :
+    roleLevel >= 50 ? 'teacher' :
+    roleLevel >= 20 ? 'accountant' : 'student'
+  );
 
   if (dashAccess === 'admin') {
     return <AdminDashboard userName={name} />;

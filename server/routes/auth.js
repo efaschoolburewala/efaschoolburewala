@@ -183,6 +183,29 @@ router.post('/login', async (req, res) => {
             } catch (e) {}
         }
 
+        // Auto-detect Student / Family user account
+        const rNameLower = (safeUser.role_name || '').toLowerCase();
+        const uNameUpper = (safeUser.username || '').toUpperCase();
+        let isStudentUser = rNameLower.includes('student') || rNameLower.includes('family') || uNameUpper.startsWith('STU-') || uNameUpper.startsWith('FAM-');
+        
+        if (!isStudentUser && safeUser.id) {
+            try {
+                const sCheck = await pool.query('SELECT student_id FROM students WHERE user_id = $1 LIMIT 1', [safeUser.id]);
+                if (sCheck.rows.length > 0) {
+                    isStudentUser = true;
+                    safeUser.student_id = sCheck.rows[0].student_id;
+                }
+            } catch (e) {}
+        }
+
+        if (isStudentUser) {
+            safeUser.dashboard_access = 'student';
+            if (!safeUser.role_name || safeUser.role_name === 'Administrator') {
+                safeUser.role_name = 'Student';
+            }
+            safeUser.role_level = 10;
+        }
+
         res.json({
             ...safeUser,
             token,
