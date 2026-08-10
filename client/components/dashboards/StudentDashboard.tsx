@@ -415,20 +415,7 @@ export default function StudentDashboard({ user }: { user: any }) {
                             <div className="col-12 col-md-6 col-lg-12">
                                 <div className="card border-0 shadow-sm rounded-4 h-100 overflow-hidden">
                                     <div className="card-body p-3 p-md-4">
-                                        <div className="d-flex align-items-center justify-content-between mb-3">
-                                            <h6 className="fw-bold text-uppercase text-muted mb-0 small">Quick Info</h6>
-                                            {student?.student_id && hasPermission('students', 'write') && (
-                                                <Link
-                                                    href={`/students/edit/${student.student_id}`}
-                                                    className="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-xs"
-                                                    style={{ fontSize: '0.75rem' }}
-                                                    title="Edit Student Info"
-                                                >
-                                                    <i className="bi bi-pencil-fill" style={{ fontSize: '0.7rem' }}></i>
-                                                    <span>Edit Profile</span>
-                                                </Link>
-                                            )}
-                                        </div>
+                                        <h6 className="fw-bold text-uppercase text-muted mb-3 small">Quick Info</h6>
                                         
                                         {/* Credentials Block */}
                                         <div className="mb-3">
@@ -500,6 +487,23 @@ export default function StudentDashboard({ user }: { user: any }) {
                                         <div className="text-center text-success fw-bold py-2">
                                             <i className="bi bi-shield-check me-2"></i>Student Portal Verified
                                         </div>
+
+                                        {student?.student_id && hasPermission('students', 'write') && (
+                                            <div className="mt-3 pt-1">
+                                                <Link
+                                                    href={`/students/edit/${student.student_id}`}
+                                                    className="btn w-100 py-2.5 rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 text-white transition"
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, var(--primary-teal, #215e61) 0%, var(--primary-dark, #0f1c24) 100%)',
+                                                        border: 'none',
+                                                        fontSize: '0.85rem'
+                                                    }}
+                                                >
+                                                    <i className="bi bi-pencil-square fs-6"></i>
+                                                    <span>Edit Student Profile</span>
+                                                </Link>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
