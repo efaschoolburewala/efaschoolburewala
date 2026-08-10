@@ -78,6 +78,19 @@ async function runEssentialMigrations() {
                 ADD COLUMN IF NOT EXISTS receipt_url TEXT;
         `).catch(() => { /* Tables may not exist yet on fresh install, seeder will create them */ });
 
+        // 4.3 Student roles and user role assignment cleanup migration
+        console.log("   → Checking Student roles and user role assignments...");
+        await client.query(`
+            UPDATE app_roles 
+            SET dashboard_access = 'student', role_level = 10 
+            WHERE LOWER(role_name) = 'student' OR LOWER(role_name) LIKE '%student%';
+
+            UPDATE app_users 
+            SET role_id = (SELECT id FROM app_roles WHERE LOWER(role_name) = 'student' LIMIT 1)
+            WHERE (LOWER(username) LIKE 'stu-%' OR LOWER(username) LIKE 'fam-%')
+              AND (SELECT id FROM app_roles WHERE LOWER(role_name) = 'student' LIMIT 1) IS NOT NULL;
+        `).catch(() => { });
+
 
 
         // 5. Student Academic Records (Promotion History Table)
