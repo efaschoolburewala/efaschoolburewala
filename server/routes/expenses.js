@@ -7,8 +7,8 @@ async function getActiveAcademicYear(clientPool) {
     let yearRes = await clientPool.query(
         `SELECT id, year_name, is_active
          FROM academic_years
-         WHERE is_active = TRUE
-         ORDER BY id DESC
+         WHERE is_active = TRUE OR status = 'active'
+         ORDER BY id ASC
          LIMIT 1`
     );
 
@@ -16,9 +16,13 @@ async function getActiveAcademicYear(clientPool) {
         yearRes = await clientPool.query(
             `SELECT id, year_name, is_active
              FROM academic_years
-             ORDER BY id DESC
+             ORDER BY id ASC
              LIMIT 1`
         );
+        if (yearRes.rows.length > 0) {
+            await clientPool.query(`UPDATE academic_years SET is_active = TRUE, status = 'active' WHERE id = $1`, [yearRes.rows[0].id]);
+            yearRes.rows[0].is_active = true;
+        }
     }
 
     return yearRes.rows[0] || null;

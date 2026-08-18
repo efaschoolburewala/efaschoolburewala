@@ -77,13 +77,18 @@ export default function ExpenseListPage() {
 
     const fetchActiveYear = async () => {
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
-            const data = await response.json();
+            let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
+            let data = await response.json();
+            if (!data?.year_name) {
+                response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses?limit=1`);
+                data = await response.json();
+                data = data.active_year;
+            }
             if (data?.year_name) {
                 setActiveYear(data);
             }
         } catch (err) {
-            console.error('Failed to fetch active academic year');
+            console.error('Failed to fetch active academic year', err);
         }
     };
 

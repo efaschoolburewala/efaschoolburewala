@@ -4,9 +4,14 @@ const pool = require('../db');
 // Get active academic year
 router.get('/active-year', async (req, res) => {
     try {
-        let result = await pool.query("SELECT * FROM academic_years WHERE is_active = true ORDER BY id DESC LIMIT 1");
+        let result = await pool.query("SELECT * FROM academic_years WHERE is_active = true OR status = 'active' ORDER BY id ASC LIMIT 1");
         if (result.rows.length === 0) {
-            result = await pool.query("SELECT * FROM academic_years ORDER BY id DESC LIMIT 1");
+            result = await pool.query("SELECT * FROM academic_years ORDER BY id ASC LIMIT 1");
+            if (result.rows.length > 0) {
+                await pool.query("UPDATE academic_years SET is_active = true, status = 'active' WHERE id = $1", [result.rows[0].id]);
+                result.rows[0].is_active = true;
+                result.rows[0].status = 'active';
+            }
         }
         res.json(result.rows[0] || null);
     } catch (err) {
@@ -17,9 +22,14 @@ router.get('/active-year', async (req, res) => {
 
 router.get('/years/active', async (req, res) => {
     try {
-        let result = await pool.query("SELECT * FROM academic_years WHERE is_active = true ORDER BY id DESC LIMIT 1");
+        let result = await pool.query("SELECT * FROM academic_years WHERE is_active = true OR status = 'active' ORDER BY id ASC LIMIT 1");
         if (result.rows.length === 0) {
-            result = await pool.query("SELECT * FROM academic_years ORDER BY id DESC LIMIT 1");
+            result = await pool.query("SELECT * FROM academic_years ORDER BY id ASC LIMIT 1");
+            if (result.rows.length > 0) {
+                await pool.query("UPDATE academic_years SET is_active = true, status = 'active' WHERE id = $1", [result.rows[0].id]);
+                result.rows[0].is_active = true;
+                result.rows[0].status = 'active';
+            }
         }
         res.json(result.rows[0] || null);
     } catch (err) {

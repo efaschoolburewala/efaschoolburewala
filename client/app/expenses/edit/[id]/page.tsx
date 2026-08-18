@@ -73,6 +73,12 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
             setExpenseYearName(exp.academic_year_name || '');
             if (data.active_year?.year_name) {
                 setActiveYearName(data.active_year.year_name);
+            } else {
+                try {
+                    const ayRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
+                    const ayData = await ayRes.json();
+                    if (ayData?.year_name) setActiveYearName(ayData.year_name);
+                } catch { }
             }
 
             setFormData({
