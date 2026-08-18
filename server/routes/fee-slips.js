@@ -41,13 +41,50 @@ router.post('/generate', async (req, res) => {
 
         const activeYear = await getActiveAcademicYear(client);
         const targetYearId = academic_year_id ? parseInt(academic_year_id, 10) : (activeYear ? activeYear.id : null);
+        let actualYear = parseInt(year, 10);
 
         if (targetYearId) {
-            const yearCheck = await client.query('SELECT id, year_name, is_active, status FROM academic_years WHERE id = $1', [targetYearId]);
-            if (yearCheck.rows.length > 0 && yearCheck.rows[0].is_active === false) {
-                return res.status(403).json({
-                    error: `Fiscal/Academic Year (${yearCheck.rows[0].year_name}) is closed. New fee slips cannot be generated for closed sessions.`
-                });
+            const yearCheck = await client.query('SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years WHERE id = $1', [targetYearId]);
+            if (yearCheck.rows.length > 0) {
+                const yRow = yearCheck.rows[0];
+                if (yRow.is_active === false) {
+                    return res.status(403).json({
+                        error: `Fiscal/Academic Year (${yRow.year_name}) is closed. New fee slips cannot be generated for closed sessions.`
+                    });
+                }
+                if (yRow.start_date && yRow.end_date) {
+                    const startD = new Date(yRow.start_date);
+                    const endD = new Date(yRow.end_date);
+                    const validMonthMap = new Map(); // monthNumber -> calendarYear
+                    let cY = startD.getFullYear();
+                    let cM = startD.getMonth() + 1;
+                    const eY = endD.getFullYear();
+                    const eM = endD.getMonth() + 1;
+
+                    let iter = 0;
+                    while ((cY < eY || (cY === eY && cM <= eM)) && iter < 24) {
+                        validMonthMap.set(cM, cY);
+                        cM++;
+                        if (cM > 12) {
+                            cM = 1;
+                            cY++;
+                        }
+                        iter++;
+                    }
+
+                    const invalidMonths = rawMonths.map(Number).filter(m => !validMonthMap.has(m));
+                    if (invalidMonths.length > 0) {
+                        const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const invalidNames = invalidMonths.map(m => MONTH_NAMES[m - 1]).join(', ');
+                        return res.status(400).json({
+                            error: `Selected month(s) (${invalidNames}) fall outside the active academic year duration (${MONTH_NAMES[startD.getMonth()]} ${startD.getFullYear()} – ${MONTH_NAMES[endD.getMonth()]} ${endD.getFullYear()}). Fee slips can only be generated for months within this academic session.`
+                        });
+                    }
+
+                    if (validMonthMap.has(Number(rawMonths[0]))) {
+                        actualYear = validMonthMap.get(Number(rawMonths[0]));
+                    }
+                }
             }
         }
 
@@ -59,7 +96,7 @@ router.post('/generate', async (req, res) => {
         const checkQuery = `
             SELECT DISTINCT month, months_list
             FROM monthly_fee_slips mfs
-            WHERE year = $2 
+            WHERE (year = $2 OR (academic_year_id = $4 AND $4 IS NOT NULL))
               AND (
                  month = ANY($3::int[]) 
                  OR 
@@ -73,7 +110,7 @@ router.post('/generate', async (req, res) => {
                 )
               )
         `;
-        const checkRes = await client.query(checkQuery, [class_id, year, monthsArray]);
+        const checkRes = await client.query(checkQuery, [class_id, actualYear, monthsArray, targetYearId]);
         if (checkRes.rows.length > 0) {
             await client.query('ROLLBACK');
             let conflictingSet = new Set();
@@ -266,7 +303,7 @@ router.post('/generate', async (req, res) => {
                     (student_id, family_id, class_id, month, year, due_date, issue_date, total_amount, is_family_slip, has_multi_months, months_list, academic_year_id)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING slip_id`,
                 [student.student_id, student.family_id, actualClassId,
-                    month, year, due_date || null, issue_date || null, totalAmount, isFamilySlip, hasMulti, monthsArray, targetYearId]
+                    month, actualYear, due_date || null, issue_date || null, totalAmount, isFamilySlip, hasMulti, monthsArray, targetYearId]
             );
             const slipId = slip.rows[0].slip_id;
             for (const item of lineItems)
@@ -289,9 +326,9 @@ router.post('/generate', async (req, res) => {
             // Check if ANY member already has a slip for ANY of the selected months
             const existing = await client.query(
                 `SELECT slip_id FROM monthly_fee_slips
-                 WHERE family_id = $1 AND year = $2 
+                 WHERE family_id = $1 AND (year = $2 OR (academic_year_id = $4 AND $4 IS NOT NULL))
                    AND (month = ANY($3::int[]) OR $3::int[] && months_list)`,
-                [fid, year, monthsArray]
+                [fid, actualYear, monthsArray, targetYearId]
             );
             if (existing.rows.length > 0) { skippedCount++; continue; }
 
@@ -347,9 +384,9 @@ router.post('/generate', async (req, res) => {
         for (const student of soloStudents) {
             const existing = await client.query(
                 `SELECT slip_id FROM monthly_fee_slips 
-                 WHERE student_id=$1 AND year=$2 
+                 WHERE student_id=$1 AND (year=$2 OR (academic_year_id=$4 AND $4 IS NOT NULL))
                    AND (month = ANY($3::int[]) OR $3::int[] && months_list)`,
-                [student.student_id, year, monthsArray]
+                [student.student_id, actualYear, monthsArray, targetYearId]
             );
             if (existing.rows.length > 0) { skippedCount++; continue; }
 
@@ -407,6 +444,7 @@ router.post('/generate', async (req, res) => {
 router.get('/available-months', async (req, res) => {
     try {
         const { year, class_id, academic_year_id } = req.query;
+        const activeYear = await getActiveAcademicYear(pool);
         let query = 'SELECT DISTINCT COALESCE(months_list, ARRAY[month]) AS months_array FROM monthly_fee_slips WHERE 1=1';
         let params = [];
         if (year) {
@@ -420,6 +458,9 @@ router.get('/available-months', async (req, res) => {
         if (academic_year_id && academic_year_id !== 'all') {
             params.push(academic_year_id);
             query += ` AND academic_year_id = $${params.length}`;
+        } else if (!academic_year_id && !year && activeYear) {
+            params.push(activeYear.id);
+            query += ` AND (academic_year_id = $${params.length} OR academic_year_id IS NULL)`;
         }
         const result = await pool.query(query, params);
 
@@ -823,12 +864,16 @@ router.get('/print-queue', async (req, res) => {
     const { month, year, class_id, academic_year_id } = req.query;
     if (!month || !year) return res.status(400).json({ error: 'month and year required' });
     try {
+        const activeYear = await getActiveAcademicYear(pool);
         const mArr = month.split(',').map(Number);
         const params = [mArr, year];
         let yearFilter = '';
         if (academic_year_id && academic_year_id !== 'all') {
             params.push(academic_year_id);
             yearFilter = `AND mfs.academic_year_id = $${params.length}`;
+        } else if (!academic_year_id && activeYear) {
+            params.push(activeYear.id);
+            yearFilter = `AND (mfs.academic_year_id = $${params.length} OR mfs.academic_year_id IS NULL)`;
         }
 
         // Fetch all slips for this month/year with student + class info + line items

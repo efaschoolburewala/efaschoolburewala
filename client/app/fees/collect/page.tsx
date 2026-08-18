@@ -176,8 +176,9 @@ export default function CollectFeePage() {
         try {
             const params = new URLSearchParams({ year });
             if (selectedClass) params.append('class_id', selectedClass);
-            if (selectedAcademicYear && selectedAcademicYear !== 'all') {
-                params.append('academic_year_id', selectedAcademicYear);
+            const targetYearId = (selectedAcademicYear && selectedAcademicYear !== 'all') ? selectedAcademicYear : (activeYear ? activeYear.id.toString() : '');
+            if (targetYearId) {
+                params.append('academic_year_id', targetYearId);
             }
             const r = await fetch(`${API}/fee-slips?${params.toString()}`);
             const data = await r.json();
@@ -196,8 +197,9 @@ export default function CollectFeePage() {
         try {
             const params = new URLSearchParams({ year });
             if (selectedClass) params.append('class_id', selectedClass);
-            if (selectedAcademicYear && selectedAcademicYear !== 'all') {
-                params.append('academic_year_id', selectedAcademicYear);
+            const targetYearId = (selectedAcademicYear && selectedAcademicYear !== 'all') ? selectedAcademicYear : (activeYear ? activeYear.id.toString() : '');
+            if (targetYearId) {
+                params.append('academic_year_id', targetYearId);
             }
             const r = await fetch(`${API}/fee-slips?${params.toString()}`);
             const data = await r.json();

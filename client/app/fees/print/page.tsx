@@ -440,7 +440,8 @@ export default function PrintSlipsPage() {
     }, []);
 
     useEffect(() => {
-        const yrParam = selectedAcademicYear && selectedAcademicYear !== 'all' ? `&academic_year_id=${selectedAcademicYear}` : '';
+        const targetYearId = (selectedAcademicYear && selectedAcademicYear !== 'all') ? selectedAcademicYear : (activeYear ? activeYear.id.toString() : '');
+        const yrParam = targetYearId ? `&academic_year_id=${targetYearId}` : '';
         fetch(`${API}/fee-slips/available-months?year=${year}${yrParam}`)
             .then(r => r.json())
             .then(data => {
@@ -461,7 +462,7 @@ export default function PrintSlipsPage() {
                 }
             })
             .catch(() => { });
-    }, [year, selectedAcademicYear]);
+    }, [year, selectedAcademicYear, activeYear]);
 
     const loadQueue = async () => {
         if (!month || !year) {
@@ -470,7 +471,8 @@ export default function PrintSlipsPage() {
         }
         setLoading(true); setMessage(null); setSelected(new Set()); setVouchers([]); setCoveredStudents([]); setStats(null);
         try {
-            const yrParam = selectedAcademicYear && selectedAcademicYear !== 'all' ? `&academic_year_id=${selectedAcademicYear}` : '';
+            const targetYearId = (selectedAcademicYear && selectedAcademicYear !== 'all') ? selectedAcademicYear : (activeYear ? activeYear.id.toString() : '');
+            const yrParam = targetYearId ? `&academic_year_id=${targetYearId}` : '';
             const url = `${API}/fee-slips/print-queue?month=${month}&year=${year}${classId ? `&class_id=${classId}` : ''}${yrParam}`;
             const r = await fetch(url);
             const data = await r.json();

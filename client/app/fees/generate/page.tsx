@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { notify } from '@/app/utils/notify';
@@ -30,6 +30,15 @@ interface Slip {
     line_items: { head_name: string; amount: number; note?: string }[];
 }
 interface Stats { total_students: number; total_amount: number; paid_amount: number; paid_count: number; unpaid_count: number; partial_count: number; }
+interface AcademicYearItem { id: number; year_name: string; is_active: boolean; start_date?: string; end_date?: string; }
+interface AcademicMonthOption {
+    monthNumber: number;
+    year: number;
+    monthName: string;
+    shortName: string;
+    val: string;
+    label: string;
+}
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
@@ -44,9 +53,9 @@ export default function FeeGeneratePage() {
     const [selectedClass, setSelectedClass] = useState('');
     const [selectedMonths, setSelectedMonths] = useState<string[]>([(new Date().getMonth() + 1).toString()]);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-    const [academicYears, setAcademicYears] = useState<{ id: number; year_name: string; is_active: boolean }[]>([]);
+    const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([]);
     const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
-    const [activeYear, setActiveYear] = useState<{ id: number; year_name: string; is_active: boolean } | null>(null);
+    const [activeYear, setActiveYear] = useState<AcademicYearItem | null>(null);
     const [dueDate, setDueDate] = useState('');
     const [issueDate, setIssueDate] = useState('');
     const [extraHeads, setExtraHeads] = useState<ExtraHead[]>([]);
@@ -130,6 +139,76 @@ export default function FeeGeneratePage() {
         const plan = matchingPlans.find(p => p.plan_id.toString() === selectedPlanId);
         setPlanInfo(plan || null);
     }, [selectedPlanId, matchingPlans]);
+
+    const academicMonths: AcademicMonthOption[] = useMemo(() => {
+        const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        if (!activeYear || !activeYear.start_date || !activeYear.end_date) {
+            const curY = activeYear && activeYear.year_name && !isNaN(parseInt(activeYear.year_name))
+                ? parseInt(activeYear.year_name)
+                : new Date().getFullYear();
+            return Array.from({ length: 12 }, (_, i) => ({
+                monthNumber: i + 1,
+                year: curY,
+                monthName: MONTH_NAMES[i],
+                shortName: SHORT_NAMES[i],
+                val: (i + 1).toString(),
+                label: SHORT_NAMES[i]
+            }));
+        }
+
+        const startDate = new Date(activeYear.start_date);
+        const endDate = new Date(activeYear.end_date);
+
+        let startYear = startDate.getFullYear();
+        let startMonth = startDate.getMonth(); // 0-indexed
+        let endYear = endDate.getFullYear();
+        let endMonth = endDate.getMonth(); // 0-indexed
+
+        const list: AcademicMonthOption[] = [];
+        let curY = startYear;
+        let curM = startMonth;
+        let guard = 0;
+
+        while ((curY < endYear || (curY === endYear && curM <= endMonth)) && guard < 24) {
+            list.push({
+                monthNumber: curM + 1,
+                year: curY,
+                monthName: MONTH_NAMES[curM],
+                shortName: SHORT_NAMES[curM],
+                val: (curM + 1).toString(),
+                label: startYear !== endYear ? `${SHORT_NAMES[curM]} '${curY.toString().slice(-2)}` : SHORT_NAMES[curM]
+            });
+            curM++;
+            if (curM > 11) {
+                curM = 0;
+                curY++;
+            }
+            guard++;
+        }
+
+        return list.length > 0 ? list : Array.from({ length: 12 }, (_, i) => ({
+            monthNumber: i + 1,
+            year: startYear,
+            monthName: MONTH_NAMES[i],
+            shortName: SHORT_NAMES[i],
+            val: (i + 1).toString(),
+            label: SHORT_NAMES[i]
+        }));
+    }, [activeYear]);
+
+    useEffect(() => {
+        if (academicMonths.length > 0) {
+            const validVals = academicMonths.map(m => m.val);
+            setSelectedMonths(prev => {
+                const validSelected = prev.filter(v => validVals.includes(v));
+                if (validSelected.length > 0) return validSelected;
+                const currentMonthVal = (new Date().getMonth() + 1).toString();
+                return validVals.includes(currentMonthVal) ? [currentMonthVal] : [academicMonths[0].val];
+            });
+        }
+    }, [academicMonths]);
 
     // viewMonth: first selected month always defined so we can show combined slips after generation
     const sortedSelectedMonths = [...selectedMonths].sort((a, b) => parseInt(a) - parseInt(b));
@@ -218,6 +297,8 @@ export default function FeeGeneratePage() {
         }
         setGenerating(true);
         const sortedMonths = [...selectedMonths].sort((a, b) => parseInt(a) - parseInt(b));
+        const firstMonthObj = academicMonths.find(m => m.val === sortedMonths[0]);
+        const genYear = firstMonthObj ? firstMonthObj.year : parseInt(selectedYear);
         try {
             // Send ONE request with all selected months server creates a single combined slip
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/generate`, {
@@ -226,7 +307,7 @@ export default function FeeGeneratePage() {
                 body: JSON.stringify({
                     class_id: parseInt(selectedClass),
                     months: sortedMonths.map(m => parseInt(m)),
-                    year: parseInt(selectedYear),
+                    year: genYear,
                     academic_year_id: selectedAcademicYear ? parseInt(selectedAcademicYear) : (activeYear ? activeYear.id : undefined),
                     due_date: dueDate || null,
                     issue_date: issueDate || null,
@@ -238,7 +319,7 @@ export default function FeeGeneratePage() {
             if (!res.ok) {
                 notify.error(data.error || 'Generation failed');
             } else {
-                const monthLabels = sortedMonths.map(m => MONTHS[parseInt(m) - 1]).join(' + ');
+                const monthLabels = sortedMonths.map(m => academicMonths.find(am => am.val === m)?.monthName || MONTHS[parseInt(m) - 1]).join(' + ');
                 const slipNote = sortedMonths.length > 1 ? ` (combined ${sortedMonths.length}-month slip per student)` : '';
                 notify.success(`Generated slips for ${monthLabels}${slipNote} ${data.generated} created, ${data.skipped} skipped.`);
             }
@@ -405,29 +486,30 @@ export default function FeeGeneratePage() {
                                     <span>Month(s) <span className="text-danger">*</span></span>
                                     <span className="text-muted fw-normal">
                                         {selectedMonths.length === 1
-                                            ? MONTHS[parseInt(selectedMonths[0]) - 1]
+                                            ? (academicMonths.find(m => m.val === selectedMonths[0])?.monthName || (MONTHS[parseInt(selectedMonths[0]) - 1] || ''))
                                             : <span style={{ color: 'var(--accent-orange)' }}>{selectedMonths.length} months selected</span>}
                                     </span>
                                 </label>
-                                <div className="d-grid gap-1" style={{ gridTemplateColumns: 'repeat(4,1fr)', display: 'grid' }}>
-                                    {MONTHS.map((m, i) => {
-                                        const val = (i + 1).toString();
+                                <div className="d-grid gap-1" style={{ gridTemplateColumns: `repeat(${academicMonths.length > 8 ? 4 : 3}, 1fr)`, display: 'grid' }}>
+                                    {academicMonths.map((m) => {
+                                        const val = m.val;
                                         const active = selectedMonths.includes(val);
                                         const isGenerated = generatedMonths.includes(val);
 
                                         // Find if this month is part of a combined group to show a link icon
                                         let isCombined = false;
                                         if (isGenerated) {
-                                            const g = generatedGroups.find(gr => gr.months.includes(parseInt(val)));
+                                            const g = generatedGroups.find(gr => gr.months.includes(m.monthNumber));
                                             if (g && g.months.length > 1) {
                                                 isCombined = true;
                                             }
                                         }
 
                                         return (
-                                            <button key={val} type="button"
+                                            <button key={`${val}-${m.year}`} type="button"
                                                 onClick={() => toggleMonth(val)}
-                                                className="btn btn-sm "
+                                                className="btn btn-sm"
+                                                title={`${m.monthName} ${m.year}`}
                                                 style={{
                                                     fontSize: '0.72rem', padding: '5px 2px', borderRadius: 6,
                                                     background: active ? 'var(--primary-teal)' : '#f1f3f5',
@@ -436,7 +518,7 @@ export default function FeeGeneratePage() {
                                                     fontWeight: isGenerated ? 'bold' : '600',
                                                     transition: 'all 0.15s'
                                                 }}>
-                                                {m.slice(0, 3)}
+                                                {m.label}
                                                 {isGenerated && isCombined ? <i className="bi bi-link ms-1"></i> :
                                                     isGenerated ? <i className="bi bi-check-lg ms-1"></i> : ''}
                                             </button>
