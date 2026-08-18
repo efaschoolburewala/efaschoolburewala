@@ -379,6 +379,9 @@ export default function PrintSlipsPage() {
     const [month, setMonth] = useState('');
     const [year, setYear] = useState(new Date().getFullYear().toString());
     const [classId, setClassId] = useState('');
+    const [academicYears, setAcademicYears] = useState<{ id: number; year_name: string; is_active: boolean }[]>([]);
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('all');
+    const [activeYear, setActiveYear] = useState<{ id: number; year_name: string; is_active: boolean } | null>(null);
     const [classes, setClasses] = useState<{ class_id: number; class_name: string }[]>([]);
     const [availableMonths, setAvailableMonths] = useState<AvailableMonth[]>([]);
     const [vouchers, setVouchers] = useState<Voucher[]>([]);
@@ -395,6 +398,23 @@ export default function PrintSlipsPage() {
 
     useEffect(() => {
         fetch(`${API}/academic`).then(r => r.json()).then(setClasses).catch(() => { });
+        fetch(`${API}/academic/years`).then(r => r.json()).then(data => {
+            if (Array.isArray(data)) {
+                setAcademicYears(data);
+                const active = data.find(y => y.is_active);
+                if (active) {
+                    setActiveYear(active);
+                    setSelectedAcademicYear(active.id.toString());
+                }
+            }
+        }).catch(() => {});
+        fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
+            if (data && data.id) {
+                setActiveYear(data);
+                setSelectedAcademicYear(prev => (prev === 'all' || !prev) ? data.id.toString() : prev);
+            }
+        }).catch(() => {});
+
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
                 const getLogo = (raw?: string) => {
@@ -416,7 +436,8 @@ export default function PrintSlipsPage() {
     }, []);
 
     useEffect(() => {
-        fetch(`${API}/fee-slips/available-months?year=${year}`)
+        const yrParam = selectedAcademicYear && selectedAcademicYear !== 'all' ? `&academic_year_id=${selectedAcademicYear}` : '';
+        fetch(`${API}/fee-slips/available-months?year=${year}${yrParam}`)
             .then(r => r.json())
             .then(data => {
                 if (data.months) {
@@ -436,7 +457,7 @@ export default function PrintSlipsPage() {
                 }
             })
             .catch(() => { });
-    }, [year]);
+    }, [year, selectedAcademicYear]);
 
     const loadQueue = async () => {
         if (!month || !year) {
@@ -445,7 +466,8 @@ export default function PrintSlipsPage() {
         }
         setLoading(true); setMessage(null); setSelected(new Set()); setVouchers([]); setCoveredStudents([]); setStats(null);
         try {
-            const url = `${API}/fee-slips/print-queue?month=${month}&year=${year}${classId ? `&class_id=${classId}` : ''}`;
+            const yrParam = selectedAcademicYear && selectedAcademicYear !== 'all' ? `&academic_year_id=${selectedAcademicYear}` : '';
+            const url = `${API}/fee-slips/print-queue?month=${month}&year=${year}${classId ? `&class_id=${classId}` : ''}${yrParam}`;
             const r = await fetch(url);
             const data = await r.json();
             if (!r.ok) throw new Error(data.error);
@@ -767,11 +789,17 @@ export default function PrintSlipsPage() {
             )}
             {/* Screen UI */}
             <div className="container-fluid p-4 animate__animated animate__fadeIn">
-                <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-start gap-3 mb-4">
                     <div>
                         <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}><i className="bi bi-printer me-2"></i>Print Fee Slips</h2>
                         <p className="text-muted small mb-0">3 family vouchers per A4 landscape. Sibling fees combined into one voucher. Print tracking enabled.</p>
                     </div>
+                    {activeYear && (
+                        <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
+                            <i className="bi bi-calendar3"></i>
+                            Academic Year: {activeYear.year_name}
+                        </span>
+                    )}
                 </div>
 
                 {message && (
@@ -785,7 +813,20 @@ export default function PrintSlipsPage() {
                 <div className="card border-0 shadow-sm mb-4">
                     <div className="card-body p-3">
                         <div className="row g-3 align-items-end">
-                            <div className="col-md-2">
+                            {academicYears.length > 0 && (
+                                <div className="col-md-3">
+                                    <label className="form-label fw-bold small text-muted">Academic Session</label>
+                                    <select className="form-select" value={selectedAcademicYear} onChange={e => setSelectedAcademicYear(e.target.value)}>
+                                        <option value="all">All Sessions</option>
+                                        {academicYears.map(y => (
+                                            <option key={y.id} value={y.id.toString()}>
+                                                {y.year_name} {y.is_active ? '(Active)' : '(Closed)'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div className={academicYears.length > 0 ? "col-md-2" : "col-md-2"}>
                                 <label className="form-label fw-bold small text-muted">Month</label>
                                 <select className="form-select" value={month} onChange={e => setMonth(e.target.value)}>
                                     {availableMonths.length === 0 ? (
@@ -799,14 +840,14 @@ export default function PrintSlipsPage() {
                                 <label className="form-label fw-bold small text-muted">Year</label>
                                 <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
                             </div>
-                            <div className="col-md-3">
+                            <div className={academicYears.length > 0 ? "col-md-2" : "col-md-3"}>
                                 <label className="form-label fw-bold small text-muted">Class Filter (optional)</label>
                                 <select className="form-select" value={classId} onChange={e => setClassId(e.target.value)}>
                                     <option value="">All Classes</option>
                                     {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                                 </select>
                             </div>
-                            <div className="col-md-3">
+                            <div className={academicYears.length > 0 ? "col-md-3" : "col-md-3"}>
                                 <button className="btn btn-primary-custom w-100 py-2 fw-bold" onClick={loadQueue} disabled={loading}>
                                     {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Loading...</> : <><i className="bi bi-search me-2"></i>Load Queue</>}
                                 </button>

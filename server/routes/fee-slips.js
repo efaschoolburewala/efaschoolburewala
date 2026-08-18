@@ -2,15 +2,54 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
+// Helper to get active academic year
+async function getActiveAcademicYear(clientPool) {
+    let yearRes = await clientPool.query(
+        `SELECT id, year_name, is_active, status, start_date, end_date
+         FROM academic_years
+         WHERE is_active = TRUE OR status = 'active'
+         ORDER BY id ASC
+         LIMIT 1`
+    );
+
+    if (yearRes.rows.length === 0) {
+        yearRes = await clientPool.query(
+            `SELECT id, year_name, is_active, status, start_date, end_date
+             FROM academic_years
+             ORDER BY id ASC
+             LIMIT 1`
+        );
+        if (yearRes.rows.length > 0) {
+            await clientPool.query(`UPDATE academic_years SET is_active = TRUE, status = 'active' WHERE id = $1`, [yearRes.rows[0].id]);
+            yearRes.rows[0].is_active = true;
+            yearRes.rows[0].status = 'active';
+        }
+    }
+
+    return yearRes.rows[0] || null;
+}
+
 // POST /fee-slips/generate
 router.post('/generate', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { class_id, year, due_date, issue_date, extra_heads, plan_id } = req.body;
+        const { class_id, year, due_date, issue_date, extra_heads, plan_id, academic_year_id } = req.body;
         // Accept either months[] array (new) or single month (backward compat)
         const rawMonths = req.body.months || (req.body.month ? [req.body.month] : null);
         if (!class_id || !rawMonths || rawMonths.length === 0 || !year)
             return res.status(400).json({ error: 'class_id, months (array), and year are required' });
+
+        const activeYear = await getActiveAcademicYear(client);
+        const targetYearId = academic_year_id ? parseInt(academic_year_id, 10) : (activeYear ? activeYear.id : null);
+
+        if (targetYearId) {
+            const yearCheck = await client.query('SELECT id, year_name, is_active, status FROM academic_years WHERE id = $1', [targetYearId]);
+            if (yearCheck.rows.length > 0 && yearCheck.rows[0].is_active === false) {
+                return res.status(403).json({
+                    error: `Fiscal/Academic Year (${yearCheck.rows[0].year_name}) is closed. New fee slips cannot be generated for closed sessions.`
+                });
+            }
+        }
 
         const monthsArray = rawMonths.map(Number).sort((a, b) => a - b); // sorted ascending
 
@@ -224,10 +263,10 @@ router.post('/generate', async (req, res) => {
             const actualClassId = student.sort_class_id || student.class_id || class_id;
             const slip = await client.query(
                 `INSERT INTO monthly_fee_slips
-                    (student_id, family_id, class_id, month, year, due_date, issue_date, total_amount, is_family_slip, has_multi_months, months_list)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING slip_id`,
+                    (student_id, family_id, class_id, month, year, due_date, issue_date, total_amount, is_family_slip, has_multi_months, months_list, academic_year_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING slip_id`,
                 [student.student_id, student.family_id, actualClassId,
-                    month, year, due_date || null, issue_date || null, totalAmount, isFamilySlip, hasMulti, monthsArray]
+                    month, year, due_date || null, issue_date || null, totalAmount, isFamilySlip, hasMulti, monthsArray, targetYearId]
             );
             const slipId = slip.rows[0].slip_id;
             for (const item of lineItems)
@@ -367,7 +406,7 @@ router.post('/generate', async (req, res) => {
 // GET /fee-slips/available-months
 router.get('/available-months', async (req, res) => {
     try {
-        const { year, class_id } = req.query;
+        const { year, class_id, academic_year_id } = req.query;
         let query = 'SELECT DISTINCT COALESCE(months_list, ARRAY[month]) AS months_array FROM monthly_fee_slips WHERE 1=1';
         let params = [];
         if (year) {
@@ -377,6 +416,10 @@ router.get('/available-months', async (req, res) => {
         if (class_id) {
             params.push(class_id);
             query += ` AND class_id = $${params.length}`;
+        }
+        if (academic_year_id && academic_year_id !== 'all') {
+            params.push(academic_year_id);
+            query += ` AND academic_year_id = $${params.length}`;
         }
         const result = await pool.query(query, params);
 
@@ -438,25 +481,43 @@ const cleanupCorruptLineItems = async () => {
     } catch (e) { }
 };
 
-// GET /fee-slips?class_id=&year=&month= (class_id optional, month optional)
+// GET /fee-slips?class_id=&year=&month=&academic_year_id=
 router.get('/', async (req, res) => {
     try {
-        const { class_id, month, year } = req.query;
-        if (!year) return res.status(400).json({ error: 'year is required' });
+        const { class_id, month, year, academic_year_id } = req.query;
 
         // Auto-cleanup any corrupt line item paid amounts before returning slips
         await cleanupCorruptLineItems();
 
+        const activeYear = await getActiveAcademicYear(pool);
+        const yearsRes = await pool.query("SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC");
+
         // Build WHERE conditions dynamically
-        const params = [year];
-        let monthClause = '';
+        const params = [];
+        let whereClauses = [];
+
+        if (academic_year_id && academic_year_id !== 'all') {
+            params.push(academic_year_id);
+            whereClauses.push(`mfs.academic_year_id = $${params.length}`);
+        } else if (!academic_year_id && !year && activeYear) {
+            params.push(activeYear.id);
+            whereClauses.push(`(mfs.academic_year_id = $${params.length} OR mfs.academic_year_id IS NULL)`);
+        }
+
+        if (year) {
+            params.push(year);
+            whereClauses.push(`mfs.year = $${params.length}`);
+        }
+
         if (month) {
             params.push(month.split(',').map(Number));
-            monthClause = `AND COALESCE(mfs.months_list, ARRAY[mfs.month]) = $${params.length}::int[]`;
+            whereClauses.push(`COALESCE(mfs.months_list, ARRAY[mfs.month]) = $${params.length}::int[]`);
         }
-        const classClause = class_id
-            ? `AND (
-                mfs.class_id = $${params.push(class_id)}
+
+        if (class_id) {
+            params.push(class_id);
+            whereClauses.push(`(
+                mfs.class_id = $${params.length}
                 OR (
                   mfs.is_family_slip = TRUE
                   AND mfs.family_id IN (
@@ -464,28 +525,33 @@ router.get('/', async (req, res) => {
                     WHERE class_id = $${params.length} AND status = 'Active' AND family_id IS NOT NULL
                   )
                 )
-              )`
-            : '';
+            )`);
+        }
+
+        const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
         const result = await pool.query(`
             SELECT mfs.*, s.first_name, s.last_name, s.admission_no, s.family_id,
                      s.father_name, s.father_phone, c.class_name, sec.section_name, s.category,
+                     ay.year_name AS academic_year_name, COALESCE(ay.is_active, TRUE) AS is_active_year,
                 COALESCE(JSON_AGG(JSON_BUILD_OBJECT('item_id',sli.item_id,'head_name',sli.head_name,'amount',sli.amount,'paid_amount',COALESCE(sli.paid_amount,0),'note',sli.note) ORDER BY sli.item_id) FILTER (WHERE sli.item_id IS NOT NULL),'[]') as line_items
             FROM monthly_fee_slips mfs
             JOIN students s ON mfs.student_id = s.student_id
             LEFT JOIN classes c ON mfs.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
+            LEFT JOIN academic_years ay ON mfs.academic_year_id = ay.id
             LEFT JOIN slip_line_items sli ON mfs.slip_id = sli.slip_id
-            WHERE mfs.year = $1
-              ${monthClause}
-              ${classClause}
+            ${whereSql}
             GROUP BY mfs.slip_id, s.first_name, s.last_name, s.admission_no, s.family_id,
-                       s.father_name, s.father_phone, c.class_name, sec.section_name, s.category
+                       s.father_name, s.father_phone, c.class_name, sec.section_name, s.category,
+                       ay.year_name, ay.is_active
             ORDER BY mfs.month ASC, s.first_name ASC`, params);
+
         // Force trusted category to satteled
         result.rows.forEach(r => {
             if (r.category && r.category.trim().toLowerCase() === 'trusted') r.status = 'satteled';
         });
+
         const stats = {
             total_students: result.rows.length,
             total_amount: result.rows.reduce((s, r) => s + parseFloat(r.total_amount), 0),
@@ -524,7 +590,7 @@ router.get('/', async (req, res) => {
             }
         }
 
-        res.json({ slips: result.rows, stats });
+        res.json({ slips: result.rows, stats, active_year: activeYear, years: yearsRes.rows });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -535,24 +601,38 @@ router.get('/', async (req, res) => {
 // GET /fee-slips/admission-fees
 router.get('/admission-fees', async (req, res) => {
     try {
-        const { status, class_id } = req.query;
+        const { status, class_id, academic_year_id } = req.query;
+        const activeYear = await getActiveAcademicYear(pool);
+        const yearsRes = await pool.query("SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC");
+
         let whereClause = '1=1';
         const params = [];
         if (status && status !== 'all') { params.push(status); whereClause += ` AND afl.status = $${params.length}`; }
         else if (!status) { whereClause += ` AND afl.status IN ('unpaid','partial')`; }
         if (class_id) { params.push(class_id); whereClause += ` AND s.class_id = $${params.length}`; }
+        if (academic_year_id && academic_year_id !== 'all') {
+            params.push(academic_year_id);
+            whereClause += ` AND afl.academic_year_id = $${params.length}`;
+        } else if (!academic_year_id && activeYear) {
+            params.push(activeYear.id);
+            whereClause += ` AND (afl.academic_year_id = $${params.length} OR afl.academic_year_id IS NULL)`;
+        }
+
         const result = await pool.query(`
             SELECT afl.ledger_id, afl.student_id, afl.total_amount, afl.paid_amount, COALESCE(afl.discount_amount, 0) AS discount_amount,
                 (afl.total_amount - afl.paid_amount - COALESCE(afl.discount_amount, 0)) AS remaining_amount, afl.status, afl.admission_date,
+                afl.academic_year_id, ay.year_name AS academic_year_name, COALESCE(ay.is_active, TRUE) AS is_active_year,
                 s.first_name, s.last_name, s.admission_no, s.father_name, s.student_mobile, s.monthly_fee,
                 c.class_name, sec.section_name
             FROM admission_fee_ledger afl
             JOIN students s ON afl.student_id = s.student_id
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
+            LEFT JOIN academic_years ay ON afl.academic_year_id = ay.id
             WHERE ${whereClause}
             ORDER BY CASE afl.status WHEN 'unpaid' THEN 1 WHEN 'partial' THEN 2 ELSE 3 END, afl.admission_date DESC
         `, params);
+
         const statsResult = await pool.query(`
             SELECT COUNT(*) FILTER (WHERE status='unpaid') AS unpaid_count,  
                    COUNT(*) FILTER (WHERE status='partial') AS partial_count,
@@ -560,8 +640,10 @@ router.get('/admission-fees', async (req, res) => {
                    COALESCE(SUM(total_amount),0) AS total_billed,
                    COALESCE(SUM(paid_amount),0) AS total_collected,
                    COALESCE(SUM(total_amount - paid_amount - COALESCE(discount_amount, 0)),0) AS total_outstanding
-            FROM admission_fee_ledger`);
-        res.json({ ledgers: result.rows, stats: statsResult.rows[0] });
+            FROM admission_fee_ledger afl
+            WHERE ${whereClause}`, params);
+
+        res.json({ ledgers: result.rows, stats: statsResult.rows[0], active_year: activeYear, years: yearsRes.rows });
     } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
 
@@ -600,10 +682,25 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
             return res.status(400).json({ error: 'amount_paid, discount, or tuition_received must be greater than 0' });
 
         await client.query('BEGIN');
-        const ledger = await client.query('SELECT * FROM admission_fee_ledger WHERE ledger_id=$1 FOR UPDATE', [ledger_id]);
+        const ledger = await client.query(`
+            SELECT afl.*, ay.is_active AS is_year_active, ay.year_name 
+            FROM admission_fee_ledger afl
+            LEFT JOIN academic_years ay ON ay.id = afl.academic_year_id
+            WHERE afl.ledger_id=$1 
+            FOR UPDATE
+        `, [ledger_id]);
         if (ledger.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Admission fee ledger not found' }); }
 
         const current = ledger.rows[0];
+
+        // Fiscal Year Lock
+        if (current.academic_year_id && current.is_year_active === false) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                error: `Fiscal/Academic Year (${current.year_name || 'Closed'}) is closed. Payments cannot be collected on historical admission records.`
+            });
+        }
+
         const oldPaid = parseFloat(current.paid_amount) || 0;
         const oldDisc = parseFloat(current.discount_amount) || 0;
         const total = parseFloat(current.total_amount) || 0;
@@ -621,9 +718,9 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
         const newStatus = remaining <= 0 ? 'paid' : (totalCleared > 0 ? 'partial' : 'unpaid');
 
         const insertRes = await client.query(`
-            INSERT INTO admission_fee_payments (ledger_id, amount_paid, discount_amount, payment_date, payment_method, received_by, reference_no, notes) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING payment_id
-        `, [ledger_id, payVal, discVal, payment_date || new Date(), payment_method || 'cash', received_by, reference_no, notes]);
+            INSERT INTO admission_fee_payments (ledger_id, amount_paid, discount_amount, payment_date, payment_method, received_by, reference_no, notes, academic_year_id) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING payment_id
+        `, [ledger_id, payVal, discVal, payment_date || new Date(), payment_method || 'cash', received_by, reference_no, notes, current.academic_year_id || null]);
 
         const updated = await client.query(`
             UPDATE admission_fee_ledger 
@@ -650,8 +747,8 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
                 // Create a standalone tuition slip
                 const newSlip = await client.query(
                     `INSERT INTO monthly_fee_slips 
-                    (student_id, family_id, class_id, month, year, total_amount, paid_amount, status, months_list)
-                    VALUES ($1, (SELECT family_id FROM students WHERE student_id=$1), (SELECT class_id FROM students WHERE student_id=$1), $2, $3, $4, $5, $6, ARRAY[$2]::int[])
+                    (student_id, family_id, class_id, month, year, total_amount, paid_amount, status, months_list, academic_year_id)
+                    VALUES ($1, (SELECT family_id FROM students WHERE student_id=$1), (SELECT class_id FROM students WHERE student_id=$1), $2, $3, $4, $5, $6, ARRAY[$2]::int[], $7)
                     RETURNING slip_id`,
                     [
                         current.student_id,
@@ -659,7 +756,8 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
                         currentYear,
                         tuitionAmt,
                         Math.min(tuitionAmt, tuitionRec),
-                        tuitionRec >= tuitionAmt ? 'paid' : (tuitionRec > 0 ? 'partial' : 'unpaid')
+                        tuitionRec >= tuitionAmt ? 'paid' : (tuitionRec > 0 ? 'partial' : 'unpaid'),
+                        current.academic_year_id || null
                     ]
                 );
                 activeSlipId = newSlip.rows[0].slip_id;
@@ -691,8 +789,8 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
             // Save actual fee payment record for full tracking
             if (tuitionRec > 0) {
                 await client.query(
-                    `INSERT INTO fee_payments (slip_id, amount_paid, payment_date, payment_method, received_by, reference_no, notes)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    `INSERT INTO fee_payments (slip_id, amount_paid, payment_date, payment_method, received_by, reference_no, notes, academic_year_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                     [
                         activeSlipId,
                         Math.min(tuitionAmt, tuitionRec),
@@ -700,7 +798,8 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
                         payment_method || 'cash',
                         received_by,
                         reference_no,
-                        'Collected upfront during Admission via Ledger'
+                        'Collected upfront during Admission via Ledger',
+                        current.academic_year_id || null
                     ]
                 );
             }
@@ -718,18 +817,26 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
 });
 // ============================================================
 // PRINT QUEUE family-grouped vouchers with print tracking
-// GET /fee-slips/print-queue?month=&year=&class_id=
+// GET /fee-slips/print-queue?month=&year=&class_id=&academic_year_id=
 // ============================================================
 router.get('/print-queue', async (req, res) => {
-    const { month, year, class_id } = req.query;
+    const { month, year, class_id, academic_year_id } = req.query;
     if (!month || !year) return res.status(400).json({ error: 'month and year required' });
     try {
         const mArr = month.split(',').map(Number);
+        const params = [mArr, year];
+        let yearFilter = '';
+        if (academic_year_id && academic_year_id !== 'all') {
+            params.push(academic_year_id);
+            yearFilter = `AND mfs.academic_year_id = $${params.length}`;
+        }
+
         // Fetch all slips for this month/year with student + class info + line items
         const result = await pool.query(`
             SELECT mfs.slip_id, mfs.student_id, mfs.family_id, mfs.class_id,
                    mfs.total_amount, mfs.paid_amount, mfs.status, mfs.due_date, mfs.issue_date,
-                   mfs.is_printed, mfs.printed_at, mfs.is_family_slip,
+                   mfs.is_printed, mfs.printed_at, mfs.is_family_slip, mfs.academic_year_id,
+                   ay.year_name AS academic_year_name, COALESCE(ay.is_active, TRUE) AS is_active_year,
                    s.first_name, s.last_name, s.admission_no, s.monthly_fee, s.father_name, s.family_id AS s_family_id,
                    sc.class_name, sc.class_id AS c_class_id, sec.section_name,
                    COALESCE(JSON_AGG(
@@ -740,15 +847,18 @@ router.get('/print-queue', async (req, res) => {
             JOIN students s ON mfs.student_id = s.student_id       
             LEFT JOIN classes sc ON s.class_id = sc.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
+            LEFT JOIN academic_years ay ON mfs.academic_year_id = ay.id
             LEFT JOIN slip_line_items sli ON mfs.slip_id = sli.slip_id
             WHERE COALESCE(mfs.months_list, ARRAY[mfs.month]) = $1::int[] AND mfs.year = $2
+              ${yearFilter}
             GROUP BY mfs.slip_id, mfs.student_id, mfs.family_id, mfs.class_id,
                      mfs.total_amount, mfs.paid_amount, mfs.status, mfs.due_date, mfs.issue_date,
-                     mfs.is_printed, mfs.printed_at, mfs.is_family_slip,
+                     mfs.is_printed, mfs.printed_at, mfs.is_family_slip, mfs.academic_year_id,
+                     ay.year_name, ay.is_active,
                      s.first_name, s.last_name, s.admission_no, s.monthly_fee, s.father_name, s.family_id,
                      sc.class_name, sc.class_id, sec.section_name
             ORDER BY s.family_id NULLS LAST, sc.class_id DESC NULLS LAST, s.first_name
-        `, [mArr, year]);
+        `, params);
 
         const allSlips = result.rows;
 
@@ -778,7 +888,8 @@ router.get('/print-queue', async (req, res) => {
                 total_family_amount: parseFloat(slip.total_amount),
                 total_paid: parseFloat(slip.paid_amount),
                 is_printed: !!slip.is_printed,
-                slip_ids: [slip.slip_id]
+                slip_ids: [slip.slip_id],
+                family_members: []
             });
         }
 
@@ -793,6 +904,19 @@ router.get('/print-queue', async (req, res) => {
             });
             const primary = slips[0];
             const siblings = slips.slice(1);
+
+            // Fetch all active family members for family vouchers so the print shows all students
+            const membersResult = await pool.query(
+                `SELECT s.student_id, s.first_name, s.last_name, s.father_name, s.family_id,
+                        c.class_name, c.class_id, sec.section_name
+                 FROM students s
+                 LEFT JOIN classes c ON s.class_id = c.class_id
+                 LEFT JOIN sections sec ON s.section_id = sec.section_id
+                 WHERE s.family_id = $1 AND s.status = 'Active'
+                 ORDER BY c.class_id DESC NULLS LAST, sec.section_name ASC NULLS LAST, s.first_name`,
+                [fid]
+            );
+
             vouchers.push({
                 voucher_type: 'family',
                 family_id: fid,
@@ -802,33 +926,9 @@ router.get('/print-queue', async (req, res) => {
                 total_paid: slips.reduce((s, x) => s + parseFloat(x.paid_amount), 0),
                 is_printed: slips.every(s => s.is_printed),
                 partial_printed: slips.some(s => s.is_printed) && !slips.every(s => s.is_printed),
-                slip_ids: slips.map(s => s.slip_id)
+                slip_ids: slips.map(s => s.slip_id),
+                family_members: membersResult.rows
             });
-        }
-
-        // Fetch all active family members for family vouchers so the print shows all students
-        const familyIds = vouchers.filter(v => v.voucher_type === 'family').map(v => v.family_id);
-        if (familyIds.length > 0) {
-            const membersResult = await pool.query(
-                `SELECT s.student_id, s.first_name, s.last_name, s.father_name, s.family_id,
-                        c.class_name, c.class_id, sec.section_name
-                 FROM students s
-                 LEFT JOIN classes c ON s.class_id = c.class_id
-                 LEFT JOIN sections sec ON s.section_id = sec.section_id
-                 WHERE s.family_id = ANY($1) AND s.status = 'Active'
-                 ORDER BY c.class_id DESC NULLS LAST, sec.section_name ASC NULLS LAST, s.first_name`,
-                [familyIds]
-            );
-            const membersMap = {};
-            for (const m of membersResult.rows) {
-                if (!membersMap[m.family_id]) membersMap[m.family_id] = [];
-                membersMap[m.family_id].push(m);
-            }
-            for (const v of vouchers) {
-                if (v.voucher_type === 'family') {
-                    v.family_members = membersMap[v.family_id] || [];
-                }
-            }
         }
 
         // If class_id filter: show vouchers where primary OR any family member is in this class
@@ -908,11 +1008,13 @@ router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const slip = await pool.query(`
-            SELECT mfs.*, s.first_name, s.last_name, s.admission_no, s.father_name, s.father_phone, c.class_name, sec.section_name
+            SELECT mfs.*, ay.year_name AS academic_year_name, COALESCE(ay.is_active, TRUE) AS is_active_year,
+                   s.first_name, s.last_name, s.admission_no, s.father_name, s.father_phone, c.class_name, sec.section_name
             FROM monthly_fee_slips mfs
             JOIN students s ON mfs.student_id = s.student_id
             LEFT JOIN classes c ON mfs.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
+            LEFT JOIN academic_years ay ON mfs.academic_year_id = ay.id
             WHERE mfs.slip_id = $1`, [id]);
         if (slip.rows.length === 0) return res.status(404).json({ error: 'Slip not found' });
         const items = await pool.query('SELECT * FROM slip_line_items WHERE slip_id=$1 ORDER BY item_id', [id]);
@@ -928,20 +1030,36 @@ router.post('/:id/pay', async (req, res) => {
         const { id } = req.params;
         const { amount_paid, payment_method, received_by, reference_no, notes, payment_date, head_breakdown, is_printed } = req.body;
         await client.query('BEGIN');
-        const slip = await client.query('SELECT * FROM monthly_fee_slips WHERE slip_id=$1 FOR UPDATE', [id]);
+        const slip = await client.query(`
+            SELECT mfs.*, ay.year_name, ay.is_active AS is_year_active 
+            FROM monthly_fee_slips mfs
+            LEFT JOIN academic_years ay ON ay.id = mfs.academic_year_id
+            WHERE mfs.slip_id = $1 
+            FOR UPDATE
+        `, [id]);
         if (slip.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Slip not found' }); }
+
         const cur = slip.rows[0];
+
+        // Fiscal Year Lock
+        if (cur.academic_year_id && cur.is_year_active === false) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                error: `Fiscal/Academic Year (${cur.year_name || 'Closed'}) is closed. Payments cannot be collected on historical closed session slips.`
+            });
+        }
+
         const prevPaid = parseFloat(cur.paid_amount);
         const paidNow = parseFloat(amount_paid);
         const newPaid = prevPaid + paidNow;
         const total = parseFloat(cur.total_amount);
         const newStatus = newPaid >= total ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
 
-        // Record the payment itself
+        // Record the payment itself with academic_year_id
         await client.query(
-            `INSERT INTO fee_payments (slip_id,amount_paid,payment_date,payment_method,received_by,reference_no,notes,is_printed)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [id, paidNow, payment_date || new Date(), payment_method || 'cash', received_by, reference_no, notes, is_printed ? true : false]
+            `INSERT INTO fee_payments (slip_id,amount_paid,payment_date,payment_method,received_by,reference_no,notes,is_printed,academic_year_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [id, paidNow, payment_date || new Date(), payment_method || 'cash', received_by, reference_no, notes, is_printed ? true : false, cur.academic_year_id || null]
         );
         const updated = await client.query(
             `UPDATE monthly_fee_slips SET paid_amount=$1, status=$2 WHERE slip_id=$3 RETURNING *`,
@@ -1095,12 +1213,6 @@ router.put('/payments/:payment_id/print', async (req, res) => {
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /fee-slips/payments/:payment_id/print
-router.put('/payments/:payment_id/print', async (req, res) => {
-    try { await pool.query('UPDATE fee_payments SET is_printed = TRUE WHERE payment_id = $1', [req.params.payment_id]); res.json({ success: true }); }
-    catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // DELETE /fee-slips/payments/:payment_id  reverse / delete a single payment
 router.delete('/payments/:payment_id', async (req, res) => {
     const client = await pool.connect();
@@ -1117,9 +1229,21 @@ router.delete('/payments/:payment_id', async (req, res) => {
         const p = payment.rows[0];
 
         // Fetch full slip details (need family_id, month, year for OPB reversal)
-        const slipRes = await client.query('SELECT * FROM monthly_fee_slips WHERE slip_id=$1', [p.slip_id]);
+        const slipRes = await client.query(`
+            SELECT mfs.*, ay.is_active AS is_year_active, ay.year_name 
+            FROM monthly_fee_slips mfs 
+            LEFT JOIN academic_years ay ON ay.id = mfs.academic_year_id
+            WHERE mfs.slip_id = $1
+        `, [p.slip_id]);
         if (slipRes.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Slip not found' }); }
         const slipData = slipRes.rows[0];
+
+        if (slipData.academic_year_id && slipData.is_year_active === false) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                error: `Fiscal/Academic Year (${slipData.year_name || 'Closed'}) is closed. Payments from closed fiscal years cannot be deleted.`
+            });
+        }
 
         // Delete the payment record
         await client.query('DELETE FROM fee_payments WHERE payment_id=$1', [payment_id]);
@@ -1272,10 +1396,20 @@ router.delete('/class/:class_id/month/:month/year/:year', async (req, res) => {
 
         // Fetch all slips for this class+month+year
         const all = await client.query(
-            `SELECT slip_id, status FROM monthly_fee_slips
-             WHERE class_id = $1 AND COALESCE(months_list, ARRAY[month]) = $2::int[] AND year = $3`,
+            `SELECT mfs.slip_id, mfs.status, mfs.academic_year_id, ay.year_name, ay.is_active AS is_year_active
+             FROM monthly_fee_slips mfs
+             LEFT JOIN academic_years ay ON ay.id = mfs.academic_year_id
+             WHERE mfs.class_id = $1 AND COALESCE(mfs.months_list, ARRAY[mfs.month]) = $2::int[] AND mfs.year = $3`,
             [class_id, mArr, year]
         );
+
+        const closedSlips = all.rows.filter(r => r.academic_year_id && r.is_year_active === false);
+        if (closedSlips.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                error: `Cannot undo generation: Slips belong to a closed Academic Year (${closedSlips[0].year_name || 'Closed'}).`
+            });
+        }
 
         const paidSlips = all.rows.filter(r => r.status === 'paid');
         const deleteable = all.rows.filter(r => r.status !== 'paid');
@@ -1329,8 +1463,17 @@ router.put('/:id', async (req, res) => {
         const { line_items, due_date } = req.body;
         if (!line_items || line_items.length === 0) return res.status(400).json({ error: 'line_items required' });
         await client.query('BEGIN');
-        const slip = await client.query('SELECT * FROM monthly_fee_slips WHERE slip_id=$1', [id]);
+        const slip = await client.query(`
+            SELECT mfs.*, ay.is_active AS is_year_active, ay.year_name 
+            FROM monthly_fee_slips mfs 
+            LEFT JOIN academic_years ay ON ay.id = mfs.academic_year_id
+            WHERE mfs.slip_id = $1
+        `, [id]);
         if (slip.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Slip not found' }); }
+        if (slip.rows[0].academic_year_id && slip.rows[0].is_year_active === false) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: `Fiscal/Academic Year (${slip.rows[0].year_name || 'Closed'}) is closed. Slips from closed years cannot be edited.` });
+        }
         if (slip.rows[0].status === 'paid') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Cannot edit a paid slip' }); }
         const newTotal = line_items.reduce((s, h) => s + (parseFloat(h.amount) || 0), 0);
         await client.query('DELETE FROM slip_line_items WHERE slip_id=$1', [id]);

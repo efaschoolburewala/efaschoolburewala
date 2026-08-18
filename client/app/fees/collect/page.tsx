@@ -29,6 +29,9 @@ interface SlipRow {
     year: number;
     line_items: { item_id: number; head_name: string; amount: number; note?: string }[];
     family_members?: { student_id: number; first_name: string; last_name: string; class_name: string; admission_no: string; section_name?: string; father_name?: string; }[];
+    academic_year_id?: number;
+    academic_year_name?: string;
+    is_active_year?: boolean;
 }
 interface Stats {
     total_students: number; total_amount: number; paid_amount: number;
@@ -66,6 +69,9 @@ export default function CollectFeePage() {
     const { hasPermission } = useAuth();
     const [selectedClass, setSelectedClass] = useState('');
     const [year, setYear] = useState(new Date().getFullYear().toString());
+    const [academicYears, setAcademicYears] = useState<{ id: number; year_name: string; is_active: boolean }[]>([]);
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('all');
+    const [activeYear, setActiveYear] = useState<{ id: number; year_name: string; is_active: boolean } | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
     const [search, setSearch] = useState('');
 
@@ -96,6 +102,22 @@ export default function CollectFeePage() {
 
     useEffect(() => {
         fetch(`${API}/academic`).then(r => r.json()).then(setClasses).catch(() => { });
+        fetch(`${API}/academic/years`).then(r => r.json()).then(data => {
+            if (Array.isArray(data)) {
+                setAcademicYears(data);
+                const active = data.find(y => y.is_active);
+                if (active) {
+                    setActiveYear(active);
+                    setSelectedAcademicYear(active.id.toString());
+                }
+            }
+        }).catch(() => {});
+        fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
+            if (data && data.id) {
+                setActiveYear(data);
+                setSelectedAcademicYear(prev => (prev === 'all' || !prev) ? data.id.toString() : prev);
+            }
+        }).catch(() => {});
         // School info lives in school_settings table (via /settings), NOT system_settings
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -146,10 +168,13 @@ export default function CollectFeePage() {
             notify.error('Please enter a Year.');
             return;
         }
-        setLoading(true);; setSlips([]); setStats(null); setLoaded(false);
+        setLoading(true); setSlips([]); setStats(null); setLoaded(false);
         try {
             const params = new URLSearchParams({ year });
             if (selectedClass) params.append('class_id', selectedClass);
+            if (selectedAcademicYear && selectedAcademicYear !== 'all') {
+                params.append('academic_year_id', selectedAcademicYear);
+            }
             const r = await fetch(`${API}/fee-slips?${params.toString()}`);
             const data = await r.json();
             if (!r.ok) throw new Error(data.error);
@@ -167,6 +192,9 @@ export default function CollectFeePage() {
         try {
             const params = new URLSearchParams({ year });
             if (selectedClass) params.append('class_id', selectedClass);
+            if (selectedAcademicYear && selectedAcademicYear !== 'all') {
+                params.append('academic_year_id', selectedAcademicYear);
+            }
             const r = await fetch(`${API}/fee-slips?${params.toString()}`);
             const data = await r.json();
             if (r.ok) {
@@ -694,17 +722,23 @@ export default function CollectFeePage() {
     return (
         <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
             {/* Page Header */}
-            <div className="d-flex align-items-center gap-3 mb-4">
-                <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'var(--primary-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <i className="bi bi-cash-coin" style={{ fontSize: 22, color: '#fff' }}></i>
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-start gap-3 mb-4">
+                <div className="d-flex align-items-center gap-3">
+                    <div style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'var(--primary-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <i className="bi bi-cash-coin" style={{ fontSize: 22, color: '#fff' }}></i>
+                    </div>
+                    <div>
+                        <h4 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>Collect Fee</h4>
+                        <div className="text-muted small">Record fee payments against monthly vouchers</div>
+                    </div>
                 </div>
-                <div>
-                    <h4 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>Collect Fee</h4>
-                    <div className="text-muted small">Record fee payments against monthly vouchers</div>
-                </div>
+                {activeYear && (
+                    <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
+                        <i className="bi bi-calendar3"></i>
+                        Academic Year: {activeYear.year_name}
+                    </span>
+                )}
             </div>
-
-
 
             {/* ── Filter Card ── */}
             <div className="card border-0 shadow-sm mb-4">
@@ -736,9 +770,24 @@ export default function CollectFeePage() {
                         </div>
                     </div>
 
-                    {/* Row 2: Class (optional), Year, Status, Load button */}
+                    {/* Row 2: Academic Session, Class (optional), Year, Status, Load button */}
                     <div className="row g-3 align-items-end">
-                        <div className="col-md-3">
+                        {academicYears.length > 0 && (
+                            <div className="col-md-3">
+                                <label className="form-label fw-bold small text-muted">
+                                    <i className="bi bi-calendar-check me-1"></i>Academic Session
+                                </label>
+                                <select className="form-select" value={selectedAcademicYear} onChange={e => setSelectedAcademicYear(e.target.value)}>
+                                    <option value="all">All Sessions</option>
+                                    {academicYears.map(y => (
+                                        <option key={y.id} value={y.id.toString()}>
+                                            {y.year_name} {y.is_active ? '(Active)' : '(Closed)'}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <div className={academicYears.length > 0 ? "col-md-2" : "col-md-3"}>
                             <label className="form-label fw-bold small text-muted">
                                 <i className="bi bi-mortarboard me-1"></i>Class
                                 <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.7rem' }}>(optional)</span>
@@ -754,7 +803,7 @@ export default function CollectFeePage() {
                             </label>
                             <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
                         </div>
-                        <div className="col-md-3">
+                        <div className={academicYears.length > 0 ? "col-md-2" : "col-md-3"}>
                             <label className="form-label fw-bold small text-muted">
                                 <i className="bi bi-circle-half me-1"></i>Status
                             </label>
@@ -765,7 +814,7 @@ export default function CollectFeePage() {
                                 <option value="paid">Paid</option>
                             </select>
                         </div>
-                        <div className="col-md-4">
+                        <div className={academicYears.length > 0 ? "col-md-3" : "col-md-4"}>
                             <button className="btn w-100 fw-bold" onClick={loadSlips} disabled={loading}
                                 style={{ backgroundColor: 'var(--primary-teal)', color: '#fff', borderRadius: 8, height: 38 }}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-search me-1"></i>}
@@ -952,13 +1001,20 @@ export default function CollectFeePage() {
                                                         {g.balance > 0 ? fmt(g.balance) : <span className="text-success">✓ Clear</span>}
                                                     </td>
                                                     <td className="px-2 text-center">
-                                                        <StatusBadge status={g.status} />
+                                                        <div className="d-flex flex-column align-items-center gap-1">
+                                                            <StatusBadge status={g.status} />
+                                                            {g.latest_unpaid.is_active_year === false && (
+                                                                <span className="badge bg-secondary" style={{ fontSize: '0.62rem' }}>
+                                                                    <i className="bi bi-lock-fill me-1"></i>Closed Session
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="px-2 text-center">
-                                                        {['paid', 'satteled'].includes(g.status) ? (
+                                                        {['paid', 'satteled'].includes(g.status) || g.latest_unpaid.is_active_year === false ? (
                                                             <button className="btn btn-sm" style={{ fontSize: '0.72rem', backgroundColor: '#e8f5e9', color: '#198754', border: '1px solid #c3e6cb', borderRadius: 6 }}
                                                                 onClick={() => openPayModal(g.latest_paid || g.latest_slip)}>
-                                                                <i className="bi bi-eye me-1"></i>History
+                                                                <i className="bi bi-eye me-1"></i>{g.latest_unpaid.is_active_year === false ? 'View Slip' : 'History'}
                                                             </button>
                                                         ) : (
                                                             <div className="d-flex gap-1 justify-content-center">
@@ -1061,7 +1117,7 @@ export default function CollectFeePage() {
                                     <div className="text-white">
                                         <h5 className="modal-title fw-bold mb-1">
                                             <i className="bi bi-cash-coin me-2"></i>
-                                            {['paid', 'satteled'].includes(activeSlip.status) ? 'Payment History' : 'Collect Fee Payment'}
+                                            {activeSlip.is_active_year === false ? 'Voucher Details (Closed Session)' : ['paid', 'satteled'].includes(activeSlip.status) ? 'Payment History' : 'Collect Fee Payment'}
                                         </h5>
                                         <div style={{ fontSize: '0.82rem', opacity: 0.85 }}>
                                             {activeSlip.is_family_slip ? (
@@ -1070,12 +1126,26 @@ export default function CollectFeePage() {
                                                 <><i className="bi bi-person me-1"></i>{activeSlip.first_name} {activeSlip.last_name} · Adm# {activeSlip.admission_no}</>
                                             )}
                                             <span className="ms-3">· {activeSlip.class_name}</span>
+                                            {activeSlip.academic_year_name && (
+                                                <span className="badge bg-light text-dark ms-2" style={{ fontSize: '0.7rem' }}>
+                                                    <i className="bi bi-calendar3 me-1"></i>{activeSlip.academic_year_name}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <button className="btn-close btn-close-white ms-auto" onClick={() => setPayModal(false)} />
                                 </div>
 
                                 <div className="modal-body px-4 py-3">
+                                    {/* Closed Fiscal Year Alert */}
+                                    {activeSlip.is_active_year === false && (
+                                        <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2 mb-3 py-2">
+                                            <i className="bi bi-lock-fill fs-5"></i>
+                                            <div className="small">
+                                                <strong>Fiscal Year Closed (Read-Only):</strong> This voucher belongs to a closed academic session ({activeSlip.academic_year_name || 'Closed'}). Payment collection and reversals are locked.
+                                            </div>
+                                        </div>
+                                    )}
                                     {/* Slip summary bar */}
                                     <div className="row g-2 mb-3">
                                         {[
@@ -1211,7 +1281,7 @@ export default function CollectFeePage() {
                                                                   style={{ fontSize: '0.7rem', backgroundColor: '#e8f5e9', color: '#198754', border: '1px solid #c3e6cb', borderRadius: 6, padding: '2px 7px' }}>
                                                                   <i className="bi bi-printer"></i>
                                                               </button> */}
-                                                            {hasPermission('fees', 'delete') && (
+                                                            {hasPermission('fees', 'delete') && activeSlip.is_active_year !== false && (
                                                                 <button
                                                                     className="btn btn-sm"
                                                                     title="Reverse this payment"
@@ -1231,7 +1301,7 @@ export default function CollectFeePage() {
                                     </div>
 
                                     {/* Payment Form */}
-                                    {activeSlip.status !== 'paid' && (
+                                    {activeSlip.status !== 'paid' && activeSlip.is_active_year !== false && (
                                         <div className="rounded p-3" style={{ backgroundColor: '#fffbf5', border: '1px solid #ffe5cc' }}>
                                             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-orange)', marginBottom: 10 }}>
                                                 <i className="bi bi-plus-circle me-1"></i>Record New Payment

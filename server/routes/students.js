@@ -2145,14 +2145,17 @@ router.post('/opb/families/:family_id/payment', async (req, res) => {
             return res.status(400).json({ error: 'Opening balance is already fully paid' });
         }
 
-        // Record payment in ledger
+        // Record payment in ledger with active academic_year_id
+        const activeYearRes = await client.query("SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id ASC LIMIT 1");
+        const activeYearId = activeYearRes.rows[0]?.id || null;
+
         const payment = await client.query(`
             INSERT INTO family_opb_payments
-                (family_id, amount, payment_date, payment_method, received_by, reference_no, notes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (family_id, amount, payment_date, payment_method, received_by, reference_no, notes, academic_year_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
         `, [family_id, payAmt, payment_date || new Date().toISOString().split('T')[0],
-            payment_method || 'cash', received_by || null, reference_no || null, notes || null]);
+            payment_method || 'cash', received_by || null, reference_no || null, notes || null, activeYearId]);
 
         // Update families.opening_balance_paid
         await client.query(`

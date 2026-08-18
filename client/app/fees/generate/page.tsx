@@ -44,6 +44,9 @@ export default function FeeGeneratePage() {
     const [selectedClass, setSelectedClass] = useState('');
     const [selectedMonths, setSelectedMonths] = useState<string[]>([(new Date().getMonth() + 1).toString()]);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+    const [academicYears, setAcademicYears] = useState<{ id: number; year_name: string; is_active: boolean }[]>([]);
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
+    const [activeYear, setActiveYear] = useState<{ id: number; year_name: string; is_active: boolean } | null>(null);
     const [dueDate, setDueDate] = useState('');
     const [issueDate, setIssueDate] = useState('');
     const [extraHeads, setExtraHeads] = useState<ExtraHead[]>([]);
@@ -71,7 +74,26 @@ export default function FeeGeneratePage() {
     const [generatedMonths, setGeneratedMonths] = useState<string[]>([]);
     const [generatedGroups, setGeneratedGroups] = useState<{ value: string, label: string, months: number[] }[]>([]);
 
-    useEffect(() => { fetchClasses(); fetchHeads(); }, []);
+    useEffect(() => {
+        fetchClasses();
+        fetchHeads();
+        fetch(`${API}/academic/years`).then(r => r.json()).then(data => {
+            if (Array.isArray(data)) {
+                setAcademicYears(data);
+                const active = data.find(y => y.is_active);
+                if (active) {
+                    setActiveYear(active);
+                    setSelectedAcademicYear(active.id.toString());
+                }
+            }
+        }).catch(() => {});
+        fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
+            if (data && data.id) {
+                setActiveYear(data);
+                setSelectedAcademicYear(prev => prev || data.id.toString());
+            }
+        }).catch(() => {});
+    }, []);
 
     const fetchClasses = async () => {
         try { const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`); setClasses(await r.json()); } catch { }
@@ -118,7 +140,8 @@ export default function FeeGeneratePage() {
     const fetchGeneratedMonths = async () => {
         if (!selectedClass || !selectedYear) { setGeneratedMonths([]); setGeneratedGroups([]); return; }
         try {
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?year=${selectedYear}&class_id=${selectedClass}`);
+            const yrParam = selectedAcademicYear ? `&academic_year_id=${selectedAcademicYear}` : '';
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?year=${selectedYear}&class_id=${selectedClass}${yrParam}`);
             const data = await r.json();
             if (data.months) {
                 setGeneratedGroups(data.months);
@@ -146,7 +169,8 @@ export default function FeeGeneratePage() {
 
         setLoadingSlips(true);
         try {
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips?class_id=${selectedClass}&month=${fetchMonthValue}&year=${selectedYear}`);
+            const yrParam = selectedAcademicYear ? `&academic_year_id=${selectedAcademicYear}` : '';
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips?class_id=${selectedClass}&month=${fetchMonthValue}&year=${selectedYear}${yrParam}`);
             const data = await r.json();
             setSlips(data.slips || []);
             setStats(data.stats || null);
@@ -158,13 +182,13 @@ export default function FeeGeneratePage() {
         if (selectedClass && selectedYear) {
             fetchSlips();
         }
-    }, [selectedClass, selectedMonths, selectedYear]);
+    }, [selectedClass, selectedMonths, selectedYear, selectedAcademicYear]);
 
     useEffect(() => {
         if (selectedClass && selectedYear) {
             fetchGeneratedMonths();
         }
-    }, [selectedClass, selectedYear]);
+    }, [selectedClass, selectedYear, selectedAcademicYear]);
 
     useEffect(() => {
         fetchPlanForClass(selectedClass);
@@ -199,6 +223,7 @@ export default function FeeGeneratePage() {
                     class_id: parseInt(selectedClass),
                     months: sortedMonths.map(m => parseInt(m)),
                     year: parseInt(selectedYear),
+                    academic_year_id: selectedAcademicYear ? parseInt(selectedAcademicYear) : (activeYear ? activeYear.id : undefined),
                     due_date: dueDate || null,
                     issue_date: issueDate || null,
                     plan_id: selectedPlanId ? parseInt(selectedPlanId) : undefined,
@@ -228,17 +253,23 @@ export default function FeeGeneratePage() {
         setShowEdit(true);
     };
 
-    const saveEdit = async () => {
+    const handleSaveEdit = async () => {
         if (!editSlip) return;
-        setEditLoading(true); setEditError('');
+        setEditLoading(true);
+        setEditError('');
         try {
             const res = await fetch(`${API}/fee-slips/${editSlip.slip_id}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ line_items: editItems.map(i => ({ head_name: i.head_name, amount: parseFloat(i.amount) || 0, note: i.note })), due_date: editDueDate || null })
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    line_items: editItems.map(item => ({ head_name: item.head_name, amount: parseFloat(item.amount) || 0, note: item.note || '' })),
+                    due_date: editDueDate || undefined,
+                }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+            if (!res.ok) throw new Error(data.error || 'Failed to update slip');
             setShowEdit(false);
+            setEditSlip(null);
             fetchSlips();
             notify.success("Fee slip updated successfully");
         } catch (err: any) { setEditError(err.message); }
@@ -302,6 +333,9 @@ export default function FeeGeneratePage() {
 
     const hasGeneratedSelected = selectedMonths.some(m => generatedMonths.includes(m));
 
+    const currentYearObj = academicYears.find(y => y.id.toString() === selectedAcademicYear);
+    const isClosedFiscalYear = currentYearObj ? !currentYearObj.is_active : false;
+
     // Check if the current selection is a PARTIAL selection of a combined group
     let partialGroupLabel = '';
     const involvedGroup = generatedGroups.find(g =>
@@ -325,7 +359,13 @@ export default function FeeGeneratePage() {
                     </h2>
                     <p className="text-muted small mb-0">Select a class and month regular heads auto-load from fee plan. Add extra charges if needed.</p>
                 </div>
-                <div className="d-grid d-md-block">
+                <div className="d-flex flex-wrap align-items-center gap-2">
+                    {activeYear && (
+                        <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
+                            <i className="bi bi-calendar3"></i>
+                            Academic Year: {activeYear.year_name}
+                        </span>
+                    )}
                     <button className="btn btn-secondary-custom d-inline-flex align-items-center justify-content-center gap-2" onClick={() => router.push('/fees/print')}>
                         <i className="bi bi-printer"></i> Print Slips
                     </button>
@@ -342,6 +382,29 @@ export default function FeeGeneratePage() {
                             </h6>
                         </div>
                         <div className="card-body p-4">
+                            {isClosedFiscalYear && (
+                                <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2 mb-3 py-2">
+                                    <i className="bi bi-lock-fill fs-5"></i>
+                                    <div className="small">
+                                        <strong>Closed Fiscal Year (Read-Only):</strong> Generating new fee slips or undoing generation for closed sessions is locked.
+                                    </div>
+                                </div>
+                            )}
+
+                            {academicYears.length > 0 && (
+                                <div className="mb-3">
+                                    <label className="form-label fw-bold small text-muted">Academic Session</label>
+                                    <select className="form-select form-select-sm" value={selectedAcademicYear}
+                                        onChange={e => setSelectedAcademicYear(e.target.value)}>
+                                        {academicYears.map(y => (
+                                            <option key={y.id} value={y.id.toString()}>
+                                                {y.year_name} {y.is_active ? '(Active Session)' : '(Closed Session)'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div className="mb-3">
                                 <label className="form-label fw-bold small text-muted">Class <span className="text-danger">*</span></label>
                                 <select className="form-select" value={selectedClass}
@@ -531,12 +594,14 @@ export default function FeeGeneratePage() {
 
                             {hasPermission('fees', 'write') && (
                                 <button
-                                    className={`btn w-100 py-2 fw-bold shadow-sm ${hasGeneratedSelected ? 'btn-secondary' : 'btn-primary-custom'}`}
+                                    className={`btn w-100 py-2 fw-bold shadow-sm ${hasGeneratedSelected || isClosedFiscalYear ? 'btn-secondary' : 'btn-primary-custom'}`}
                                     onClick={handleGenerate}
-                                    disabled={generating || hasGeneratedSelected || !!partialGroupLabel}
+                                    disabled={generating || hasGeneratedSelected || !!partialGroupLabel || isClosedFiscalYear}
                                 >
                                     {generating ? (
                                         <><span className="spinner-border spinner-border-sm me-2"></span>Generating...</>
+                                    ) : isClosedFiscalYear ? (
+                                        <><i className="bi bi-lock-fill me-2"></i>Generation Locked (Closed Session)</>
                                     ) : partialGroupLabel ? (
                                         <><i className="bi bi-x-circle me-2"></i>Select Entire Combined ({partialGroupLabel}) first</>
                                     ) : hasGeneratedSelected ? (
@@ -593,7 +658,7 @@ export default function FeeGeneratePage() {
                                             {slips.reduce((total, s) => total + (s.is_family_slip ? (s.family_members?.length || 1) : 1), 0)} students
                                         </span>
                                     )}
-                                    {hasPermission('fees', 'delete') && (
+                                    {hasPermission('fees', 'delete') && !isClosedFiscalYear && (
                                         <button
                                             className="btn btn-sm btn-outline-danger fw-bold"
                                             onClick={() => setShowUndoModal(true)}
@@ -674,10 +739,15 @@ export default function FeeGeneratePage() {
                                                     </td>
                                                     <td>{statusBadge(slip.status)}</td>
                                                     <td className="pe-4">
-                                                        {slip.status !== 'paid' && hasPermission('fees', 'write') && (
+                                                        {slip.status !== 'paid' && hasPermission('fees', 'write') && !isClosedFiscalYear && (
                                                             <button className="btn btn-sm btn-outline-secondary me-1" onClick={() => openEdit(slip)} title="Edit slip">
                                                                 <i className="bi bi-pencil"></i>
                                                             </button>
+                                                        )}
+                                                        {isClosedFiscalYear && (
+                                                            <span className="badge bg-secondary" style={{ fontSize: '0.65rem' }}>
+                                                                <i className="bi bi-lock-fill me-1"></i>Locked
+                                                            </span>
                                                         )}
                                                     </td>
                                                 </tr>
@@ -749,7 +819,7 @@ export default function FeeGeneratePage() {
                                 </div>
                                 <div className="modal-footer">
                                     <button className="btn btn-secondary-custom px-4" onClick={() => setShowEdit(false)}>Cancel</button>
-                                    <button className="btn btn-primary-custom fw-bold px-4" onClick={saveEdit} disabled={editLoading}>
+                                    <button className="btn btn-primary-custom fw-bold px-4" onClick={handleSaveEdit} disabled={editLoading}>
                                         {editLoading ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : <><i className="bi bi-check-circle me-2"></i>Save Changes</>}
                                     </button>
                                 </div>

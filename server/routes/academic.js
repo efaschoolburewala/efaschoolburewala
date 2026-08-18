@@ -147,6 +147,10 @@ router.put('/years/activate/:id', async (req, res) => {
         // Start transaction
         await client.query('BEGIN');
 
+        // Fetch current active year before deactivating
+        const prevYearRes = await client.query("SELECT id, year_name FROM academic_years WHERE is_active = true ORDER BY id DESC LIMIT 1");
+        const prevYear = prevYearRes.rows[0] || null;
+
         // Deactivate all active years and mark as completed
         await client.query(
             "UPDATE academic_years SET is_active = false, status = 'completed' WHERE is_active = true"
@@ -157,6 +161,39 @@ router.put('/years/activate/:id', async (req, res) => {
             "UPDATE academic_years SET is_active = true, status = 'active' WHERE id = $1",
             [id]
         );
+
+        // Automated Fiscal Balance Rollover into Opening Balance
+        if (prevYear) {
+            const familyDues = await client.query(`
+                SELECT f.family_id,
+                       COALESCE((f.opening_balance - f.opb_paid_amount), 0) AS prev_opb_rem,
+                       COALESCE((
+                           SELECT SUM(mfs.total_amount - mfs.paid_amount)
+                           FROM monthly_fee_slips mfs
+                           WHERE mfs.family_id = f.family_id AND mfs.status IN ('unpaid', 'partial')
+                       ), 0) AS unpaid_slips,
+                       COALESCE((
+                           SELECT SUM(afl.total_amount - afl.paid_amount - COALESCE(afl.discount_amount, 0))
+                           FROM admission_fee_ledger afl
+                           JOIN students s ON s.student_id = afl.student_id
+                           WHERE s.family_id = f.family_id AND afl.status IN ('unpaid', 'partial')
+                       ), 0) AS unpaid_adm
+                FROM families f
+            `);
+
+            for (const row of familyDues.rows) {
+                const totalRem = parseFloat(row.prev_opb_rem) + parseFloat(row.unpaid_slips) + parseFloat(row.unpaid_adm);
+                if (totalRem > 0) {
+                    await client.query(`
+                        UPDATE families 
+                        SET opening_balance = $1,
+                            opb_paid_amount = 0,
+                            opb_notes = $2
+                        WHERE family_id = $3
+                    `, [totalRem, `Carried forward from closed session ${prevYear.year_name}`, row.family_id]);
+                }
+            }
+        }
 
         await client.query('COMMIT');
 

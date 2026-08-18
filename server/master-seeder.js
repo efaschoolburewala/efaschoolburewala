@@ -938,6 +938,7 @@ async function runMasterSeeder() {
                     total_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                     paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                     status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     generated_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(student_id, month, year)
                 );
@@ -949,7 +950,8 @@ async function runMasterSeeder() {
                 "ALTER TABLE monthly_fee_slips ADD COLUMN IF NOT EXISTS has_multi_months BOOLEAN DEFAULT FALSE",
                 "ALTER TABLE monthly_fee_slips ADD COLUMN IF NOT EXISTS months_list INTEGER[]",
                 "ALTER TABLE monthly_fee_slips ADD COLUMN IF NOT EXISTS is_printed BOOLEAN DEFAULT FALSE",
-                "ALTER TABLE monthly_fee_slips ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP"
+                "ALTER TABLE monthly_fee_slips ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP",
+                "ALTER TABLE monthly_fee_slips ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL"
             ];
             for (const q of slipAlters) {
                 await pool.query(q);
@@ -961,6 +963,7 @@ async function runMasterSeeder() {
                 CREATE INDEX IF NOT EXISTS idx_mfs_months_list ON monthly_fee_slips USING GIN (months_list);
                 CREATE INDEX IF NOT EXISTS idx_mfs_family ON monthly_fee_slips(family_id);
                 CREATE INDEX IF NOT EXISTS idx_mfs_student_month_year ON monthly_fee_slips(student_id, year, month);
+                CREATE INDEX IF NOT EXISTS idx_mfs_academic_year ON monthly_fee_slips(academic_year_id);
             `);
 
             // 8.6 slip_line_items Table
@@ -991,10 +994,12 @@ async function runMasterSeeder() {
                     notes TEXT,
                     is_printed BOOLEAN DEFAULT FALSE,
                     printed_at TIMESTAMP,
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
                 ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS is_printed BOOLEAN DEFAULT FALSE;
                 ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
+                ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
             `);
 
             // 8.8 family_opb_payments Table
@@ -1008,8 +1013,10 @@ async function runMasterSeeder() {
                     received_by VARCHAR(100),
                     reference_no VARCHAR(100),
                     notes TEXT,
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+                ALTER TABLE family_opb_payments ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
                 CREATE INDEX IF NOT EXISTS idx_opb_payments_family ON family_opb_payments(family_id);
             `);
 
@@ -1025,11 +1032,13 @@ async function runMasterSeeder() {
                     status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
                     admission_date DATE,
                     notes TEXT,
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT NOW(),
                     UNIQUE(student_id)
                 );
                 ALTER TABLE admission_fee_ledger ADD COLUMN IF NOT EXISTS discount NUMERIC(10,2) DEFAULT 0;
                 ALTER TABLE admission_fee_ledger ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0;
+                ALTER TABLE admission_fee_ledger ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
             `);
 
             // 8.10 admission_fee_payments Table
@@ -1044,8 +1053,10 @@ async function runMasterSeeder() {
                     received_by VARCHAR(100),
                     reference_no VARCHAR(100),
                     notes TEXT,
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
+                ALTER TABLE admission_fee_payments ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
             `);
 
             // 8.11 exam_fee_collections Table

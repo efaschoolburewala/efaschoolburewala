@@ -36,7 +36,11 @@ async function runEssentialMigrations() {
             ADD COLUMN IF NOT EXISTS has_multi_months BOOLEAN DEFAULT FALSE,
             ADD COLUMN IF NOT EXISTS months_list INTEGER[],
             ADD COLUMN IF NOT EXISTS is_printed BOOLEAN DEFAULT FALSE,
-            ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP;
+            ADD COLUMN IF NOT EXISTS printed_at TIMESTAMP,
+            ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
+
+            UPDATE monthly_fee_slips SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id ASC LIMIT 1) WHERE academic_year_id IS NULL;
+            CREATE INDEX IF NOT EXISTS idx_mfs_academic_year ON monthly_fee_slips(academic_year_id);
         `);
 
         // 4. School Settings logo_url Migration (allow storing Base64 image data in DB)
@@ -58,13 +62,26 @@ async function runEssentialMigrations() {
                 status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
                 admission_date DATE,
                 notes TEXT,
+                academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                 created_at TIMESTAMP DEFAULT NOW(),
                 UNIQUE(student_id)
             );
 
             ALTER TABLE admission_fee_ledger 
             ADD COLUMN IF NOT EXISTS discount NUMERIC(10,2) DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0;
+            ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10,2) DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
+
+            UPDATE admission_fee_ledger SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id ASC LIMIT 1) WHERE academic_year_id IS NULL;
+            CREATE INDEX IF NOT EXISTS idx_afl_academic_year ON admission_fee_ledger(academic_year_id);
+
+            ALTER TABLE fee_payments ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
+            ALTER TABLE family_opb_payments ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
+            ALTER TABLE admission_fee_payments ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
+            
+            UPDATE fee_payments SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id ASC LIMIT 1) WHERE academic_year_id IS NULL;
+            UPDATE family_opb_payments SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id ASC LIMIT 1) WHERE academic_year_id IS NULL;
+            UPDATE admission_fee_payments SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id ASC LIMIT 1) WHERE academic_year_id IS NULL;
         `);
 
         // 4.2 Expense tables updated_at, attachment & approved_by column migration
