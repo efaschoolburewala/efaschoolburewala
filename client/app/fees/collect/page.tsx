@@ -728,16 +728,15 @@ export default function CollectFeePage() {
                         <i className="bi bi-cash-coin" style={{ fontSize: 22, color: '#fff' }}></i>
                     </div>
                     <div>
-                        <h4 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>Collect Fee</h4>
+                        <h4 className="mb-0 fw-bold d-flex align-items-center flex-wrap gap-2" style={{ color: 'var(--primary-dark)' }}>
+                            Collect Fee
+                            <span className="badge rounded-pill bg-light text-dark border ms-2" style={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                                Academic Year: {activeYear?.year_name || '—'}
+                            </span>
+                        </h4>
                         <div className="text-muted small">Record fee payments against monthly vouchers</div>
                     </div>
                 </div>
-                {activeYear && (
-                    <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
-                        <i className="bi bi-calendar3"></i>
-                        Academic Year: {activeYear.year_name}
-                    </span>
-                )}
             </div>
 
             {/* ── Filter Card ── */}
@@ -770,24 +769,9 @@ export default function CollectFeePage() {
                         </div>
                     </div>
 
-                    {/* Row 2: Academic Session, Class (optional), Year, Status, Load button */}
+                    {/* Row 2: Class (optional), Year, Status, Load button */}
                     <div className="row g-3 align-items-end">
-                        {academicYears.length > 0 && (
-                            <div className="col-md-3">
-                                <label className="form-label fw-bold small text-muted">
-                                    <i className="bi bi-calendar-check me-1"></i>Academic Session
-                                </label>
-                                <select className="form-select" value={selectedAcademicYear} onChange={e => setSelectedAcademicYear(e.target.value)}>
-                                    <option value="all">All Sessions</option>
-                                    {academicYears.map(y => (
-                                        <option key={y.id} value={y.id.toString()}>
-                                            {y.year_name} {y.is_active ? '(Active)' : '(Closed)'}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                        <div className={academicYears.length > 0 ? "col-md-2" : "col-md-3"}>
+                        <div className="col-md-3">
                             <label className="form-label fw-bold small text-muted">
                                 <i className="bi bi-mortarboard me-1"></i>Class
                                 <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.7rem' }}>(optional)</span>
@@ -797,13 +781,13 @@ export default function CollectFeePage() {
                                 {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-md-2">
+                        <div className="col-md-3">
                             <label className="form-label fw-bold small text-muted">
                                 <i className="bi bi-calendar3 me-1"></i>Year <span className="text-danger">*</span>
                             </label>
                             <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
                         </div>
-                        <div className={academicYears.length > 0 ? "col-md-2" : "col-md-3"}>
+                        <div className="col-md-3">
                             <label className="form-label fw-bold small text-muted">
                                 <i className="bi bi-circle-half me-1"></i>Status
                             </label>
@@ -814,7 +798,7 @@ export default function CollectFeePage() {
                                 <option value="paid">Paid</option>
                             </select>
                         </div>
-                        <div className={academicYears.length > 0 ? "col-md-3" : "col-md-4"}>
+                        <div className="col-md-3">
                             <button className="btn w-100 fw-bold" onClick={loadSlips} disabled={loading}
                                 style={{ backgroundColor: 'var(--primary-teal)', color: '#fff', borderRadius: 8, height: 38 }}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="bi bi-search me-1"></i>}

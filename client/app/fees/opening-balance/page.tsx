@@ -160,18 +160,15 @@ export default function OpeningBalancePage() {
             {/* HEADER */}
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <div>
-                    <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-clock-history me-2" style={{ color: 'var(--accent-orange)' }} /> Opening Balance
+                    <h2 className="fw-bold mb-1 d-flex align-items-center flex-wrap gap-2" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-clock-history me-1" style={{ color: 'var(--accent-orange)' }} /> Opening Balance
+                        <span className="badge rounded-pill bg-light text-dark border ms-2" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            Academic Year: {activeYear?.year_name || '—'}
+                        </span>
                     </h2>
                     <p className="text-muted mb-0 small">Set/view family previous dues payments are collected via Fee Slips</p>
                 </div>
                 <div className="d-flex align-items-center gap-2">
-                    {activeYear && (
-                        <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
-                            <i className="bi bi-calendar3"></i>
-                            Academic Year: {activeYear.year_name}
-                        </span>
-                    )}
                     {hasPermission('fees', 'write') && (
                         <button className="btn btn-sm fw-semibold rounded-3 px-3 py-2"
                             onClick={() => { setSetTarget(null); setSetForm({ opening_balance: '', opb_notes: '' }); setShowSetModal(true); }}

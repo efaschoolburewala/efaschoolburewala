@@ -791,15 +791,14 @@ export default function PrintSlipsPage() {
             <div className="container-fluid p-4 animate__animated animate__fadeIn">
                 <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-start gap-3 mb-4">
                     <div>
-                        <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}><i className="bi bi-printer me-2"></i>Print Fee Slips</h2>
+                        <h2 className="fw-bold mb-1 d-flex align-items-center flex-wrap gap-2" style={{ color: 'var(--primary-dark)' }}>
+                            <i className="bi bi-printer me-1"></i>Print Fee Slips
+                            <span className="badge rounded-pill bg-light text-dark border ms-2" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                Academic Year: {activeYear?.year_name || '—'}
+                            </span>
+                        </h2>
                         <p className="text-muted small mb-0">3 family vouchers per A4 landscape. Sibling fees combined into one voucher. Print tracking enabled.</p>
                     </div>
-                    {activeYear && (
-                        <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
-                            <i className="bi bi-calendar3"></i>
-                            Academic Year: {activeYear.year_name}
-                        </span>
-                    )}
                 </div>
 
                 {message && (
@@ -813,20 +812,7 @@ export default function PrintSlipsPage() {
                 <div className="card border-0 shadow-sm mb-4">
                     <div className="card-body p-3">
                         <div className="row g-3 align-items-end">
-                            {academicYears.length > 0 && (
-                                <div className="col-md-3">
-                                    <label className="form-label fw-bold small text-muted">Academic Session</label>
-                                    <select className="form-select" value={selectedAcademicYear} onChange={e => setSelectedAcademicYear(e.target.value)}>
-                                        <option value="all">All Sessions</option>
-                                        {academicYears.map(y => (
-                                            <option key={y.id} value={y.id.toString()}>
-                                                {y.year_name} {y.is_active ? '(Active)' : '(Closed)'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            <div className={academicYears.length > 0 ? "col-md-2" : "col-md-2"}>
+                            <div className="col-md-3">
                                 <label className="form-label fw-bold small text-muted">Month</label>
                                 <select className="form-select" value={month} onChange={e => setMonth(e.target.value)}>
                                     {availableMonths.length === 0 ? (
@@ -836,18 +822,18 @@ export default function PrintSlipsPage() {
                                     )}
                                 </select>
                             </div>
-                            <div className="col-md-2">
+                            <div className="col-md-3">
                                 <label className="form-label fw-bold small text-muted">Year</label>
                                 <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
                             </div>
-                            <div className={academicYears.length > 0 ? "col-md-2" : "col-md-3"}>
+                            <div className="col-md-3">
                                 <label className="form-label fw-bold small text-muted">Class Filter (optional)</label>
                                 <select className="form-select" value={classId} onChange={e => setClassId(e.target.value)}>
                                     <option value="">All Classes</option>
                                     {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                                 </select>
                             </div>
-                            <div className={academicYears.length > 0 ? "col-md-3" : "col-md-3"}>
+                            <div className="col-md-3">
                                 <button className="btn btn-primary-custom w-100 py-2 fw-bold" onClick={loadQueue} disabled={loading}>
                                     {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Loading...</> : <><i className="bi bi-search me-2"></i>Load Queue</>}
                                 </button>

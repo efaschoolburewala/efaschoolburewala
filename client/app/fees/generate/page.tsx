@@ -354,18 +354,15 @@ export default function FeeGeneratePage() {
             {/* Header */}
             <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-start gap-3 mb-4">
                 <div>
-                    <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-lightning-charge me-2"></i>Monthly Fee Generation
+                    <h2 className="fw-bold mb-1 d-flex align-items-center flex-wrap gap-2" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-lightning-charge me-1"></i>Monthly Fee Generation
+                        <span className="badge rounded-pill bg-light text-dark border ms-2" style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            Academic Year: {activeYear?.year_name || '—'}
+                        </span>
                     </h2>
                     <p className="text-muted small mb-0">Select a class and month regular heads auto-load from fee plan. Add extra charges if needed.</p>
                 </div>
                 <div className="d-flex flex-wrap align-items-center gap-2">
-                    {activeYear && (
-                        <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
-                            <i className="bi bi-calendar3"></i>
-                            Academic Year: {activeYear.year_name}
-                        </span>
-                    )}
                     <button className="btn btn-secondary-custom d-inline-flex align-items-center justify-content-center gap-2" onClick={() => router.push('/fees/print')}>
                         <i className="bi bi-printer"></i> Print Slips
                     </button>
@@ -388,20 +385,6 @@ export default function FeeGeneratePage() {
                                     <div className="small">
                                         <strong>Closed Fiscal Year (Read-Only):</strong> Generating new fee slips or undoing generation for closed sessions is locked.
                                     </div>
-                                </div>
-                            )}
-
-                            {academicYears.length > 0 && (
-                                <div className="mb-3">
-                                    <label className="form-label fw-bold small text-muted">Academic Session</label>
-                                    <select className="form-select form-select-sm" value={selectedAcademicYear}
-                                        onChange={e => setSelectedAcademicYear(e.target.value)}>
-                                        {academicYears.map(y => (
-                                            <option key={y.id} value={y.id.toString()}>
-                                                {y.year_name} {y.is_active ? '(Active Session)' : '(Closed Session)'}
-                                            </option>
-                                        ))}
-                                    </select>
                                 </div>
                             )}
 

@@ -407,21 +407,17 @@ export default function AdmissionFeePage() {
       {/* Header */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center align-items-start gap-3 mb-4">
         <div>
-          <h2 className="fw-bold mb-1" style={{ color: "var(--primary-dark)" }}>
-            <i className="bi bi-credit-card-2-front me-2"></i>Admission Fee
-            Ledger
+          <h2 className="fw-bold mb-1 d-flex align-items-center flex-wrap gap-2" style={{ color: "var(--primary-dark)" }}>
+            <i className="bi bi-credit-card-2-front me-1"></i>Admission Fee Ledger
+            <span className="badge rounded-pill bg-light text-dark border ms-2" style={{ fontSize: "0.85rem", fontWeight: 500 }}>
+              Academic Year: {activeYear?.year_name || "—"}
+            </span>
           </h2>
           <p className="text-muted small mb-0">
             Track one-time admission fee outstanding per student auto-linked
             on admission.
           </p>
         </div>
-        {activeYear && (
-          <span className="badge bg-primary fs-6 py-2 px-3 shadow-sm d-flex align-items-center gap-2">
-            <i className="bi bi-calendar3"></i>
-            Academic Year: {activeYear.year_name}
-          </span>
-        )}
       </div>
 
       {/* Stats Cards */}
@@ -499,23 +495,7 @@ export default function AdmissionFeePage() {
       <div className="card border-0 shadow-sm mb-4">
         <div className="card-body py-3 px-4">
           <div className="row g-2 align-items-center">
-            {academicYears.length > 0 && (
-              <div className="col-md-3">
-                <select
-                  className="form-select"
-                  value={selectedAcademicYear}
-                  onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                >
-                  <option value="all">All Academic Sessions</option>
-                  {academicYears.map((y) => (
-                    <option key={y.id} value={y.id.toString()}>
-                      {y.year_name} {y.is_active ? "(Active)" : "(Closed)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className={academicYears.length > 0 ? "col-md-4" : "col-md-5"}>
+            <div className="col-md-6">
               <div className="input-group">
                 <span className="input-group-text bg-light border-end-0">
                   <i className="bi bi-search text-muted"></i>
@@ -529,7 +509,7 @@ export default function AdmissionFeePage() {
                 />
               </div>
             </div>
-            <div className="col-md-3">
+            <div className="col-md-4">
               <select
                 className="form-select"
                 value={filterStatus}
