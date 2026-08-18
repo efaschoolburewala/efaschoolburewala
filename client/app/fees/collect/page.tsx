@@ -22,12 +22,12 @@ interface SlipRow {
     is_family_slip: boolean;
     total_amount: number;
     paid_amount: number;
-    status: 'paid' | 'partial' | 'unpaid' | 'satteled' | 'satteled';
+    status: 'paid' | 'partial' | 'unpaid' | 'satteled';
     due_date: string | null;
     issue_date: string | null;
     month: number;
     year: number;
-    line_items: { item_id: number; head_name: string; amount: number; note?: string }[];
+    line_items: { item_id: number; head_name: string; amount: number; paid_amount?: number; note?: string }[];
     family_members?: { student_id: number; first_name: string; last_name: string; class_name: string; admission_no: string; section_name?: string; father_name?: string; }[];
     academic_year_id?: number;
     academic_year_name?: string;
@@ -88,8 +88,8 @@ export default function CollectFeePage() {
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
 
-    // Slip Picker Modal (when a student has multiple months)
-    const [slipPickerGroup, setSlipPickerGroup] = useState<{ first_name: string; last_name: string; slips: SlipRow[] } | null>(null);
+    // Slip Breakdown Modal (when a student has single or multiple months)
+    const [slipPickerGroup, setSlipPickerGroup] = useState<{ first_name: string; last_name: string; admission_no?: string; class_name?: string; slips: SlipRow[] } | null>(null);
 
     const [headPayVals, setHeadPayVals] = useState<Record<string, string>>({});
     const [payMethod, setPayMethod] = useState('cash');
@@ -973,12 +973,15 @@ export default function CollectFeePage() {
                                                     </td>
                                                     <td className="px-2 text-center">
                                                         {g.slips.length === 1 ? (
-                                                            <span className="badge rounded-pill" style={{ backgroundColor: 'var(--primary-teal)', fontSize: '0.7rem', opacity: 0.9 }}>
+                                                            <button className="btn btn-sm py-1 px-2 fw-semibold" title="Click to view full fee breakdown"
+                                                                style={{ backgroundColor: '#e8f5f5', color: 'var(--primary-teal)', border: '1px solid #c5e8e8', fontSize: '0.72rem', borderRadius: 6 }}
+                                                                onClick={() => setSlipPickerGroup({ first_name: g.first_name, last_name: g.last_name, admission_no: g.admission_no, class_name: g.class_name, slips: g.slips })}>
                                                                 {MONTHS[(g.slips[0].month ?? 1) - 1]?.slice(0, 3)} {g.slips[0].year}
-                                                            </span>
+                                                            </button>
                                                         ) : (
-                                                            <button className="btn btn-sm" style={{ fontSize: '0.7rem', backgroundColor: '#e8f5f5', color: 'var(--primary-teal)', border: '1px solid #c5e8e8', borderRadius: 6 }}
-                                                                onClick={() => setSlipPickerGroup({ first_name: g.first_name, last_name: g.last_name, slips: g.slips })}>
+                                                            <button className="btn btn-sm fw-bold" title="Click to view all months breakdown"
+                                                                style={{ fontSize: '0.72rem', backgroundColor: '#e8f5f5', color: 'var(--primary-teal)', border: '1.5px solid #215E61', borderRadius: 6 }}
+                                                                onClick={() => setSlipPickerGroup({ first_name: g.first_name, last_name: g.last_name, admission_no: g.admission_no, class_name: g.class_name, slips: g.slips })}>
                                                                 <i className="bi bi-calendar3 me-1"></i>{g.slips.length} months
                                                             </button>
                                                         )}
@@ -1039,61 +1042,201 @@ export default function CollectFeePage() {
                 </div>
             )}
 
-            {/* ── Slip Picker Modal (multi-month student) ── */}
+            {/* ── Monthly Breakdown Modal ── */}
             {slipPickerGroup && (
                 <>
                     <div className="modal-backdrop fade show" style={{ zIndex: 1040 }} onClick={() => setSlipPickerGroup(null)} />
                     <div className="modal fade show d-block" style={{ zIndex: 1045 }} tabIndex={-1}>
-                        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
+                        <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                             <div className="modal-content border-0 shadow-lg" style={{ borderRadius: 16 }}>
-                                <div className="modal-header border-0 px-4 pt-4 pb-2"
+                                <div className="modal-header border-0 px-4 pt-4 pb-3"
                                     style={{ background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-teal) 100%)', borderRadius: '16px 16px 0 0' }}>
                                     <div className="text-white">
-                                        <h6 className="mb-1 fw-bold">
-                                            <i className="bi bi-calendar3 me-2"></i>Select Month
-                                        </h6>
-                                        <div style={{ fontSize: '0.8rem', opacity: 0.85 }}>
-                                            {slipPickerGroup.first_name} {slipPickerGroup.last_name} · {slipPickerGroup.slips.length} slips
+                                        <h5 className="mb-1 fw-bold d-flex align-items-center gap-2">
+                                            <i className="bi bi-receipt-cutoff"></i>
+                                            Monthly Fee Breakdown
+                                        </h5>
+                                        <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>
+                                            <span className="fw-semibold">{slipPickerGroup.first_name} {slipPickerGroup.last_name}</span>
+                                            {slipPickerGroup.admission_no && <span className="ms-2 badge bg-light text-dark">Adm: {slipPickerGroup.admission_no}</span>}
+                                            {slipPickerGroup.class_name && <span className="ms-2 badge bg-light text-dark">{slipPickerGroup.class_name}</span>}
+                                            <span className="ms-2 badge bg-info text-dark">{slipPickerGroup.slips.length} {slipPickerGroup.slips.length === 1 ? 'Month' : 'Months'}</span>
                                         </div>
                                     </div>
                                     <button className="btn-close btn-close-white ms-auto" onClick={() => setSlipPickerGroup(null)} />
                                 </div>
-                                <div className="modal-body px-4 py-3">
-                                    <p className="text-muted small mb-3">This student has multiple monthly slips. Pick a month to collect or view:</p>
-                                    <div className="d-flex flex-column gap-2">
-                                        {slipPickerGroup.slips.map(slip => {
-                                            const bal = parseFloat(slip.total_amount as any) - parseFloat(slip.paid_amount as any);
+
+                                <div className="modal-body px-4 py-3 bg-light">
+                                    {/* Overall Totals Summary Banner if multi-month */}
+                                    {slipPickerGroup.slips.length > 1 && (() => {
+                                        const totalBilled = slipPickerGroup.slips.reduce((s, sl) => s + parseFloat(sl.total_amount as any || 0), 0);
+                                        const totalPaid = slipPickerGroup.slips.reduce((s, sl) => s + parseFloat(sl.paid_amount as any || 0), 0);
+                                        const totalPending = Math.max(0, totalBilled - totalPaid);
+                                        return (
+                                            <div className="card border-0 shadow-sm mb-3 bg-white">
+                                                <div className="card-body p-3">
+                                                    <div className="row text-center g-2">
+                                                        <div className="col-4 border-end">
+                                                            <div className="text-muted small fw-bold">TOTAL BILLED</div>
+                                                            <div className="fw-bold fs-6" style={{ color: 'var(--primary-dark)' }}>{fmt(totalBilled)}</div>
+                                                        </div>
+                                                        <div className="col-4 border-end">
+                                                            <div className="text-muted small fw-bold">TOTAL PAID</div>
+                                                            <div className="fw-bold fs-6 text-success">{fmt(totalPaid)}</div>
+                                                        </div>
+                                                        <div className="col-4">
+                                                            <div className="text-muted small fw-bold">TOTAL BALANCE</div>
+                                                            <div className="fw-bold fs-6" style={{ color: totalPending > 0 ? '#dc3545' : '#198754' }}>
+                                                                {totalPending > 0 ? fmt(totalPending) : '✓ Cleared'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Month by Month Cards */}
+                                    <div className="d-flex flex-column gap-3">
+                                        {slipPickerGroup.slips.map((slip) => {
+                                            const slipTotal = parseFloat(slip.total_amount as any || 0);
+                                            const slipPaid = parseFloat(slip.paid_amount as any || 0);
+                                            const slipBal = Math.max(0, slipTotal - slipPaid);
+                                            const isPaidOrSatteled = ['paid', 'satteled'].includes(slip.status) || slipBal === 0;
+
                                             return (
-                                                <button key={slip.slip_id}
-                                                    className="btn text-start d-flex align-items-center justify-content-between"
-                                                    style={{
-                                                        border: '1.5px solid', borderColor: ['paid', 'satteled'].includes(slip.status) ? '#c3e6cb' : slip.status === 'partial' ? '#ffd27a' : '#f5c2c7',
-                                                        borderRadius: 10, backgroundColor: ['paid', 'satteled'].includes(slip.status) ? '#f0fff4' : slip.status === 'partial' ? '#fffbf0' : '#fff5f5',
-                                                        padding: '10px 14px'
-                                                    }}
-                                                    onClick={() => { setSlipPickerGroup(null); openPayModal(slip); }}>
-                                                    <div>
-                                                        <div className="fw-bold" style={{ color: 'var(--primary-dark)', fontSize: '0.9rem' }}>
-                                                            {MONTHS[(slip.month ?? 1) - 1]} {slip.year}
+                                                <div key={slip.slip_id} className="card border-0 shadow-sm bg-white overflow-hidden"
+                                                    style={{ borderLeft: `4px solid ${isPaidOrSatteled ? '#198754' : slipPaid > 0 ? '#fd7e14' : '#dc3545'}` }}>
+                                                    {/* Month Header */}
+                                                    <div className="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center border-bottom">
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <div style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: 'var(--primary-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13 }}>
+                                                                <i className="bi bi-calendar-event"></i>
+                                                            </div>
+                                                            <div>
+                                                                <span className="fw-bold" style={{ color: 'var(--primary-dark)', fontSize: '0.95rem' }}>
+                                                                    {MONTHS[(slip.month ?? 1) - 1]} {slip.year}
+                                                                </span>
+                                                                {slip.is_family_slip && (
+                                                                    <span className="badge rounded-pill ms-2" style={{ backgroundColor: 'var(--primary-teal)', fontSize: '0.65rem' }}>
+                                                                        Family Slip
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div style={{ fontSize: '0.72rem', color: '#888' }}>
-                                                            Total: {fmt(parseFloat(slip.total_amount as any))}
-                                                            {slip.paid_amount > 0 && <span className="ms-2 text-success">Paid: {fmt(parseFloat(slip.paid_amount as any))}</span>}
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <StatusBadge status={slip.status} />
+                                                            {slip.due_date && (
+                                                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                    Due: {fmtDate(slip.due_date)}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        {bal > 0 && <span className="fw-bold" style={{ color: '#dc3545', fontSize: '0.82rem' }}>{fmt(bal)}</span>}
-                                                        <StatusBadge status={slip.status} />
-                                                        <i className="bi bi-chevron-right text-muted" style={{ fontSize: '0.75rem' }}></i>
+
+                                                    {/* Line Items Breakdown */}
+                                                    <div className="card-body p-3">
+                                                        <div className="table-responsive">
+                                                            <table className="table table-sm table-borderless align-middle mb-0" style={{ fontSize: '0.82rem' }}>
+                                                                <thead className="border-bottom text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                    <tr>
+                                                                        <th className="py-1">FEE HEAD / DESCRIPTION</th>
+                                                                        <th className="py-1 text-end">BILLED AMOUNT</th>
+                                                                        <th className="py-1 text-end">PAID</th>
+                                                                        <th className="py-1 text-end">REMAINING</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {(!slip.line_items || slip.line_items.length === 0) ? (
+                                                                        <tr>
+                                                                            <td colSpan={4} className="text-muted py-2 text-center">
+                                                                                Tuition / General Fee: {fmt(slipTotal)}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ) : (
+                                                                        slip.line_items.map((item, itemIdx) => {
+                                                                            const itemAmt = parseFloat(item.amount as any || 0);
+                                                                            const itemPaid = parseFloat(item.paid_amount as any || 0);
+                                                                            const itemRem = Math.max(0, itemAmt - itemPaid);
+                                                                            const isTuition = item.head_name.toLowerCase().includes('tuition') || item.head_name.toLowerCase().includes('family');
+                                                                            const isPB = item.head_name.toLowerCase().includes('previous') || item.head_name.toLowerCase().includes('opening');
+
+                                                                            return (
+                                                                                <tr key={itemIdx} className="border-bottom border-light">
+                                                                                    <td className="py-1 text-dark">
+                                                                                        <div className="fw-semibold">
+                                                                                            {isTuition && <i className="bi bi-mortarboard me-1 text-primary"></i>}
+                                                                                            {isPB && <i className="bi bi-clock-history me-1 text-warning"></i>}
+                                                                                            {!isTuition && !isPB && <i className="bi bi-tag me-1 text-secondary"></i>}
+                                                                                            {item.head_name}
+                                                                                        </div>
+                                                                                        {item.note && <div className="text-muted" style={{ fontSize: '0.72rem' }}>{item.note}</div>}
+                                                                                    </td>
+                                                                                    <td className="py-1 text-end fw-semibold" style={{ color: 'var(--primary-dark)' }}>
+                                                                                        {fmt(itemAmt)}
+                                                                                    </td>
+                                                                                    <td className="py-1 text-end text-success fw-semibold">
+                                                                                        {itemPaid > 0 ? fmt(itemPaid) : '—'}
+                                                                                    </td>
+                                                                                    <td className="py-1 text-end fw-bold" style={{ color: itemRem > 0 ? '#dc3545' : '#198754' }}>
+                                                                                        {itemRem > 0 ? fmt(itemRem) : '✓'}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })
+                                                                    )}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+
+                                                        {/* Month Summary & Action Footer */}
+                                                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 pt-2 border-top">
+                                                            <div className="d-flex gap-3 align-items-center">
+                                                                <div>
+                                                                    <span className="text-muted small">Total: </span>
+                                                                    <span className="fw-bold" style={{ color: 'var(--primary-dark)' }}>{fmt(slipTotal)}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-muted small">Paid: </span>
+                                                                    <span className="fw-bold text-success">{fmt(slipPaid)}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-muted small">Balance: </span>
+                                                                    <span className="fw-bold" style={{ color: slipBal > 0 ? '#dc3545' : '#198754' }}>
+                                                                        {slipBal > 0 ? fmt(slipBal) : '✓ Clear'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                {slip.is_active_year === false ? (
+                                                                    <button className="btn btn-sm btn-outline-secondary"
+                                                                        onClick={() => { setSlipPickerGroup(null); openPayModal(slip); }}>
+                                                                        <i className="bi bi-eye me-1"></i>View Payment Details
+                                                                    </button>
+                                                                ) : isPaidOrSatteled ? (
+                                                                    <button className="btn btn-sm btn-outline-success"
+                                                                        onClick={() => { setSlipPickerGroup(null); openPayModal(slip); }}>
+                                                                        <i className="bi bi-clock-history me-1"></i>Payment History
+                                                                    </button>
+                                                                ) : (
+                                                                    <button className="btn btn-sm fw-bold"
+                                                                        style={{ backgroundColor: 'var(--accent-orange)', color: '#fff', border: 'none', borderRadius: 6 }}
+                                                                        onClick={() => { setSlipPickerGroup(null); openPayModal(slip); }}>
+                                                                        <i className="bi bi-cash me-1"></i>Collect {MONTHS[(slip.month ?? 1) - 1]?.slice(0, 3)} Fee
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </button>
+                                                </div>
                                             );
                                         })}
                                     </div>
                                 </div>
-                                <div className="modal-footer border-0 px-4 py-3">
-                                    <button className="btn btn-sm btn-outline-secondary" onClick={() => setSlipPickerGroup(null)}>
-                                        <i className="bi bi-x me-1"></i>Close
+
+                                <div className="modal-footer border-0 px-4 py-3 bg-white" style={{ borderRadius: '0 0 16px 16px' }}>
+                                    <button className="btn btn-secondary px-4" onClick={() => setSlipPickerGroup(null)}>
+                                        Close
                                     </button>
                                 </div>
                             </div>
