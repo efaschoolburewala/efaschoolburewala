@@ -728,7 +728,7 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
             FROM admission_fee_ledger afl
             LEFT JOIN academic_years ay ON ay.id = afl.academic_year_id
             WHERE afl.ledger_id=$1 
-            FOR UPDATE
+            FOR UPDATE OF afl
         `, [ledger_id]);
         if (ledger.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Admission fee ledger not found' }); }
 
@@ -1080,7 +1080,7 @@ router.post('/:id/pay', async (req, res) => {
             FROM monthly_fee_slips mfs
             LEFT JOIN academic_years ay ON ay.id = mfs.academic_year_id
             WHERE mfs.slip_id = $1 
-            FOR UPDATE
+            FOR UPDATE OF mfs
         `, [id]);
         if (slip.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Slip not found' }); }
 
