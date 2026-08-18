@@ -9,6 +9,12 @@ interface Category {
     category_name: string;
 }
 
+interface AcademicYear {
+    id: number;
+    year_name: string;
+    is_active: boolean;
+}
+
 interface Expense {
     expense_id: number;
     expense_date: string;
@@ -18,6 +24,9 @@ interface Expense {
     paid_to?: string;
     description?: string;
     payment_method?: string;
+    academic_year_id?: number;
+    academic_year_name?: string;
+    is_active_year?: boolean;
 }
 
 interface Summary {
@@ -27,6 +36,7 @@ interface Summary {
 
 interface Filters {
     category_id: string;
+    academic_year_id: string;
     from_date: string;
     to_date: string;
     search: string;
@@ -37,12 +47,15 @@ export default function ExpenseListPage() {
     const { hasPermission } = useAuth();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [years, setYears] = useState<AcademicYear[]>([]);
+    const [activeYear, setActiveYear] = useState<AcademicYear | null>(null);
     const [summary, setSummary] = useState<Summary>({
         total_expenses: 0,
         total_amount: 0
     });
     const [filters, setFilters] = useState<Filters>({
         category_id: '',
+        academic_year_id: 'active',
         from_date: '',
         to_date: '',
         search: ''
@@ -91,11 +104,13 @@ export default function ExpenseListPage() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses?${params}`);
             const data = await response.json();
 
-            setExpenses(data.expenses);
+            setExpenses(data.expenses || []);
+            setYears(data.years || []);
+            setActiveYear(data.active_year || null);
             setPagination(prev => ({
                 ...prev,
-                total: data.total,
-                totalPages: data.totalPages
+                total: data.total || 0,
+                totalPages: data.totalPages || 0
             }));
         } catch (err) {
             console.error('Failed to fetch expenses');
@@ -124,7 +139,12 @@ export default function ExpenseListPage() {
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (id: number, isActiveYear?: boolean, yearName?: string) => {
+        if (isActiveYear === false) {
+            alert(`Fiscal/Academic Year (${yearName || 'Closed'}) is closed. Expenses from previous years are read-only and cannot be deleted.`);
+            return;
+        }
+
         if (!confirm('Are you sure you want to delete this expense?')) return;
 
         try {
@@ -136,7 +156,8 @@ export default function ExpenseListPage() {
                 fetchExpenses();
                 fetchSummary();
             } else {
-                alert('Failed to delete expense');
+                const data = await response.json();
+                alert(data.error || 'Failed to delete expense');
             }
         } catch (err) {
             console.error('Error deleting expense:', err);
@@ -159,9 +180,14 @@ export default function ExpenseListPage() {
     return (
         <div className="container-fluid p-4 animate__animated animate__fadeIn">
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <h2 className="fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                    <i className="bi bi-wallet2 me-2"></i> Expense Management
-                </h2>
+                <div className="d-flex align-items-center gap-2">
+                    <h2 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-wallet2 me-2"></i> Expense Management
+                    </h2>
+                    <span className="badge rounded-pill bg-light text-dark border ms-2">
+                        Academic Year: {activeYear?.year_name || '—'}
+                    </span>
+                </div>
                 {hasPermission('expenses', 'write') && (
                     <button
                         className="btn btn-primary-custom shadow-sm d-flex align-items-center gap-2"
@@ -196,7 +222,7 @@ export default function ExpenseListPage() {
             <div className="card shadow-sm mb-4 border-0 animate__animated animate__fadeInUp" style={{ animationDelay: '0.2s' }}>
                 <div className="card-body bg-white rounded">
                     <div className="row g-3">
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                             <div className="input-group">
                                 <span className="input-group-text bg-light border-end-0"><i className="bi bi-search"></i></span>
                                 <input
@@ -211,6 +237,21 @@ export default function ExpenseListPage() {
                         <div className="col-md-3">
                             <select
                                 className="form-select"
+                                value={filters.academic_year_id}
+                                onChange={(e) => handleFilterChange('academic_year_id', e.target.value)}
+                            >
+                                <option value="active">Active Session Only</option>
+                                <option value="all">All Academic Years</option>
+                                {years.map(y => (
+                                    <option key={y.id} value={String(y.id)}>
+                                        {y.year_name} {y.is_active ? '(Active)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-md-2">
+                            <select
+                                className="form-select"
                                 value={filters.category_id}
                                 onChange={(e) => handleFilterChange('category_id', e.target.value)}
                             >
@@ -222,14 +263,14 @@ export default function ExpenseListPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-2">
+                        <div className="col-md-1.5">
                             <input type="date" className="form-control" value={filters.from_date} onChange={e => handleFilterChange('from_date', e.target.value)} />
                         </div>
-                        <div className="col-md-2">
+                        <div className="col-md-1.5">
                             <input type="date" className="form-control" value={filters.to_date} onChange={e => handleFilterChange('to_date', e.target.value)} />
                         </div>
                         <div className="col-md-1 d-grid">
-                            <button className="btn btn-secondary-custom" onClick={() => setFilters({ category_id: '', from_date: '', to_date: '', search: '' })}>
+                            <button className="btn btn-secondary-custom" onClick={() => setFilters({ category_id: '', academic_year_id: 'active', from_date: '', to_date: '', search: '' })}>
                                 <i className="bi bi-arrow-counterclockwise"></i>
                             </button>
                         </div>
@@ -268,58 +309,87 @@ export default function ExpenseListPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    expenses.map((expense) => (
-                                        <tr key={expense.expense_id} style={{ transition: 'all 0.2s' }}>
-                                            <td className="ps-4 fw-medium text-nowrap">
-                                                <i className="bi bi-calendar3 me-2 text-muted"></i>
-                                                {new Date(expense.expense_date).toLocaleDateString()}
-                                            </td>
-                                            <td>
-                                                <div className="fw-bold text-dark">{expense.expense_title}</div>
-                                                <span className="badge bg-light text-secondary border rounded-pill mt-1">
-                                                    {expense.category_name}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div className="small text-muted">
-                                                    {expense.paid_to && <div><i className="bi bi-person me-1"></i> {expense.paid_to}</div>}
-                                                    {expense.payment_method && <div><i className="bi bi-credit-card me-1"></i> {expense.payment_method}</div>}
-                                                </div>
-                                            </td>
-                                            <td className="fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                                                {formatCurrency(expense.amount)}
-                                            </td>
-                                            <td className="pe-4 text-end">
-                                                <div className="btn-group">
-                                                    <button
-                                                        className="btn btn-sm btn-light text-primary"
-                                                        title="View"
-                                                        onClick={() => handleView(expense)}
-                                                    >
-                                                        <i className="bi bi-eye"></i>
-                                                    </button>
-                                                    {hasPermission('expenses', 'write') && (
+                                    expenses.map((expense) => {
+                                        const isClosed = expense.is_active_year === false;
+                                        return (
+                                            <tr key={expense.expense_id} style={{ transition: 'all 0.2s', opacity: isClosed ? 0.85 : 1 }}>
+                                                <td className="ps-4 fw-medium text-nowrap">
+                                                    <i className="bi bi-calendar3 me-2 text-muted"></i>
+                                                    {new Date(expense.expense_date).toLocaleDateString()}
+                                                </td>
+                                                <td>
+                                                    <div className="fw-bold text-dark d-flex align-items-center gap-1">
+                                                        {expense.expense_title}
+                                                        {isClosed && (
+                                                            <span className="badge bg-secondary text-white ms-1" style={{ fontSize: '0.68rem' }} title="Closed Fiscal Year - Read Only">
+                                                                <i className="bi bi-lock-fill me-1"></i>Closed Year
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="d-flex align-items-center gap-1 mt-1">
+                                                        <span className="badge bg-light text-secondary border rounded-pill">
+                                                            {expense.category_name}
+                                                        </span>
+                                                        {expense.academic_year_name && (
+                                                            <span className="badge bg-light text-dark border" style={{ fontSize: '0.68rem' }}>
+                                                                {expense.academic_year_name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="small text-muted">
+                                                        {expense.paid_to && <div><i className="bi bi-person me-1"></i> {expense.paid_to}</div>}
+                                                        {expense.payment_method && <div><i className="bi bi-credit-card me-1"></i> {expense.payment_method}</div>}
+                                                    </div>
+                                                </td>
+                                                <td className="fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                                                    {formatCurrency(expense.amount)}
+                                                </td>
+                                                <td className="pe-4 text-end">
+                                                    <div className="btn-group">
                                                         <button
-                                                            className="btn btn-sm btn-light text-warning"
-                                                            title="Edit"
-                                                            onClick={() => router.push(`/expenses/edit/${expense.expense_id}`)}
+                                                            className="btn btn-sm btn-light text-primary"
+                                                            title="View Details"
+                                                            onClick={() => handleView(expense)}
                                                         >
-                                                            <i className="bi bi-pencil"></i>
+                                                            <i className="bi bi-eye"></i>
                                                         </button>
-                                                    )}
-                                                    {hasPermission('expenses', 'delete') && (
-                                                        <button
-                                                            className="btn btn-sm btn-light text-danger"
-                                                            title="Delete"
-                                                            onClick={() => handleDelete(expense.expense_id)}
-                                                        >
-                                                            <i className="bi bi-trash"></i>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                                        {hasPermission('expenses', 'write') && (
+                                                            isClosed ? (
+                                                                <button
+                                                                    className="btn btn-sm btn-light text-muted opacity-50"
+                                                                    title="Closed Fiscal Year (Read-Only)"
+                                                                    disabled
+                                                                >
+                                                                    <i className="bi bi-lock-fill"></i>
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    className="btn btn-sm btn-light text-warning"
+                                                                    title="Edit Expense"
+                                                                    onClick={() => router.push(`/expenses/edit/${expense.expense_id}`)}
+                                                                >
+                                                                    <i className="bi bi-pencil"></i>
+                                                                </button>
+                                                            )
+                                                        )}
+                                                        {hasPermission('expenses', 'delete') && (
+                                                            isClosed ? null : (
+                                                                <button
+                                                                    className="btn btn-sm btn-light text-danger"
+                                                                    title="Delete Expense"
+                                                                    onClick={() => handleDelete(expense.expense_id, expense.is_active_year, expense.academic_year_name)}
+                                                                >
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -353,60 +423,67 @@ export default function ExpenseListPage() {
                 </div>
             </div>
 
-            {/* View Modal */}
+            {/* View Expense Modal */}
             {showViewModal && selectedExpense && (
-                <>
-                    <div className="modal-backdrop fade show"></div>
-                    <div className="modal fade show d-block animate__animated animate__fadeInDown" tabIndex={-1}>
-                        <div className="modal-dialog modal-dialog-centered">
-                            <div className="modal-content border-0 shadow-lg">
-                                <div className="modal-header text-white" style={{ backgroundColor: 'var(--primary-dark)' }}>
-                                    <h5 className="modal-title">Expense Details</h5>
-                                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowViewModal(false)}></button>
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 shadow">
+                            <div className="modal-header bg-light">
+                                <h5 className="modal-title fw-bold">
+                                    <i className="bi bi-receipt me-2"></i>Expense Details
+                                </h5>
+                                <button type="button" className="btn-close" onClick={() => setShowViewModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                {selectedExpense.is_active_year === false && (
+                                    <div className="alert alert-secondary py-2 px-3 small d-flex align-items-center mb-3">
+                                        <i className="bi bi-lock-fill me-2 fs-5"></i>
+                                        <span>This expense belongs to a closed Fiscal/Academic Year (<strong>{selectedExpense.academic_year_name}</strong>) and is Read-Only.</span>
+                                    </div>
+                                )}
+                                <div className="mb-3">
+                                    <label className="text-muted small d-block">Title</label>
+                                    <span className="fw-bold fs-5">{selectedExpense.expense_title}</span>
                                 </div>
-                                <div className="modal-body p-4">
+                                <div className="row g-3 mb-3">
+                                    <div className="col-6">
+                                        <label className="text-muted small d-block">Amount</label>
+                                        <span className="fw-bold text-success fs-5">{formatCurrency(selectedExpense.amount)}</span>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="text-muted small d-block">Category</label>
+                                        <span className="badge bg-light text-dark border">{selectedExpense.category_name}</span>
+                                    </div>
+                                </div>
+                                <div className="row g-3 mb-3">
+                                    <div className="col-6">
+                                        <label className="text-muted small d-block">Date</label>
+                                        <span>{new Date(selectedExpense.expense_date).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="text-muted small d-block">Payment Method</label>
+                                        <span>{selectedExpense.payment_method || 'N/A'}</span>
+                                    </div>
+                                </div>
+                                {selectedExpense.paid_to && (
                                     <div className="mb-3">
-                                        <label className="text-muted small fw-bold">Title</label>
-                                        <div className="fw-bold fs-5">{selectedExpense.expense_title}</div>
+                                        <label className="text-muted small d-block">Paid To</label>
+                                        <span>{selectedExpense.paid_to}</span>
                                     </div>
-                                    <div className="row g-3 mb-3">
-                                        <div className="col-6">
-                                            <label className="text-muted small fw-bold">Category</label>
-                                            <div>{selectedExpense.category_name}</div>
-                                        </div>
-                                        <div className="col-6">
-                                            <label className="text-muted small fw-bold">Amount</label>
-                                            <div className="fw-bold text-success">{formatCurrency(selectedExpense.amount)}</div>
-                                        </div>
-                                    </div>
-                                    <div className="row g-3 mb-3">
-                                        <div className="col-6">
-                                            <label className="text-muted small fw-bold">Date</label>
-                                            <div>{new Date(selectedExpense.expense_date).toLocaleDateString()}</div>
-                                        </div>
-                                        <div className="col-6">
-                                            <label className="text-muted small fw-bold">Payment Method</label>
-                                            <div>{selectedExpense.payment_method || '-'}</div>
-                                        </div>
-                                    </div>
+                                )}
+                                {selectedExpense.description && (
                                     <div className="mb-3">
-                                        <label className="text-muted small fw-bold">Paid To</label>
-                                        <div>{selectedExpense.paid_to || '-'}</div>
+                                        <label className="text-muted small d-block">Description</label>
+                                        <p className="mb-0 bg-light p-2 rounded small">{selectedExpense.description}</p>
                                     </div>
-                                    {selectedExpense.description && (
-                                        <div className="mb-3">
-                                            <label className="text-muted small fw-bold">Description</label>
-                                            <div className="p-2 bg-light rounded small">{selectedExpense.description}</div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="modal-footer bg-light">
-                                    <button type="button" className="btn btn-secondary" onClick={() => setShowViewModal(false)}>Close</button>
-                                </div>
+                                )}
+                            </div>
+                            <div className="modal-footer bg-light">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowViewModal(false)}>Close</button>
                             </div>
                         </div>
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

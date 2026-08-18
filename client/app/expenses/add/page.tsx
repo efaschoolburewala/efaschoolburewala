@@ -37,9 +37,22 @@ export default function AddExpensePage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const [activeYearName, setActiveYearName] = useState('');
+
     useEffect(() => {
         fetchCategories();
+        fetchActiveYear();
     }, []);
+
+    const fetchActiveYear = async () => {
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
+            const data = await response.json();
+            if (data?.year_name) setActiveYearName(data.year_name);
+        } catch (err) {
+            console.error('Failed to fetch active academic year');
+        }
+    };
 
     const fetchCategories = async () => {
         try {
@@ -91,9 +104,14 @@ export default function AddExpensePage() {
 
                     {/* Header */}
                     <div className="d-flex justify-content-between align-items-center mb-4">
-                        <h2 className="fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                            <i className="bi bi-plus-circle me-2"></i>Add New Expense
-                        </h2>
+                        <div className="d-flex align-items-center gap-2">
+                            <h2 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
+                                <i className="bi bi-plus-circle me-2"></i>Add New Expense
+                            </h2>
+                            <span className="badge rounded-pill bg-light text-dark border ms-2">
+                                Academic Year: {activeYearName || '—'}
+                            </span>
+                        </div>
                         <button
                             className="btn btn-secondary-custom shadow-sm d-flex align-items-center"
                             onClick={() => router.push('/expenses/list')}

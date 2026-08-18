@@ -811,6 +811,7 @@ async function runMasterSeeder() {
                     receipt_url TEXT,
                     created_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
                     approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -818,7 +819,8 @@ async function runMasterSeeder() {
                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     ADD COLUMN IF NOT EXISTS attachment VARCHAR(255),
                     ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
-                    ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+                    ADD COLUMN IF NOT EXISTS receipt_url TEXT,
+                    ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
 
                 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
             `);

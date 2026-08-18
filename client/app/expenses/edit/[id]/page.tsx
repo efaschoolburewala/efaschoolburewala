@@ -37,6 +37,9 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
+    const [isClosedYear, setIsClosedYear] = useState(false);
+    const [expenseYearName, setExpenseYearName] = useState('');
+    const [activeYearName, setActiveYearName] = useState('');
 
     useEffect(() => {
         const loadCategory = async () => {
@@ -62,15 +65,25 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
             if (!response.ok) throw new Error('Failed to fetch expense details');
 
             const data = await response.json();
+            const exp = data.expense || data;
+
+            if (exp.is_active_year === false) {
+                setIsClosedYear(true);
+            }
+            setExpenseYearName(exp.academic_year_name || '');
+            if (data.active_year?.year_name) {
+                setActiveYearName(data.active_year.year_name);
+            }
+
             setFormData({
-                category_id: data.category_id.toString(),
-                expense_title: data.expense_title,
-                amount: data.amount.toString(),
-                expense_date: new Date(data.expense_date).toISOString().split('T')[0],
-                payment_method: data.payment_method || '',
-                reference_no: data.reference_no || '',
-                paid_to: data.paid_to || '',
-                description: data.description || ''
+                category_id: exp.category_id ? exp.category_id.toString() : '',
+                expense_title: exp.expense_title || '',
+                amount: exp.amount ? exp.amount.toString() : '',
+                expense_date: exp.expense_date ? new Date(exp.expense_date).toISOString().split('T')[0] : '',
+                payment_method: exp.payment_method || '',
+                reference_no: exp.reference_no || '',
+                paid_to: exp.paid_to || '',
+                description: exp.description || ''
             });
         } catch (err) {
             console.error(err);
@@ -129,9 +142,14 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
 
                     {/* Header */}
                     <div className="d-flex justify-content-between align-items-center mb-4">
-                        <h2 className="fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                            <i className="bi bi-pencil-square me-2"></i>Edit Expense
-                        </h2>
+                        <div className="d-flex align-items-center gap-2">
+                            <h2 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
+                                <i className="bi bi-pencil-square me-2"></i>Edit Expense
+                            </h2>
+                            <span className="badge rounded-pill bg-light text-dark border ms-2">
+                                Academic Year: {expenseYearName || activeYearName || '—'}
+                            </span>
+                        </div>
                         <button
                             className="btn btn-secondary-custom shadow-sm d-flex align-items-center"
                             onClick={() => router.push('/expenses/list')}
@@ -143,7 +161,19 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
                     {/* Form Card */}
                     <div className="card shadow-lg border-0 animate__animated animate__fadeInUp">
                         {/* Decorative Top Border */}
-                        <div className="card-body p-5 position-relative" style={{ borderTop: '5px solid var(--primary-teal)' }}>
+                        <div className="card-body p-5 position-relative" style={{ borderTop: isClosedYear ? '5px solid var(--bs-warning)' : '5px solid var(--primary-teal)' }}>
+
+                            {isClosedYear && (
+                                <div className="alert alert-warning border-start border-4 border-warning shadow-sm mb-4 d-flex align-items-center gap-2">
+                                    <i className="bi bi-lock-fill fs-4 text-warning"></i>
+                                    <div>
+                                        <strong className="d-block">Fiscal / Academic Year Closed (Read-Only)</strong>
+                                        <span className="small">
+                                            This expense record belongs to a closed Academic Year (<strong>{expenseYearName || 'Past Session'}</strong>). Records from closed fiscal years are read-only and cannot be modified.
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
                             {error && (
                                 <div className="alert alert-danger d-flex align-items-center mb-4 animate__animated animate__headShake" role="alert">
@@ -277,12 +307,16 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
                                         <button
                                             type="submit"
                                             className="btn btn-primary-custom px-5 shadow-sm"
-                                            disabled={loading}
+                                            disabled={loading || isClosedYear}
                                         >
                                             {loading ? (
                                                 <>
                                                     <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                                                     Updating...
+                                                </>
+                                            ) : isClosedYear ? (
+                                                <>
+                                                    <i className="bi bi-lock-fill me-2"></i> Read-Only (Closed Year)
                                                 </>
                                             ) : (
                                                 <>

@@ -75,7 +75,10 @@ async function runEssentialMigrations() {
                 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 ADD COLUMN IF NOT EXISTS attachment VARCHAR(255),
                 ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
-                ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+                ADD COLUMN IF NOT EXISTS receipt_url TEXT,
+                ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
+            
+            UPDATE expenses SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id DESC LIMIT 1) WHERE academic_year_id IS NULL;
         `).catch(() => { /* Tables may not exist yet on fresh install, seeder will create them */ });
 
         // 4.3 Student roles and user role assignment cleanup migration
