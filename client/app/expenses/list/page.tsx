@@ -72,7 +72,20 @@ export default function ExpenseListPage() {
 
     useEffect(() => {
         fetchCategories();
+        fetchActiveYear();
     }, []);
+
+    const fetchActiveYear = async () => {
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
+            const data = await response.json();
+            if (data?.year_name) {
+                setActiveYear(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch active academic year');
+        }
+    };
 
     useEffect(() => {
         fetchExpenses();
@@ -221,20 +234,20 @@ export default function ExpenseListPage() {
             {/* Filters */}
             <div className="card shadow-sm mb-4 border-0 animate__animated animate__fadeInUp" style={{ animationDelay: '0.2s' }}>
                 <div className="card-body bg-white rounded">
-                    <div className="row g-3">
-                        <div className="col-md-3">
+                    <div className="row g-2 align-items-center">
+                        <div className="col-12 col-md-3">
                             <div className="input-group">
-                                <span className="input-group-text bg-light border-end-0"><i className="bi bi-search"></i></span>
+                                <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
                                 <input
                                     type="text"
                                     className="form-control border-start-0 ps-0"
-                                    placeholder="Search by title..."
+                                    placeholder="Search title..."
                                     value={filters.search}
                                     onChange={(e) => handleFilterChange('search', e.target.value)}
                                 />
                             </div>
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-12 col-sm-6 col-md-2">
                             <select
                                 className="form-select"
                                 value={filters.academic_year_id}
@@ -249,7 +262,7 @@ export default function ExpenseListPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-2">
+                        <div className="col-12 col-sm-6 col-md-2">
                             <select
                                 className="form-select"
                                 value={filters.category_id}
@@ -263,14 +276,14 @@ export default function ExpenseListPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-1.5">
-                            <input type="date" className="form-control" value={filters.from_date} onChange={e => handleFilterChange('from_date', e.target.value)} />
+                        <div className="col-12 col-sm-6 col-md-2">
+                            <input type="date" className="form-control" value={filters.from_date} onChange={e => handleFilterChange('from_date', e.target.value)} title="From Date" />
                         </div>
-                        <div className="col-md-1.5">
-                            <input type="date" className="form-control" value={filters.to_date} onChange={e => handleFilterChange('to_date', e.target.value)} />
+                        <div className="col-12 col-sm-6 col-md-2">
+                            <input type="date" className="form-control" value={filters.to_date} onChange={e => handleFilterChange('to_date', e.target.value)} title="To Date" />
                         </div>
-                        <div className="col-md-1 d-grid">
-                            <button className="btn btn-secondary-custom" onClick={() => setFilters({ category_id: '', academic_year_id: 'active', from_date: '', to_date: '', search: '' })}>
+                        <div className="col-12 col-md-1 d-grid">
+                            <button className="btn btn-secondary-custom" title="Reset Filters" onClick={() => setFilters({ category_id: '', academic_year_id: 'active', from_date: '', to_date: '', search: '' })}>
                                 <i className="bi bi-arrow-counterclockwise"></i>
                             </button>
                         </div>

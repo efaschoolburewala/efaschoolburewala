@@ -1,7 +1,32 @@
 const router = require('express').Router();
 const pool = require('../db');
 
-// Get all academic years
+// Get active academic year
+router.get('/active-year', async (req, res) => {
+    try {
+        let result = await pool.query("SELECT * FROM academic_years WHERE is_active = true ORDER BY id DESC LIMIT 1");
+        if (result.rows.length === 0) {
+            result = await pool.query("SELECT * FROM academic_years ORDER BY id DESC LIMIT 1");
+        }
+        res.json(result.rows[0] || null);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+router.get('/years/active', async (req, res) => {
+    try {
+        let result = await pool.query("SELECT * FROM academic_years WHERE is_active = true ORDER BY id DESC LIMIT 1");
+        if (result.rows.length === 0) {
+            result = await pool.query("SELECT * FROM academic_years ORDER BY id DESC LIMIT 1");
+        }
+        res.json(result.rows[0] || null);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
 router.get('/years', async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM academic_years ORDER BY id ASC");
