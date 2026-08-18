@@ -312,6 +312,9 @@ export default function MarksApprovalPage() {
                                 Role: {roleName} (Lvl {roleLevel})
                             </span>
                         )}
+                        <span className="badge rounded-pill bg-light text-dark border">
+                            Academic Year: {years.find(y => y.id === activeYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
+                        </span>
                     </div>
                     <h2 className="mb-1 fw-bold text-white" style={{ letterSpacing: '-0.5px', fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
                         Marks Approval &amp; Publishing Portal

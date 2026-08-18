@@ -331,19 +331,17 @@ export default function TestMarkingPage() {
         <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '1.5rem' }}>
             {/* Standard Theme Page Header */}
             <div className="d-flex align-items-center justify-content-between mb-4">
-                <div>
-                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-journal-check me-2" style={{ color: 'var(--accent-orange)' }} />
-                        Test Marking
-                    </h4>
-                    <div className="d-flex align-items-center gap-2">
-                        <span className="text-muted small">Create and mark class tests for selected subject</span>
-                        {activeYear && (
-                            <span className="badge rounded-pill px-2.5 py-1 text-white shadow-sm" style={{ background: 'var(--primary-teal)', fontSize: '0.72rem' }}>
-                                <i className="bi bi-calendar-check me-1"></i>Active Session: {activeYear.year_name}
-                            </span>
-                        )}
+                <div className="d-flex align-items-center gap-2">
+                    <div>
+                        <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                            <i className="bi bi-journal-check me-2" style={{ color: 'var(--accent-orange)' }} />
+                            Test Marking
+                        </h4>
+                        <div className="text-muted small">Create and mark class tests for selected subject</div>
                     </div>
+                    <span className="badge rounded-pill bg-light text-dark border ms-2">
+                        Academic Year: {activeYear?.year_name || '—'}
+                    </span>
                 </div>
 
                 {readyToList && hasPermission('academic', 'write') && (
