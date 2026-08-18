@@ -70,6 +70,7 @@ export default function TestMarkingPage() {
     // ── tests list ───────────────────────────────────────────────────────────
     const [loadingTests, setLoadingTests] = useState(false);
     const [tests, setTests] = useState<TestPaper[]>([]);
+    const [activeYear, setActiveYear] = useState<{ id: number; year_name: string } | null>(null);
 
     // ── create-test form ─────────────────────────────────────────────────────
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -151,6 +152,7 @@ export default function TestMarkingPage() {
             const p = new URLSearchParams({ user_id: String(user.id), class_id: selClass, section_id: selSection, subject_id: selSubject });
             const d = await fetchJson(`${API}/exams/tests?${p}`);
             setTests(d.tests || []);
+            if (d.active_year) setActiveYear(d.active_year);
         } catch (e: any) {
             const errText = e.message || 'Failed to load tests';
             setMsg({ type: 'danger', text: errText });
@@ -334,7 +336,14 @@ export default function TestMarkingPage() {
                         <i className="bi bi-journal-check me-2" style={{ color: 'var(--accent-orange)' }} />
                         Test Marking
                     </h4>
-                    <div className="text-muted small">Create and mark class tests for selected subject</div>
+                    <div className="d-flex align-items-center gap-2">
+                        <span className="text-muted small">Create and mark class tests for selected subject</span>
+                        {activeYear && (
+                            <span className="badge rounded-pill px-2.5 py-1 text-white shadow-sm" style={{ background: 'var(--primary-teal)', fontSize: '0.72rem' }}>
+                                <i className="bi bi-calendar-check me-1"></i>Active Session: {activeYear.year_name}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {readyToList && hasPermission('academic', 'write') && (

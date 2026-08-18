@@ -1125,6 +1125,7 @@ async function runMasterSeeder() {
                     subject_id INTEGER NOT NULL REFERENCES subjects(subject_id) ON DELETE CASCADE,
                     created_by_user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
                     created_by_employee_id INTEGER REFERENCES employees(employee_id) ON DELETE SET NULL,
+                    academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL,
                     status VARCHAR(20) DEFAULT 'pending',
                     approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
                     published_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
@@ -1133,6 +1134,7 @@ async function runMasterSeeder() {
                 ALTER TABLE test_papers ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
                 ALTER TABLE test_papers ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL;
                 ALTER TABLE test_papers ADD COLUMN IF NOT EXISTS published_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL;
+                ALTER TABLE test_papers ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
             `);
 
             // 9.4 test_marks Table

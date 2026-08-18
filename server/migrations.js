@@ -202,7 +202,8 @@ async function runEssentialMigrations() {
             ALTER TABLE test_papers 
             ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending',
             ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
-            ADD COLUMN IF NOT EXISTS published_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL;
+            ADD COLUMN IF NOT EXISTS published_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+            ADD COLUMN IF NOT EXISTS academic_year_id INTEGER REFERENCES academic_years(id) ON DELETE SET NULL;
 
             CREATE TABLE IF NOT EXISTS exam_sheet_approvals (
                 id SERIAL PRIMARY KEY,
@@ -227,9 +228,10 @@ async function runEssentialMigrations() {
             CREATE UNIQUE INDEX IF NOT EXISTS idx_uniq_sheet_term_exam ON exam_sheet_approvals (sheet_type, term_id, class_id, section_id, subject_id) WHERE sheet_type = 'term_exam';
             CREATE UNIQUE INDEX IF NOT EXISTS idx_uniq_sheet_class_test ON exam_sheet_approvals (test_id) WHERE sheet_type = 'class_test';
 
-            -- Legacy data backfill (keep existing marks published)
+            -- Legacy data backfill (keep existing marks published & link active academic year)
             UPDATE exam_marks SET status = 'published' WHERE status IS NULL;
             UPDATE test_papers SET status = 'published' WHERE status IS NULL;
+            UPDATE test_papers SET academic_year_id = (SELECT id FROM academic_years WHERE is_active = TRUE ORDER BY id DESC LIMIT 1) WHERE academic_year_id IS NULL;
         `);
 
         // 8. User Sessions & Login Security Migration
