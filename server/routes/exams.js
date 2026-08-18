@@ -1965,13 +1965,6 @@ router.get('/approvals/list', async (req, res) => {
         client.release();
     }
 });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-    } finally {
-        client.release();
-    }
-});
 
 // GET /exams/approvals/sheet-details?user_id=&sheet_type=&term_id=&class_id=&section_id=&subject_id=&test_id=
 router.get('/approvals/sheet-details', async (req, res) => {
