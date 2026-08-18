@@ -123,8 +123,8 @@ export default function ExpenseListPage() {
             const data = await response.json();
 
             setExpenses(data.expenses || []);
-            setYears(data.years || []);
-            setActiveYear(data.active_year || null);
+            if (data.years && data.years.length > 0) setYears(data.years);
+            if (data.active_year?.year_name) setActiveYear(data.active_year);
             setPagination(prev => ({
                 ...prev,
                 total: data.total || 0,
