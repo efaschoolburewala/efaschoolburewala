@@ -411,7 +411,11 @@ export default function PrintSlipsPage() {
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) {
                 setActiveYear(data);
-                setSelectedAcademicYear(prev => (prev === 'all' || !prev) ? data.id.toString() : prev);
+                setSelectedAcademicYear(data.id.toString());
+                const startY = data.start_date ? new Date(data.start_date).getFullYear().toString() : (data.year_name ? data.year_name.split('-')[0].trim() : new Date().getFullYear().toString());
+                if (startY && !isNaN(parseInt(startY))) {
+                    setYear(startY);
+                }
             }
         }).catch(() => {});
 
@@ -824,7 +828,14 @@ export default function PrintSlipsPage() {
                             </div>
                             <div className="col-md-3">
                                 <label className="form-label fw-bold small text-muted">Year</label>
-                                <input type="number" className="form-control" value={year} onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()} onChange={e => setYear(e.target.value)} />
+                                <input
+                                    type="text"
+                                    className="form-control bg-light text-dark fw-semibold"
+                                    value={activeYear?.year_name || year}
+                                    readOnly
+                                    disabled
+                                    style={{ cursor: 'not-allowed' }}
+                                />
                             </div>
                             <div className="col-md-3">
                                 <label className="form-label fw-bold small text-muted">Class Filter (optional)</label>

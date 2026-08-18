@@ -90,7 +90,11 @@ export default function FeeGeneratePage() {
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) {
                 setActiveYear(data);
-                setSelectedAcademicYear(prev => prev || data.id.toString());
+                setSelectedAcademicYear(data.id.toString());
+                const startY = data.start_date ? new Date(data.start_date).getFullYear().toString() : (data.year_name ? data.year_name.split('-')[0].trim() : new Date().getFullYear().toString());
+                if (startY && !isNaN(parseInt(startY))) {
+                    setSelectedYear(startY);
+                }
             }
         }).catch(() => {});
     }, []);
@@ -441,10 +445,15 @@ export default function FeeGeneratePage() {
                                 </div>
                             </div>
                             <div className="mb-3">
-                                <label className="form-label fw-bold small text-muted">Year <span className="text-danger">*</span></label>
-                                <input type="number" className="form-control" value={selectedYear}
-                                    onKeyDown={e => ['e', 'E', '+', '-', '.'].includes(e.key) && e.preventDefault()}
-                                    onChange={e => setSelectedYear(e.target.value)} />
+                                <label className="form-label fw-bold small text-muted">Academic Year <span className="text-danger">*</span></label>
+                                <input
+                                    type="text"
+                                    className="form-control bg-light text-dark fw-semibold"
+                                    value={activeYear?.year_name || selectedYear}
+                                    readOnly
+                                    disabled
+                                    style={{ cursor: 'not-allowed' }}
+                                />
                             </div>
                             <div className="row g-2 mb-3">
                                 <div className="col-6">
