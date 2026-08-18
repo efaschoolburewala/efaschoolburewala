@@ -1207,7 +1207,7 @@ export default function CollectFeePage() {
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <div>
+                                                            {/* <div>
                                                                 {slip.is_active_year === false ? (
                                                                     <button className="btn btn-sm btn-outline-secondary"
                                                                         onClick={() => { setSlipPickerGroup(null); openPayModal(slip); }}>
@@ -1225,7 +1225,7 @@ export default function CollectFeePage() {
                                                                         <i className="bi bi-cash me-1"></i>Collect {MONTHS[(slip.month ?? 1) - 1]?.slice(0, 3)} Fee
                                                                     </button>
                                                                 )}
-                                                            </div>
+                                                            </div> */}
                                                         </div>
                                                     </div>
                                                 </div>
