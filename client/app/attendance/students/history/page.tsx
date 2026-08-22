@@ -42,19 +42,26 @@ export default function StudentAttendanceHistoryPage() {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
     useEffect(() => {
-        const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
-        const endpoint = user?.id ? `${API}/attendance/my-classes?user_id=${user.id}` : `${API}/academic`;
+        const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+        const queryParams = new URLSearchParams();
+        if (user?.id) queryParams.append('user_id', String(user.id));
+        if (user?.employee_id) queryParams.append('employee_id', String(user.employee_id));
+
+        const endpoint = user?.id ? `${API}/attendance/my-classes?${queryParams.toString()}` : `${API}/academic`;
         fetch(endpoint)
             .then(r => r.json())
             .then(d => {
                 const list = Array.isArray(d) ? d : (Array.isArray(d.classes) ? d.classes : []);
                 setClasses(list);
-                if (list.length > 0 && !classId) {
-                    setClassId(String(list[0].class_id));
+                if (list.length > 0) {
+                    setClassId(prev => {
+                        if (prev && list.some((c: ClassItem) => String(c.class_id) === prev)) return prev;
+                        return String(list[0].class_id);
+                    });
                 }
             })
             .catch(() => { });
-    }, [user?.id]);
+    }, [user?.id, user?.employee_id]);
 
     const showToast = (type: 'success' | 'danger', msg: string) => {
         setToast({ type, msg }); setTimeout(() => setToast(null), 4000);
@@ -64,12 +71,19 @@ export default function StudentAttendanceHistoryPage() {
         if (!classId || !month || !year) return;
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/students/history?class_id=${classId}&month=${month}&year=${year}`);
+            const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+            const res = await fetch(`${API}/attendance/students/history?class_id=${classId}&month=${month}&year=${year}`);
             const d = await res.json();
             if (d.students) setData(d); else showToast('danger', 'Failed to load history');
         } catch { showToast('danger', 'Server error'); }
         setLoading(false);
     };
+
+    useEffect(() => {
+        if (classId && month && year) {
+            loadHistory();
+        }
+    }, [classId, month, year]);
 
     const cls = classes.find(c => String(c.class_id) === classId);
     const students = data?.students ?? [];

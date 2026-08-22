@@ -53,21 +53,34 @@ export default function StudentAttendancePage() {
 
   useEffect(() => {
     const loadMeta = async () => {
-      const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+      const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
       if (!user?.id) return;
 
       try {
-        const res = await fetch(`${API}/attendance/my-classes?user_id=${user.id}`);
+        const queryParams = new URLSearchParams({ user_id: String(user.id) });
+        if (user.employee_id) {
+          queryParams.append('employee_id', String(user.employee_id));
+        }
+
+        const res = await fetch(`${API}/attendance/my-classes?${queryParams.toString()}`);
         const data = await res.json();
 
         if (Array.isArray(data.classes)) {
           setClasses(data.classes);
-          if (data.classes.length > 0 && !classId) {
-            setClassId(String(data.classes[0].class_id));
+          if (data.classes.length > 0) {
+            setClassId(prev => {
+              if (prev && data.classes.some((c: ClassItem) => String(c.class_id) === prev)) {
+                return prev;
+              }
+              return String(data.classes[0].class_id);
+            });
           }
         }
-        if (Array.isArray(data.sections)) setSections(data.sections);
-      } catch {
+        if (Array.isArray(data.sections)) {
+          setSections(data.sections);
+        }
+      } catch (err) {
+        console.error('Failed to load my-classes:', err);
         // fallback
         try {
           const res = await fetch(`${API}/exams/context/class-teacher?user_id=${user.id}`);
@@ -79,13 +92,24 @@ export default function StudentAttendancePage() {
     };
 
     loadMeta();
-  }, [user?.id]);
+  }, [user?.id, user?.employee_id]);
 
   const loadAttendance = useCallback(async () => {
     if (!classId || !sectionId || !date) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/students/daily?class_id=${classId}&section_id=${sectionId}&date=${date}&user_id=${user?.id}`);
+      const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+      const queryParams = new URLSearchParams({
+        class_id: String(classId),
+        section_id: String(sectionId),
+        date: String(date),
+        user_id: String(user?.id || '')
+      });
+      if (user?.employee_id) {
+        queryParams.append('employee_id', String(user.employee_id));
+      }
+
+      const res = await fetch(`${API}/attendance/students/daily?${queryParams.toString()}`);
       const data = await res.json();
       const records: StudentRow[] = Array.isArray(data) ? data : (data.records || []);
       const hol: HolidayInfo | null = data.holiday || null;
@@ -105,7 +129,7 @@ export default function StudentAttendancePage() {
       }
     } catch { notify.error('Server error'); }
     setLoading(false);
-  }, [classId, sectionId, date, canEditLocked]);
+  }, [classId, sectionId, date, canEditLocked, user?.id, user?.employee_id]);
 
   const markAll = (status: string) => {
     if (isLocked) return;
@@ -118,14 +142,22 @@ export default function StudentAttendancePage() {
     if (isLocked || !classId || !sectionId || !date || !students.length) return;
     setSaving(true);
     try {
+      const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
       const records = students.map(s => ({
         student_id: s.student_id,
         status: statuses[s.student_id] || 'Present',
         remarks: remarks[s.student_id] || ''
       }));
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/students/daily`, {
+      const res = await fetch(`${API}/attendance/students/daily`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_id: classId, section_id: sectionId, date, records, user_id: user?.id })
+        body: JSON.stringify({
+          class_id: classId,
+          section_id: sectionId,
+          date,
+          records,
+          user_id: user?.id,
+          employee_id: user?.employee_id
+        })
       });
       const d = await res.json();
       if (res.ok) notify.success(`Attendance saved for ${students.length} students!`);
@@ -147,19 +179,25 @@ export default function StudentAttendancePage() {
 
   const classSections = sections.filter(s => String(s.class_id) === String(classId));
 
-  // Auto-select section if only one exists for the class; reset when class changes
+  // Auto-select section if only one exists or auto-select first section when class changes
   useEffect(() => {
-    if (!classId) {
+    if (!classId || classSections.length === 0) {
       setSectionId('');
       return;
     }
 
-    if (classSections.length === 1 && !sectionId) {
+    const currentValid = classSections.some(s => String(s.section_id) === sectionId);
+    if (!currentValid) {
       setSectionId(String(classSections[0].section_id));
-    } else if (classSections.length > 1) {
-      setSectionId('');
     }
-  }, [classId, classSections.length]);
+  }, [classId, classSections, sectionId]);
+
+  // Auto-load attendance when classId, sectionId, and date are selected
+  useEffect(() => {
+    if (classId && sectionId && date) {
+      loadAttendance();
+    }
+  }, [classId, sectionId, date, loadAttendance]);
 
   return (
     <div className="container-fluid px-3 px-md-4 py-3 animate__animated animate__fadeIn">

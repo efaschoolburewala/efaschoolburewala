@@ -7,42 +7,118 @@ function parseUserId(input) {
     return Number.isInteger(value) && value > 0 ? value : null;
 }
 
-async function getUserContext(client, userId) {
-    const userRes = await client.query(
-        `SELECT u.id, u.is_active, r.role_name, r.role_level
-         FROM app_users u
-         LEFT JOIN app_roles r ON r.id = u.role_id
-         WHERE u.id = $1`,
-        [userId]
-    );
+async function getUserContext(client, userId, employeeIdParam = null) {
+    let empId = parseUserId(employeeIdParam);
+    let user = null;
+    let isAdmin = false;
+    let isSupervisor = false;
 
-    if (userRes.rows.length === 0) {
-        return { error: { status: 404, message: 'User not found' } };
+    const parsedUid = parseUserId(userId);
+
+    if (parsedUid) {
+        const userRes = await client.query(
+            `SELECT u.id, u.username, u.email, u.full_name, u.is_active, u.role_id,
+                    r.role_name, r.role_level
+             FROM app_users u
+             LEFT JOIN app_roles r ON r.id = u.role_id
+             WHERE u.id = $1`,
+            [parsedUid]
+        );
+
+        if (userRes.rows.length > 0) {
+            user = userRes.rows[0];
+            if (!user.is_active) {
+                return { error: { status: 403, message: 'User is inactive' } };
+            }
+            isAdmin = (user.role_level || 0) >= 90;
+            isSupervisor = (user.role_level || 0) >= 65;
+
+            // Find associated employee with fallback matching
+            if (!empId) {
+                const empRes = await client.query(
+                    `SELECT employee_id
+                     FROM employees
+                     WHERE app_user_id = $1
+                        OR (email IS NOT NULL AND email <> '' AND LOWER(email) = LOWER($2))
+                        OR (employee_id = $1)
+                        OR (LOWER(TRIM(first_name || ' ' || COALESCE(last_name, ''))) = LOWER(TRIM($3)))
+                     ORDER BY 
+                        CASE 
+                            WHEN app_user_id = $1 THEN 1
+                            WHEN email IS NOT NULL AND LOWER(email) = LOWER($2) THEN 2
+                            WHEN employee_id = $1 THEN 3
+                            ELSE 4
+                        END ASC
+                     LIMIT 1`,
+                    [parsedUid, user.email || '', user.full_name || '']
+                );
+                if (empRes.rows.length > 0) {
+                    empId = empRes.rows[0].employee_id;
+                }
+            }
+        }
     }
 
-    const user = userRes.rows[0];
-    if (!user.is_active) {
-        return { error: { status: 403, message: 'User is inactive' } };
+    // If no app_user matched by userId, check if userId itself is an employee_id
+    if (!user && parsedUid) {
+        const directEmp = await client.query(
+            `SELECT e.employee_id, e.app_user_id, e.first_name, e.last_name, e.email,
+                    u.is_active, r.role_name, r.role_level
+             FROM employees e
+             LEFT JOIN app_users u ON e.app_user_id = u.id
+             LEFT JOIN app_roles r ON u.role_id = r.id
+             WHERE e.employee_id = $1`,
+            [parsedUid]
+        );
+        if (directEmp.rows.length > 0) {
+            const de = directEmp.rows[0];
+            empId = de.employee_id;
+            isAdmin = (de.role_level || 0) >= 90;
+            isSupervisor = (de.role_level || 0) >= 65;
+            user = {
+                id: de.app_user_id || parsedUid,
+                full_name: `${de.first_name || ''} ${de.last_name || ''}`.trim(),
+                email: de.email,
+                role_name: de.role_name || 'Staff',
+                role_level: de.role_level || 0
+            };
+        }
     }
 
-    // Role hierarchy: Admin(90+) can do anything, Supervisor(65+) can supervise/manage teachers
-    const isAdmin = (user.role_level || 0) >= 90;
-    const isSupervisor = (user.role_level || 0) >= 65;
+    // If only employeeIdParam was provided
+    if (!user && empId) {
+        const empOnly = await client.query(
+            `SELECT e.employee_id, e.app_user_id, e.first_name, e.last_name, e.email,
+                    u.is_active, r.role_name, r.role_level
+             FROM employees e
+             LEFT JOIN app_users u ON e.app_user_id = u.id
+             LEFT JOIN app_roles r ON u.role_id = r.id
+             WHERE e.employee_id = $1`,
+            [empId]
+        );
+        if (empOnly.rows.length > 0) {
+            const de = empOnly.rows[0];
+            isAdmin = (de.role_level || 0) >= 90;
+            isSupervisor = (de.role_level || 0) >= 65;
+            user = {
+                id: de.app_user_id || empId,
+                full_name: `${de.first_name || ''} ${de.last_name || ''}`.trim(),
+                email: de.email,
+                role_name: de.role_name || 'Staff',
+                role_level: de.role_level || 0
+            };
+        }
+    }
 
-    const empRes = await client.query(
-        `SELECT employee_id
-         FROM employees
-         WHERE app_user_id = $1
-         ORDER BY employee_id ASC
-         LIMIT 1`,
-        [userId]
-    );
+    if (!user && !empId) {
+        return { error: { status: 404, message: 'User or employee record not found' } };
+    }
 
     return {
-        user,
+        user: user || { id: parsedUid || empId, role_name: 'Staff', role_level: 0 },
         isAdmin,
         isSupervisor,
-        employeeId: empRes.rows[0]?.employee_id || null
+        employeeId: empId
     };
 }
 
@@ -53,20 +129,30 @@ async function canUserAccessClassAttendance(client, ctx, classId, sectionId) {
     // 1. Check if assigned in coordinator assignments
     const coordRes = await client.query(
         `SELECT 1 FROM attendance_coordinator_assignments 
-         WHERE employee_id = $1 AND class_id = $2 AND section_id = $3
+         WHERE employee_id = $1 AND class_id = $2 AND (section_id = $3 OR section_id IS NULL)
          LIMIT 1`,
         [ctx.employeeId, classId, sectionId]
     );
     if (coordRes.rows.length > 0) return true;
 
-    // 2. Check if assigned as Class Teacher
+    // 2. Check if assigned in teacher_class_assignment (class teacher or assigned class)
     const ctRes = await client.query(
         `SELECT 1 FROM teacher_class_assignment
-         WHERE employee_id = $1 AND class_id = $2 AND section_id = $3 AND is_class_teacher = TRUE
+         WHERE employee_id = $1 AND class_id = $2 AND (section_id = $3 OR section_id IS NULL)
          LIMIT 1`,
         [ctx.employeeId, classId, sectionId]
     );
-    return ctRes.rows.length > 0;
+    if (ctRes.rows.length > 0) return true;
+
+    // 3. Check if assigned via teacher_subject_assignment
+    const tsaRes = await client.query(
+        `SELECT 1 FROM teacher_subject_assignment tsa
+         JOIN subjects sub ON tsa.subject_id = sub.subject_id
+         WHERE tsa.employee_id = $1 AND (sub.section_id = $2 OR sub.section_id IS NULL)
+         LIMIT 1`,
+        [ctx.employeeId, sectionId]
+    );
+    return tsaRes.rows.length > 0;
 }
 
 async function checkHolidayForDate(db, dateStr, targetType = 'staff_and_students') {
@@ -110,15 +196,12 @@ async function checkHolidayForDate(db, dateStr, targetType = 'staff_and_students
 // Returns all students in a class with their attendance status for the given date and holiday info
 router.get('/students/daily', async (req, res) => {
     try {
-        const { class_id, section_id, date, user_id } = req.query;
+        const { class_id, section_id, date, user_id, employee_id } = req.query;
         if (!class_id || !section_id || !date) return res.status(400).json({ error: 'class_id, section_id and date required' });
-
-        const userId = parseUserId(user_id);
-        if (!userId) return res.status(400).json({ error: 'user_id is required' });
 
         const client = await pool.connect();
         try {
-            const ctx = await getUserContext(client, userId);
+            const ctx = await getUserContext(client, user_id, employee_id);
             if (ctx.error) return res.status(ctx.error.status).json({ error: ctx.error.message });
 
             // Allow if: Admin OR Supervisor OR Coordinator OR Class Teacher
@@ -158,20 +241,17 @@ router.get('/students/daily', async (req, res) => {
 });
 
 // POST /attendance/students/daily   upsert bulk attendance
-// body: { class_id, date, records: [{student_id, status, remarks}], user_id }
+// body: { class_id, date, records: [{student_id, status, remarks}], user_id, employee_id }
 router.post('/students/daily', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { class_id, date, records, user_id } = req.body;
+        const { class_id, date, records, user_id, employee_id } = req.body;
         const sectionId = records?.[0]?.section_id || req.body.section_id;
         if (!date || !records || !Array.isArray(records) || records.length === 0)
             return res.status(400).json({ error: 'date and records[] required' });
         if (!sectionId) return res.status(400).json({ error: 'section_id required' });
 
-        const userId = parseUserId(user_id);
-        if (!userId) return res.status(400).json({ error: 'user_id is required' });
-
-        const ctx = await getUserContext(client, userId);
+        const ctx = await getUserContext(client, user_id, employee_id);
         if (ctx.error) return res.status(ctx.error.status).json({ error: ctx.error.message });
 
         // Allow if: Admin OR Supervisor OR Coordinator OR Class Teacher
@@ -847,24 +927,27 @@ router.post('/coordinators/assign', async (req, res) => {
     const client = await pool.connect();
     try {
         const { employee_id, assignments } = req.body;
-        if (!employee_id) {
-            return res.status(400).json({ error: 'employee_id is required' });
+        const empId = parseUserId(employee_id);
+        if (!empId) {
+            return res.status(400).json({ error: 'Valid employee_id is required' });
         }
 
         await client.query('BEGIN');
 
         // Remove old assignments for this employee
-        await client.query('DELETE FROM attendance_coordinator_assignments WHERE employee_id = $1', [employee_id]);
+        await client.query('DELETE FROM attendance_coordinator_assignments WHERE employee_id = $1', [empId]);
 
         let inserted = 0;
         if (Array.isArray(assignments) && assignments.length > 0) {
             for (const a of assignments) {
-                if (a.class_id && a.section_id) {
+                const cId = parseUserId(a.class_id);
+                const sId = parseUserId(a.section_id);
+                if (cId && sId) {
                     await client.query(`
                         INSERT INTO attendance_coordinator_assignments (employee_id, class_id, section_id)
                         VALUES ($1, $2, $3)
                         ON CONFLICT (employee_id, class_id, section_id) DO NOTHING;
-                    `, [employee_id, a.class_id, a.section_id]);
+                    `, [empId, cId, sId]);
                     inserted++;
                 }
             }
@@ -881,16 +964,13 @@ router.post('/coordinators/assign', async (req, res) => {
     }
 });
 
-// GET /attendance/my-classes?user_id= - Returns filtered classes/sections for user
+// GET /attendance/my-classes?user_id=&employee_id= - Returns filtered classes/sections for user
 router.get('/my-classes', async (req, res) => {
     try {
-        const { user_id } = req.query;
-        const userId = parseUserId(user_id);
-        if (!userId) return res.status(400).json({ error: 'user_id is required' });
-
+        const { user_id, employee_id } = req.query;
         const client = await pool.connect();
         try {
-            const ctx = await getUserContext(client, userId);
+            const ctx = await getUserContext(client, user_id, employee_id);
             if (ctx.error) return res.status(ctx.error.status).json({ error: ctx.error.message });
 
             // If Admin or Supervisor with broad access, return all classes and sections
@@ -908,31 +988,55 @@ router.get('/my-classes', async (req, res) => {
                 return res.json({ is_restricted: true, classes: [], sections: [] });
             }
 
-            // Check Coordinator assignments + Class Teacher assignments
+            // Check Coordinator assignments + Class Teacher assignments + Subject Teacher assignments
             const assignedRes = await client.query(`
-                SELECT DISTINCT c.class_id, c.class_name, s.section_id, s.section_name
-                FROM (
-                    SELECT class_id, section_id FROM attendance_coordinator_assignments WHERE employee_id = $1
+                WITH user_assignments AS (
+                    -- 1. Explicit Coordinator Assignments
+                    SELECT aca.class_id, aca.section_id
+                    FROM attendance_coordinator_assignments aca
+                    WHERE aca.employee_id = $1
+
                     UNION
-                    SELECT class_id, section_id FROM teacher_class_assignment WHERE employee_id = $1 AND is_class_teacher = TRUE
-                ) combined
-                JOIN classes c ON combined.class_id = c.class_id
-                JOIN sections s ON combined.section_id = s.section_id
+
+                    -- 2. Class Teacher & General Class Assignments (handles all sections if section_id is null)
+                    SELECT tca.class_id, COALESCE(tca.section_id, sec.section_id) as section_id
+                    FROM teacher_class_assignment tca
+                    LEFT JOIN sections sec ON tca.class_id = sec.class_id AND tca.section_id IS NULL
+                    WHERE tca.employee_id = $1
+
+                    UNION
+
+                    -- 3. Teacher Subject Assignments
+                    SELECT sec.class_id, sec.section_id
+                    FROM teacher_subject_assignment tsa
+                    JOIN subjects sub ON tsa.subject_id = sub.subject_id
+                    JOIN sections sec ON sub.section_id = sec.section_id
+                    WHERE tsa.employee_id = $1
+                )
+                SELECT DISTINCT c.class_id, c.class_name, s.section_id, s.section_name
+                FROM user_assignments ua
+                JOIN classes c ON ua.class_id = c.class_id
+                JOIN sections s ON ua.section_id = s.section_id
                 ORDER BY c.class_id ASC, s.section_name ASC;
             `, [ctx.employeeId]);
 
             const classMap = new Map();
             const sectionsList = [];
+            const seenSectionKeys = new Set();
 
             for (const row of assignedRes.rows) {
                 if (!classMap.has(row.class_id)) {
                     classMap.set(row.class_id, { class_id: row.class_id, class_name: row.class_name });
                 }
-                sectionsList.push({
-                    section_id: row.section_id,
-                    section_name: row.section_name,
-                    class_id: row.class_id
-                });
+                const secKey = `${row.class_id}-${row.section_id}`;
+                if (!seenSectionKeys.has(secKey)) {
+                    seenSectionKeys.add(secKey);
+                    sectionsList.push({
+                        section_id: row.section_id,
+                        section_name: row.section_name,
+                        class_id: row.class_id
+                    });
+                }
             }
 
             res.json({
