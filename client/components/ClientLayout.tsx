@@ -165,6 +165,8 @@ const NAV_PERMISSION_MAP: Record<string, string> = {
   '/attendance/staff': 'attendance.staff',
   '/attendance/staff/history': 'attendance.staff.history',
   '/attendance/settings': 'attendance.settings',
+  '/attendance/settings/staff': 'attendance.settings',
+  '/attendance/settings/students': 'attendance.settings',
   '/reports/monthly': 'reports.monthly',
   '/reports/students': 'reports.students',
   '/reports/results': 'reports.results',
