@@ -39,6 +39,16 @@ export default function LoginPage() {
         return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
 
+    const getCurrentHost = () => {
+        if (typeof window !== 'undefined' && window.location.hostname) {
+            const host = window.location.hostname.toLowerCase();
+            if (host !== '' && host !== 'null') {
+                return host;
+            }
+        }
+        return 'localhost';
+    };
+
     const handleBiometricLogin = async () => {
         if (typeof window === 'undefined' || !window.PublicKeyCredential) {
             setError('Biometric / WebAuthn authentication is not supported on this browser/device.');
@@ -47,7 +57,7 @@ export default function LoginPage() {
         setBioLoggingIn(true);
         setError('');
         try {
-            const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+            const currentHost = getCurrentHost();
             const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
