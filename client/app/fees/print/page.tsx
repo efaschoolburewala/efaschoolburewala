@@ -20,6 +20,7 @@ interface Voucher {
     family_id: string | null; total_family_amount: number; total_paid: number;
     is_printed: boolean; partial_printed?: boolean; slip_ids: number[];
     family_members?: { student_id: number; first_name: string; last_name: string; father_name: string; class_name: string; class_id: number; section_name?: string }[];
+    pending_months_count?: number;
 }
 interface SchoolInfo {
     school_name: string; school_address: string; phone_number: string;
@@ -210,9 +211,23 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
         studentRows.push({ name: '', father: '', cls: '' });
     }
 
-    const rawFeeItems: { desc: string; amount: number }[] = [];
+    const regularFeeItems: { desc: string; amount: number }[] = [];
+    let lateFineAmount = 0;
+    let lateFineHeadName = 'Late Fee Fine';
+    let fineAfterDay = (v.primary as any).fine_after_day || null;
+
     for (const item of (v.primary.line_items || [])) {
         const rawName = (item.head_name || '').trim();
+        const isFine = rawName.toLowerCase().includes('late') || rawName.toLowerCase().includes('fine');
+        const amt = parseFloat(item.amount as any) || 0;
+
+        if (isFine) {
+            lateFineAmount += amt;
+            lateFineHeadName = rawName;
+            if ((item as any).fine_after_day) fineAfterDay = (item as any).fine_after_day;
+            continue; // Exclude late fine from regular total
+        }
+
         const displayName = rawName.replace(/Family Monthly Fee/i, 'Monthly Fee');
         const isTuition = displayName.toLowerCase().includes('monthly fee') || displayName.toLowerCase().includes('tuition');
         const isPb = displayName.toLowerCase().includes('previous balance') || displayName.toLowerCase().includes('opening balance');
@@ -228,24 +243,35 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
             desc = displayName;
         }
 
-        rawFeeItems.push({ desc, amount: parseFloat(item.amount as any) || 0 });
-    }
-    const totalPaid = parseFloat(v.total_paid as any) || 0;
-    if (totalPaid > 0) {
-        rawFeeItems.push({ desc: 'Amount Already Paid', amount: -totalPaid });
+        regularFeeItems.push({ desc, amount: amt });
     }
 
-    const feeRows = rawFeeItems.slice(0, MAX_FEES);
-    while (feeRows.length < MIN_FEES) {
+    const totalPaid = parseFloat(v.total_paid as any) || 0;
+    if (totalPaid > 0) {
+        regularFeeItems.push({ desc: 'Amount Already Paid', amount: -totalPaid });
+    }
+
+    const maxSlots = lateFineAmount > 0 ? 3 : MAX_FEES;
+    const feeRows = regularFeeItems.slice(0, maxSlots);
+    while (feeRows.length < (lateFineAmount > 0 ? 2 : MIN_FEES)) {
         feeRows.push({ desc: '', amount: 0 });
     }
 
-    const totalAmount = feeRows.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const totalAmountWithinDueDate = regularFeeItems.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const totalAmountAfterDueDate = totalAmountWithinDueDate + lateFineAmount;
+
+    let fineCutoffDateStr = dueDate;
+    if (fineAfterDay && parseInt(fineAfterDay) > 0) {
+        const d = String(fineAfterDay).padStart(2, '0');
+        fineCutoffDateStr = `${d} ${monthName ? monthName.substring(0, 3) : ''} ${year}`;
+    }
+
+    const pendingMonths = v.pending_months_count || (v.primary as any).pending_months_count || 1;
 
     const studentCount = Math.max(MIN_STUDENTS, Math.min(rawStudentRows.length, MAX_STUDENTS));
     const feeCount = Math.max(MIN_FEES, Math.min(feeRows.length, MAX_FEES));
-    const extraRows = (studentCount - MIN_STUDENTS) + (feeCount - MIN_FEES);
-    const compactClass = extraRows >= 3 ? ' table-compact' : '';
+    const extraRows = (studentCount - MIN_STUDENTS) + (feeCount - MIN_FEES) + (lateFineAmount > 0 ? 2 : 0) + (pendingMonths >= 2 ? 1 : 0);
+    const compactClass = extraRows >= 2 ? ' table-compact' : '';
 
     const schoolName = school.school_name || 'Falcon School System';
     const schoolAddress = school.school_address || '83/M Madina Colony Vehari';
@@ -307,22 +333,53 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
                     <tbody>
                         {feeRows.map((f, i) => (
                             <tr key={i}>
-                                <td>{i + 1}</td>
+                                <td>{f.desc ? i + 1 : '\u00A0'}</td>
                                 <td>{f.desc || '\u00A0'}</td>
                                 <td>{f.desc ? fmtAmt(f.amount) : '0/-'}</td>
                             </tr>
                         ))}
-                        <tr className="total-row">
-                            <td>{feeRows.length + 1}</td>
-                            <td>Total Amount</td>
-                            <td>{fmtAmt(totalAmount)}</td>
-                        </tr>
+                        {lateFineAmount > 0 ? (
+                            <>
+                                <tr className="total-row">
+                                    <td>{feeRows.filter(r => r.desc).length + 1}</td>
+                                    <td>Total (Within Due Date)</td>
+                                    <td>{fmtAmt(totalAmountWithinDueDate)}</td>
+                                </tr>
+                                <tr style={{ backgroundColor: '#fff' }}>
+                                    <td>{feeRows.filter(r => r.desc).length + 2}</td>
+                                    <td style={{ fontStyle: 'italic' }}>+ {lateFineHeadName} (After {fineCutoffDateStr})</td>
+                                    <td style={{ fontStyle: 'italic' }}>{fmtAmt(lateFineAmount)}</td>
+                                </tr>
+                                <tr className="total-row" style={{ backgroundColor: '#f0f0f0' }}>
+                                    <td>{feeRows.filter(r => r.desc).length + 3}</td>
+                                    <td>Total (After {fineCutoffDateStr})</td>
+                                    <td>{fmtAmt(totalAmountAfterDueDate)}</td>
+                                </tr>
+                            </>
+                        ) : (
+                            <tr className="total-row">
+                                <td>{feeRows.filter(r => r.desc).length + 1}</td>
+                                <td>Total Amount</td>
+                                <td>{fmtAmt(totalAmountWithinDueDate)}</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
 
+                {pendingMonths >= 2 && (
+                    <div className="defaulter-warning-box">
+                        <div className="warning-head">
+                            ⚠️ URGENT NOTICE / اہم نوٹس ({pendingMonths} Months Pending)
+                        </div>
+                        <div className="warning-body">
+                            محترم والدین! آپ کی فیس پچھلے <strong>{pendingMonths} ماہ</strong> سے واجب الادا (Pending) ہے۔ برائے مہربانی اسے فوری جمع کروائیں، بصورت دیگر سکول قواعد کے مطابق سٹرک آف (Struck-off) نوٹس جاری کیا جا سکتا ہے۔
+                        </div>
+                    </div>
+                )}
+
                 <div className="rules-box">
                     <span className="rule-line">1. Fee must be paid before the due date.</span>
-                    <span className="rule-line">2. A fine/late fee will apply after the due date.</span>
+                    <span className="rule-line">2. A fine/late fee will apply after {fineCutoffDateStr !== '--' ? fineCutoffDateStr : 'the due date'}.</span>
                     <span className="rule-line">3. Fee must be deposited only at the school-designated bank/counter.</span>
                     <span className="rule-line">4. Fee once paid is non-refundable under any circumstances.</span>
                 </div>
@@ -771,6 +828,29 @@ export default function PrintSlipsPage() {
             border-top: 1pt dashed #000;
         }
         .rules-box .rule-line { display: block; }
+
+        .defaulter-warning-box {
+            flex: 0 0 auto;
+            margin-top: 0.8mm;
+            padding: 0.8mm 1.2mm;
+            border: 1pt solid #000;
+            background-color: #f7f7f7;
+            font-size: 7.5pt;
+            line-height: 1.25;
+        }
+        .defaulter-warning-box .warning-head {
+            font-size: 7.8pt;
+            font-weight: bold;
+            color: #000;
+            text-align: center;
+            margin-bottom: 0.3mm;
+        }
+        .defaulter-warning-box .warning-body {
+            direction: rtl;
+            text-align: justify;
+            font-size: 7.5pt;
+        }
+
         .filler { flex: 1 1 auto; }
     `;
 

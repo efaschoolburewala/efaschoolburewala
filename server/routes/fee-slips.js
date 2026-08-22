@@ -950,7 +950,15 @@ router.get('/print-queue', async (req, res) => {
                    s.first_name, s.last_name, s.admission_no, s.monthly_fee, s.father_name, s.family_id AS s_family_id,
                    sc.class_name, sc.class_id AS c_class_id, sec.section_name,
                    COALESCE(JSON_AGG(
-                       JSON_BUILD_OBJECT('item_id',sli.item_id,'head_name',sli.head_name,'amount',sli.amount,'note',sli.note)
+                       JSON_BUILD_OBJECT(
+                           'item_id', sli.item_id,
+                           'head_id', sli.head_id,
+                           'head_name', sli.head_name,
+                           'amount', sli.amount,
+                           'note', sli.note,
+                           'is_carried_forward', sli.is_carried_forward,
+                           'fine_after_day', fph.fine_after_day
+                       )
                        ORDER BY sli.item_id
                    ) FILTER (WHERE sli.item_id IS NOT NULL), '[]') AS line_items
             FROM monthly_fee_slips mfs
@@ -959,6 +967,7 @@ router.get('/print-queue', async (req, res) => {
             LEFT JOIN sections sec ON s.section_id = sec.section_id
             LEFT JOIN academic_years ay ON mfs.academic_year_id = ay.id
             LEFT JOIN slip_line_items sli ON mfs.slip_id = sli.slip_id
+            LEFT JOIN fee_plan_heads fph ON sli.head_id = fph.head_id
             WHERE COALESCE(mfs.months_list, ARRAY[mfs.month]) = $1::int[] AND mfs.year = $2
               ${yearFilter}
             GROUP BY mfs.slip_id, mfs.student_id, mfs.family_id, mfs.class_id,
@@ -971,6 +980,21 @@ router.get('/print-queue', async (req, res) => {
         `, params);
 
         const allSlips = result.rows;
+
+        // Pre-calculate pending months count for all families and solo students in active session
+        const pendingMonthsRes = await pool.query(`
+            SELECT mfs.family_id, mfs.student_id, COUNT(DISTINCT mfs.month) AS pending_months_count
+            FROM monthly_fee_slips mfs
+            WHERE mfs.status IN ('unpaid', 'partial')
+              ${academic_year_id && academic_year_id !== 'all' ? `AND mfs.academic_year_id = ${parseInt(academic_year_id)}` : (activeYear ? `AND (mfs.academic_year_id = ${activeYear.id} OR mfs.academic_year_id IS NULL)` : '')}
+            GROUP BY mfs.family_id, mfs.student_id
+        `);
+        const famPendingMap = {};
+        const stuPendingMap = {};
+        for (const r of pendingMonthsRes.rows) {
+            if (r.family_id) famPendingMap[r.family_id] = parseInt(r.pending_months_count) || 1;
+            if (r.student_id) stuPendingMap[r.student_id] = parseInt(r.pending_months_count) || 1;
+        }
 
         // Group by family_id
         const familyMap = {};
@@ -990,6 +1014,7 @@ router.get('/print-queue', async (req, res) => {
 
         // Individual vouchers
         for (const slip of soloSlips) {
+            const pCount = (slip.family_id ? famPendingMap[slip.family_id] : stuPendingMap[slip.student_id]) || 1;
             vouchers.push({
                 voucher_type: 'individual',
                 primary: slip,
@@ -999,7 +1024,8 @@ router.get('/print-queue', async (req, res) => {
                 total_paid: parseFloat(slip.paid_amount),
                 is_printed: !!slip.is_printed,
                 slip_ids: [slip.slip_id],
-                family_members: []
+                family_members: [],
+                pending_months_count: pCount
             });
         }
 
@@ -1027,6 +1053,7 @@ router.get('/print-queue', async (req, res) => {
                 [fid]
             );
 
+            const pCount = famPendingMap[fid] || 1;
             vouchers.push({
                 voucher_type: 'family',
                 family_id: fid,
@@ -1037,7 +1064,8 @@ router.get('/print-queue', async (req, res) => {
                 is_printed: slips.every(s => s.is_printed),
                 partial_printed: slips.some(s => s.is_printed) && !slips.every(s => s.is_printed),
                 slip_ids: slips.map(s => s.slip_id),
-                family_members: membersResult.rows
+                family_members: membersResult.rows,
+                pending_months_count: pCount
             });
         }
 
