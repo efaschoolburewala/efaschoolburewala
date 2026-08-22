@@ -213,8 +213,9 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
 
     const regularFeeItems: { desc: string; amount: number }[] = [];
     let lateFineAmount = 0;
-    let lateFineHeadName = 'Late Fee Fine';
     let fineAfterDay = (v.primary as any).fine_after_day || null;
+
+    const itemMap = new Map<string, number>();
 
     for (const item of (v.primary.line_items || [])) {
         const rawName = (item.head_name || '').trim();
@@ -223,7 +224,6 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
 
         if (isFine) {
             lateFineAmount += amt;
-            lateFineHeadName = rawName;
             if ((item as any).fine_after_day) fineAfterDay = (item as any).fine_after_day;
             continue; // Exclude late fine from regular total
         }
@@ -243,8 +243,12 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
             desc = displayName;
         }
 
-        regularFeeItems.push({ desc, amount: amt });
+        itemMap.set(desc, (itemMap.get(desc) || 0) + amt);
     }
+
+    itemMap.forEach((amt, desc) => {
+        regularFeeItems.push({ desc, amount: amt });
+    });
 
     const totalPaid = parseFloat(v.total_paid as any) || 0;
     if (totalPaid > 0) {
@@ -338,42 +342,31 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
                                 <td>{f.desc ? fmtAmt(f.amount) : '0/-'}</td>
                             </tr>
                         ))}
-                        {lateFineAmount > 0 ? (
+                        <tr className="total-row">
+                            <td>{feeRows.filter(r => r.desc).length + 1}</td>
+                            <td>Total Amount</td>
+                            <td>{fmtAmt(totalAmountWithinDueDate)}</td>
+                        </tr>
+                        {lateFineAmount > 0 && (
                             <>
-                                <tr className="total-row">
-                                    <td>{feeRows.filter(r => r.desc).length + 1}</td>
-                                    <td>Total (Within Due Date)</td>
-                                    <td>{fmtAmt(totalAmountWithinDueDate)}</td>
+                                <tr style={{ backgroundColor: '#fff', fontSize: '9.5pt' }}>
+                                    <td>-</td>
+                                    <td style={{ fontStyle: 'italic', color: '#444' }}>Late Fee Fine (After {fineCutoffDateStr})</td>
+                                    <td style={{ fontStyle: 'italic', color: '#444' }}>{fmtAmt(lateFineAmount)}</td>
                                 </tr>
-                                <tr style={{ backgroundColor: '#fff' }}>
-                                    <td>{feeRows.filter(r => r.desc).length + 2}</td>
-                                    <td style={{ fontStyle: 'italic' }}>+ {lateFineHeadName} (After {fineCutoffDateStr})</td>
-                                    <td style={{ fontStyle: 'italic' }}>{fmtAmt(lateFineAmount)}</td>
-                                </tr>
-                                <tr className="total-row" style={{ backgroundColor: '#f0f0f0' }}>
-                                    <td>{feeRows.filter(r => r.desc).length + 3}</td>
-                                    <td>Total (After {fineCutoffDateStr})</td>
+                                <tr className="total-row" style={{ backgroundColor: '#f2f2f2' }}>
+                                    <td>-</td>
+                                    <td>Total Payable (After {fineCutoffDateStr})</td>
                                     <td>{fmtAmt(totalAmountAfterDueDate)}</td>
                                 </tr>
                             </>
-                        ) : (
-                            <tr className="total-row">
-                                <td>{feeRows.filter(r => r.desc).length + 1}</td>
-                                <td>Total Amount</td>
-                                <td>{fmtAmt(totalAmountWithinDueDate)}</td>
-                            </tr>
                         )}
                     </tbody>
                 </table>
 
                 {pendingMonths >= 2 && (
                     <div className="defaulter-warning-box">
-                        <div className="warning-head">
-                            ⚠️ URGENT NOTICE / اہم نوٹس ({pendingMonths} Months Pending)
-                        </div>
-                        <div className="warning-body">
-                            محترم والدین! آپ کی فیس پچھلے <strong>{pendingMonths} ماہ</strong> سے واجب الادا (Pending) ہے۔ برائے مہربانی اسے فوری جمع کروائیں، بصورت دیگر سکول قواعد کے مطابق سٹرک آف (Struck-off) نوٹس جاری کیا جا سکتا ہے۔
-                        </div>
+                        <strong>⚠️ تنبیہ:</strong> محترم والدین! آپ کی فیس پچھلے <strong>{pendingMonths} ماہ</strong> سے واجب الادا ہے۔ برائے مہربانی اسے فوری جمع کروائیں، بصورت دیگر سکول پالیسی کے مطابق سٹرک آف (Struck-off) نوٹس جاری کیا جا سکتا ہے۔
                     </div>
                 )}
 

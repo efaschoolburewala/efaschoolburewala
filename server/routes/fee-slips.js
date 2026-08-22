@@ -956,8 +956,7 @@ router.get('/print-queue', async (req, res) => {
                            'head_name', sli.head_name,
                            'amount', sli.amount,
                            'note', sli.note,
-                           'is_carried_forward', sli.is_carried_forward,
-                           'fine_after_day', fph.fine_after_day
+                           'is_carried_forward', sli.is_carried_forward
                        )
                        ORDER BY sli.item_id
                    ) FILTER (WHERE sli.item_id IS NOT NULL), '[]') AS line_items
@@ -967,7 +966,6 @@ router.get('/print-queue', async (req, res) => {
             LEFT JOIN sections sec ON s.section_id = sec.section_id
             LEFT JOIN academic_years ay ON mfs.academic_year_id = ay.id
             LEFT JOIN slip_line_items sli ON mfs.slip_id = sli.slip_id
-            LEFT JOIN fee_plan_heads fph ON sli.head_id = fph.head_id
             WHERE COALESCE(mfs.months_list, ARRAY[mfs.month]) = $1::int[] AND mfs.year = $2
               ${yearFilter}
             GROUP BY mfs.slip_id, mfs.student_id, mfs.family_id, mfs.class_id,
