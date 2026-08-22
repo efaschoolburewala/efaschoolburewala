@@ -69,12 +69,45 @@ async function canUserAccessClassAttendance(client, ctx, classId, sectionId) {
     return ctRes.rows.length > 0;
 }
 
+async function checkHolidayForDate(db, dateStr, targetType = 'staff_and_students') {
+    try {
+        const res = await db.query(`
+            SELECT id, title, holiday_type, start_date, end_date, description
+            FROM attendance_holidays
+            WHERE (
+                ($1::date >= start_date AND $1::date <= end_date)
+                OR (is_recurring_weekly = TRUE AND EXTRACT(DOW FROM $1::date) = recurring_day_of_week)
+            )
+            AND (holiday_type = $2 OR holiday_type = 'staff_and_students')
+            ORDER BY id ASC
+            LIMIT 1;
+        `, [dateStr, targetType]);
+
+        if (res.rows.length > 0) {
+            const h = res.rows[0];
+            return {
+                is_holiday: true,
+                id: h.id,
+                title: h.title,
+                holiday_type: h.holiday_type,
+                start_date: h.start_date,
+                end_date: h.end_date,
+                description: h.description
+            };
+        }
+        return null;
+    } catch (e) {
+        console.error('checkHolidayForDate error:', e.message);
+        return null;
+    }
+}
+
 // ═══════════════════════════════════════════════
 //  STUDENT ATTENDANCE
 // ═══════════════════════════════════════════════
 
 // GET /attendance/students/daily?class_id=&date=
-// Returns all students in a class with their attendance status for the given date
+// Returns all students in a class with their attendance status for the given date and holiday info
 router.get('/students/daily', async (req, res) => {
     try {
         const { class_id, section_id, date, user_id } = req.query;
@@ -111,7 +144,13 @@ router.get('/students/daily', async (req, res) => {
                  ORDER BY s.roll_no NULLS LAST, s.first_name`,
                 params
             );
-            res.json(result.rows);
+
+            const holidayInfo = await checkHolidayForDate(client, date, 'students_only');
+
+            res.json({
+                records: result.rows,
+                holiday: holidayInfo
+            });
         } finally {
             client.release();
         }
@@ -261,7 +300,7 @@ router.post('/students/daily', async (req, res) => {
 });
 
 // GET /attendance/students/history?class_id=&month=&year=
-// Returns attendance for entire class for a month
+// Returns attendance for entire class for a month with holidays marked
 router.get('/students/history', async (req, res) => {
     try {
         const { class_id, month, year } = req.query;
@@ -286,7 +325,31 @@ router.get('/students/history', async (req, res) => {
             [class_id, month, year]
         );
 
-        // Working days in that month (distinct dates that had any record)
+        // All student holidays in that month
+        const holidaysRes = await pool.query(`
+            SELECT id, title, start_date, end_date, is_recurring_weekly, recurring_day_of_week
+            FROM attendance_holidays
+            WHERE (holiday_type = 'students_only' OR holiday_type = 'staff_and_students')
+        `);
+
+        const holidayDateMap = {};
+        const daysInMonth = new Date(Number(year), Number(month), 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dObj = new Date(dateStr);
+            const dow = dObj.getDay();
+
+            for (const h of holidaysRes.rows) {
+                const sDate = typeof h.start_date === 'string' ? h.start_date : h.start_date.toISOString().split('T')[0];
+                const eDate = typeof h.end_date === 'string' ? h.end_date : h.end_date.toISOString().split('T')[0];
+                if ((dateStr >= sDate && dateStr <= eDate) || (h.is_recurring_weekly && h.recurring_day_of_week === dow)) {
+                    holidayDateMap[dateStr] = h.title;
+                    break;
+                }
+            }
+        }
+
+        // Distinct attendance dates from DB
         const datesResult = await pool.query(
             `SELECT DISTINCT attendance_date FROM student_attendance
              WHERE class_id = $1
@@ -295,7 +358,8 @@ router.get('/students/history', async (req, res) => {
              ORDER BY attendance_date`,
             [class_id, month, year]
         );
-        const workingDates = datesResult.rows.map(r => r.attendance_date.toISOString().split('T')[0]);
+        const recordedDates = datesResult.rows.map(r => r.attendance_date.toISOString().split('T')[0]);
+        const allUniqueDates = Array.from(new Set([...recordedDates, ...Object.keys(holidayDateMap)])).sort();
 
         // Build per-student map
         const attMap = {};
@@ -308,14 +372,22 @@ router.get('/students/history', async (req, res) => {
 
         const rows = students.rows.map(s => {
             const rec = attMap[s.student_id] || {};
+            // Inject holiday if no attendance or if holiday
+            for (const hDate of Object.keys(holidayDateMap)) {
+                if (!rec[hDate]) {
+                    rec[hDate] = 'Holiday';
+                }
+            }
+
             const present = Object.values(rec).filter(v => v === 'Present').length;
             const late = Object.values(rec).filter(v => v === 'Late').length;
             const absent = Object.values(rec).filter(v => v === 'Absent').length;
             const leave = Object.values(rec).filter(v => v === 'Leave').length;
-            return { ...s, daily: rec, present, late, absent, leave, total_days: workingDates.length };
+            const holiday = Object.values(rec).filter(v => v === 'Holiday').length;
+            return { ...s, daily: rec, present, late, absent, leave, holiday, total_days: allUniqueDates.length };
         });
 
-        res.json({ students: rows, working_dates: workingDates });
+        res.json({ students: rows, working_dates: allUniqueDates, holidays: holidayDateMap });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -380,7 +452,13 @@ router.get('/staff/daily', async (req, res) => {
              ORDER BY d.department_name NULLS LAST, e.first_name`,
             params
         );
-        res.json(result.rows);
+
+        const holidayInfo = await checkHolidayForDate(pool, date, 'staff_only');
+
+        res.json({
+            records: result.rows,
+            holiday: holidayInfo
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -447,6 +525,30 @@ router.get('/staff/history', async (req, res) => {
             attParams
         );
 
+        // All staff holidays in that month
+        const holidaysRes = await pool.query(`
+            SELECT id, title, start_date, end_date, is_recurring_weekly, recurring_day_of_week
+            FROM attendance_holidays
+            WHERE (holiday_type = 'staff_only' OR holiday_type = 'staff_and_students')
+        `);
+
+        const holidayDateMap = {};
+        const daysInMonth = new Date(Number(year), Number(month), 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dObj = new Date(dateStr);
+            const dow = dObj.getDay();
+
+            for (const h of holidaysRes.rows) {
+                const sDate = typeof h.start_date === 'string' ? h.start_date : h.start_date.toISOString().split('T')[0];
+                const eDate = typeof h.end_date === 'string' ? h.end_date : h.end_date.toISOString().split('T')[0];
+                if ((dateStr >= sDate && dateStr <= eDate) || (h.is_recurring_weekly && h.recurring_day_of_week === dow)) {
+                    holidayDateMap[dateStr] = h.title;
+                    break;
+                }
+            }
+        }
+
         const datesResult = await pool.query(
             `SELECT DISTINCT sa.attendance_date FROM staff_attendance sa
              JOIN employees e ON sa.employee_id = e.employee_id
@@ -454,7 +556,8 @@ router.get('/staff/history', async (req, res) => {
              ORDER BY sa.attendance_date`,
             [month, year]
         );
-        const workingDates = datesResult.rows.map(r => r.attendance_date.toISOString().split('T')[0]);
+        const recordedDates = datesResult.rows.map(r => r.attendance_date.toISOString().split('T')[0]);
+        const allUniqueDates = Array.from(new Set([...recordedDates, ...Object.keys(holidayDateMap)])).sort();
 
         const attMap = {};
         for (const a of attendance.rows) {
@@ -466,14 +569,22 @@ router.get('/staff/history', async (req, res) => {
 
         const rows = employees.rows.map(e => {
             const rec = attMap[e.employee_id] || {};
+            // Inject holiday if no attendance or if holiday
+            for (const hDate of Object.keys(holidayDateMap)) {
+                if (!rec[hDate]) {
+                    rec[hDate] = 'Holiday';
+                }
+            }
+
             const present = Object.values(rec).filter(v => v === 'Present').length;
             const late = Object.values(rec).filter(v => v === 'Late').length;
             const absent = Object.values(rec).filter(v => v === 'Absent').length;
             const leave = Object.values(rec).filter(v => v === 'Leave').length;
-            return { ...e, daily: rec, present, late, absent, leave, total_days: workingDates.length };
+            const holiday = Object.values(rec).filter(v => v === 'Holiday').length;
+            return { ...e, daily: rec, present, late, absent, leave, holiday, total_days: allUniqueDates.length };
         });
 
-        res.json({ staff: rows, working_dates: workingDates });
+        res.json({ staff: rows, working_dates: allUniqueDates, holidays: holidayDateMap });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

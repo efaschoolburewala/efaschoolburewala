@@ -9,13 +9,20 @@ interface StaffRow {
     designation: string; department_name: string; department_id: number;
     attendance_id: number | null; status: string | null;
 }
+interface HolidayInfo {
+    is_holiday: boolean;
+    id: number;
+    title: string;
+    holiday_type: string;
+    description: string | null;
+}
 
 const STATUS_OPTS = ['Present', 'Absent', 'Leave'] as const;
 type StatusType = typeof STATUS_OPTS[number];
 
-const S_COLOR: Record<StatusType, string> = { Present: '#0d9e6e', Absent: '#e13232', Leave: '#1a6fd4' };
-const S_BG: Record<StatusType, string> = { Present: '#e6f9f3', Absent: '#fde8e8', Leave: '#e8f0fd' };
-const S_ICON: Record<StatusType, string> = { Present: 'bi-check-circle-fill', Absent: 'bi-x-circle-fill', Leave: 'bi-calendar2-x-fill' };
+const S_COLOR: Record<StatusType | 'Holiday', string> = { Present: '#0d9e6e', Absent: '#e13232', Leave: '#1a6fd4', Holiday: '#7c3aed' };
+const S_BG: Record<StatusType | 'Holiday', string> = { Present: '#e6f9f3', Absent: '#fde8e8', Leave: '#e8f0fd', Holiday: '#f3e8ff' };
+const S_ICON: Record<StatusType | 'Holiday', string> = { Present: 'bi-check-circle-fill', Absent: 'bi-x-circle-fill', Leave: 'bi-calendar2-x-fill', Holiday: 'bi-calendar-heart-fill' };
 
 export default function StaffAttendancePage() {
     const today = new Date().toISOString().split('T')[0];
@@ -26,6 +33,7 @@ export default function StaffAttendancePage() {
     const [statuses, setStatuses] = useState<Record<number, StatusType>>({});
     const [lockedIds, setLockedIds] = useState<Set<number>>(new Set()); // manually locked rows
     const [allSaved, setAllSaved] = useState(false); // after Save button clicked
+    const [holidayInfo, setHolidayInfo] = useState<HolidayInfo | null>(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const { hasPermission, user } = useAuth();
@@ -45,17 +53,20 @@ export default function StaffAttendancePage() {
             const url = `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/staff/daily?date=${date}${deptId ? `&department_id=${deptId}` : ''}`;
             const res = await fetch(url);
             const data = await res.json();
-            if (!Array.isArray(data)) { notify.error('Failed to load staff'); setLoading(false); return; }
-            setStaff(data);
+            const records: StaffRow[] = Array.isArray(data) ? data : (data.records || []);
+            const hol: HolidayInfo | null = data.holiday || null;
+
+            setHolidayInfo(hol);
+            setStaff(records);
             const st: Record<number, StatusType> = {};
             const locked = new Set<number>();
-            data.forEach((e: StaffRow) => {
+            records.forEach((e: StaffRow) => {
                 st[e.employee_id] = (e.status as StatusType) || 'Present';
-                if (e.attendance_id !== null) locked.add(e.employee_id); // already in DB -> locked
+                if (e.attendance_id !== null || hol?.is_holiday) locked.add(e.employee_id);
             });
             setStatuses(st);
             setLockedIds(locked);
-            setAllSaved(data.length > 0 && data.every((e: StaffRow) => e.attendance_id !== null));
+            setAllSaved(records.length > 0 && (hol?.is_holiday || records.every((e: StaffRow) => e.attendance_id !== null)));
         } catch { notify.error('Server error'); }
         setLoading(false);
     }, [date, deptId]);
@@ -168,6 +179,32 @@ export default function StaffAttendancePage() {
                     </div>
                 </div>
 
+                {/* HOLIDAY ALERT BANNER */}
+                {holidayInfo?.is_holiday && (
+                    <div className="card border-0 shadow-sm rounded-4 mb-4 p-3.5 animate__animated animate__fadeInDown"
+                        style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '1.5px solid #c4b5fd' }}>
+                        <div className="d-flex align-items-center gap-3">
+                            <div className="rounded-3 text-white fs-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                style={{ background: '#7c3aed', width: 48, height: 48, boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)' }}>
+                                <i className="bi bi-calendar-heart-fill" />
+                            </div>
+                            <div>
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="badge rounded-pill text-white px-2.5 py-1 fw-bold text-uppercase"
+                                        style={{ backgroundColor: '#7c3aed', fontSize: '0.72rem' }}>
+                                        Official Staff Holiday
+                                    </span>
+                                    <span className="text-secondary small fw-semibold">Attendance Exempt</span>
+                                </div>
+                                <h5 className="fw-bold text-dark mb-0 mt-1">{holidayInfo.title}</h5>
+                                {holidayInfo.description && (
+                                    <p className="text-secondary small mb-0 mt-0.5">{holidayInfo.description}</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {staff.length > 0 && (
                     <>
                         {/* STAT CARDS */}
@@ -256,7 +293,7 @@ export default function StaffAttendancePage() {
                                                 const cur = (statuses[e.employee_id] || 'Present') as StatusType;
                                                 const isLocked = lockedIds.has(e.employee_id);
                                                 return (
-                                                    <tr key={e.employee_id} style={{ borderLeft: `3px solid ${S_COLOR[cur]}`, background: isLocked ? (cur === 'Absent' ? '#fff0f0' : cur === 'Leave' ? '#f0f4ff' : '#f0fdf8') : cur === 'Absent' ? '#fff8f8' : cur === 'Leave' ? '#f5f8ff' : '#fff', transition: 'background 0.2s' }}>
+                                                    <tr key={e.employee_id} style={{ borderLeft: `3px solid ${holidayInfo?.is_holiday ? '#7c3aed' : S_COLOR[cur]}`, background: holidayInfo?.is_holiday ? '#fbf8ff' : isLocked ? (cur === 'Absent' ? '#fff0f0' : cur === 'Leave' ? '#f0f4ff' : '#f0fdf8') : cur === 'Absent' ? '#fff8f8' : cur === 'Leave' ? '#f5f8ff' : '#fff', transition: 'background 0.2s' }}>
                                                         <td className="ps-4 text-muted" style={{ fontSize: '0.8rem', width: 50 }}>
                                                             <span className="badge rounded-circle text-bg-secondary" style={{ width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem' }}>{idx + 1}</span>
                                                         </td>
@@ -274,7 +311,13 @@ export default function StaffAttendancePage() {
                                                         </td>
                                                         <td><span className="badge text-bg-light border" style={{ fontSize: '0.75rem' }}>{e.designation || '—'}</span></td>
                                                         <td style={{ padding: '10px 16px' }}>
-                                                            {isLocked ? (
+                                                            {holidayInfo?.is_holiday ? (
+                                                                <span className="badge rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-1"
+                                                                    style={{ background: '#f3e8ff', color: '#7c3aed', border: '1.5px solid #c4b5fd', fontSize: '0.8rem' }}>
+                                                                    <i className="bi bi-calendar-heart-fill" />
+                                                                    <span className="ms-1">Holiday</span>
+                                                                </span>
+                                                            ) : isLocked ? (
                                                                 <span className="badge rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-1"
                                                                     style={{ background: S_BG[cur], color: S_COLOR[cur], border: `1.5px solid ${S_COLOR[cur]}55`, fontSize: '0.8rem' }}>
                                                                     <i className={`bi ${S_ICON[cur]}`} />
@@ -297,10 +340,11 @@ export default function StaffAttendancePage() {
                                                         {/* PER-ROW LOCK BUTTON */}
                                                         <td style={{ padding: '6px 12px', width: 48 }}>
                                                             <button
-                                                                onClick={() => toggleLock(e.employee_id)}
-                                                                title={isLocked ? 'Unlock row' : 'Lock row'}
+                                                                onClick={() => !holidayInfo?.is_holiday && toggleLock(e.employee_id)}
+                                                                disabled={holidayInfo?.is_holiday}
+                                                                title={holidayInfo?.is_holiday ? 'Holiday - Locked' : isLocked ? 'Unlock row' : 'Lock row'}
                                                                 className="btn btn-sm d-flex align-items-center justify-content-center"
-                                                                style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${isLocked ? '#e13232' : '#dee2e6'}`, background: isLocked ? '#fde8e8' : '#f8f9fa', color: isLocked ? '#e13232' : '#adb5bd', transition: 'all 0.15s', padding: 0, cursor: 'pointer' }}>
+                                                                style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${isLocked ? '#e13232' : '#dee2e6'}`, background: isLocked ? '#fde8e8' : '#f8f9fa', color: isLocked ? '#e13232' : '#adb5bd', transition: 'all 0.15s', padding: 0, cursor: holidayInfo?.is_holiday ? 'not-allowed' : 'pointer' }}>
                                                                 <i className={`bi ${isLocked ? 'bi-lock-fill' : 'bi-unlock'}`} style={{ fontSize: '0.88rem' }} />
                                                             </button>
                                                         </td>
@@ -322,7 +366,7 @@ export default function StaffAttendancePage() {
                                             <i className={`bi ${S_ICON[s]} me-1`} style={{ fontSize: '0.72rem' }} />{counts[s]} {s}
                                         </span>
                                     ))}
-                                    {unlockedCount > 0 && (
+                                    {unlockedCount > 0 && !holidayInfo?.is_holiday && (
                                         <span className="badge rounded-pill px-2 py-1" style={{ background: '#fff3cd', color: '#856404', fontSize: '0.75rem', border: '1px solid #ffc10766' }}>
                                             <i className="bi bi-unlock me-1" />{unlockedCount} unlocked
                                         </span>
@@ -330,13 +374,15 @@ export default function StaffAttendancePage() {
                                 </div>
                                 {hasPermission('attendance', 'write') && (
                                     <button className="btn fw-bold px-4 rounded-3" onClick={saveAttendance}
-                                        disabled={saving || (allSaved && !canEditLocked)}
-                                        style={{ background: (allSaved && !canEditLocked) ? '#adb5bd' : 'var(--accent-orange)', color: '#fff', border: 'none', boxShadow: (allSaved && !canEditLocked) ? 'none' : '0 4px 14px rgba(254,127,45,0.4)', cursor: (allSaved && !canEditLocked) ? 'not-allowed' : 'pointer' }}>
+                                        disabled={saving || holidayInfo?.is_holiday || (allSaved && !canEditLocked)}
+                                        style={{ background: (holidayInfo?.is_holiday || (allSaved && !canEditLocked)) ? '#adb5bd' : 'var(--accent-orange)', color: '#fff', border: 'none', boxShadow: (holidayInfo?.is_holiday || (allSaved && !canEditLocked)) ? 'none' : '0 4px 14px rgba(254,127,45,0.4)', cursor: (holidayInfo?.is_holiday || (allSaved && !canEditLocked)) ? 'not-allowed' : 'pointer' }}>
                                         {saving
                                             ? <><span className="spinner-border spinner-border-sm me-2" />Saving…</>
-                                            : (allSaved && !canEditLocked)
-                                                ? <><i className="bi bi-lock-fill me-2" />Locked</>
-                                                : <><i className="bi bi-cloud-check-fill me-2" />Save Attendance ({total})</>
+                                            : holidayInfo?.is_holiday
+                                                ? <><i className="bi bi-calendar-check-fill me-2" />Holiday — Attendance Exempt</>
+                                                : (allSaved && !canEditLocked)
+                                                    ? <><i className="bi bi-lock-fill me-2" />Locked</>
+                                                    : <><i className="bi bi-cloud-check-fill me-2" />Save Attendance ({total})</>
                                         }
                                     </button>
                                 )}

@@ -7,21 +7,28 @@ interface ClassItem { class_id: number; class_name: string; }
 interface SectionItem { section_id: number; section_name: string; class_id: number; }
 interface StudentRow {
   student_id: number; first_name: string; last_name: string;
-  admission_no: string; roll_no: string | null;
-  status: string | null; remarks: string; attendance_id: number | null;
+  father_name: string; roll_no: string | null; admission_no: string;
+  attendance_id: number | null; status: string | null; remarks: string | null;
+}
+interface HolidayInfo {
+  is_holiday: boolean;
+  id: number;
+  title: string;
+  holiday_type: string;
+  description: string | null;
 }
 
 const STATUS_OPTS = ['Present', 'Absent', 'Leave'] as const;
 type StatusType = typeof STATUS_OPTS[number];
 
-const S_COLOR: Record<StatusType, string> = {
-  Present: '#0d9e6e', Absent: '#e13232', Leave: '#1a6fd4'
+const S_COLOR: Record<StatusType | 'Holiday', string> = {
+  Present: '#0d9e6e', Absent: '#e13232', Leave: '#1a6fd4', Holiday: '#7c3aed'
 };
-const S_BG: Record<StatusType, string> = {
-  Present: '#e6f9f3', Absent: '#fde8e8', Leave: '#e8f0fd'
+const S_BG: Record<StatusType | 'Holiday', string> = {
+  Present: '#e6f9f3', Absent: '#fde8e8', Leave: '#e8f0fd', Holiday: '#f3e8ff'
 };
-const S_ICON: Record<StatusType, string> = {
-  Present: 'bi-check-circle-fill', Absent: 'bi-x-circle-fill', Leave: 'bi-calendar2-x-fill'
+const S_ICON: Record<StatusType | 'Holiday', string> = {
+  Present: 'bi-check-circle-fill', Absent: 'bi-x-circle-fill', Leave: 'bi-calendar2-x-fill', Holiday: 'bi-sun-fill'
 };
 
 export default function StudentAttendancePage() {
@@ -34,6 +41,7 @@ export default function StudentAttendancePage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [statuses, setStatuses] = useState<Record<number, string>>({});
   const [remarks, setRemarks] = useState<Record<number, string>>({});
+  const [holidayInfo, setHolidayInfo] = useState<HolidayInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -79,17 +87,20 @@ export default function StudentAttendancePage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/students/daily?class_id=${classId}&section_id=${sectionId}&date=${date}&user_id=${user?.id}`);
       const data = await res.json();
-      if (!Array.isArray(data)) { notify.error('Failed to load students'); setLoading(false); return; }
-      setStudents(data);
+      const records: StudentRow[] = Array.isArray(data) ? data : (data.records || []);
+      const hol: HolidayInfo | null = data.holiday || null;
 
-      const alreadyMarked = data.some(s => s.attendance_id);
-      setIsLocked(alreadyMarked && !canEditLocked);
+      setHolidayInfo(hol);
+      setStudents(records);
+
+      const alreadyMarked = records.some(s => s.attendance_id);
+      setIsLocked((alreadyMarked && !canEditLocked) || Boolean(hol?.is_holiday));
 
       const st: Record<number, string> = {};
       const rm: Record<number, string> = {};
-      data.forEach((s: StudentRow) => { st[s.student_id] = s.status || 'Present'; rm[s.student_id] = s.remarks || ''; });
+      records.forEach((s: StudentRow) => { st[s.student_id] = s.status || 'Present'; rm[s.student_id] = s.remarks || ''; });
       setStatuses(st); setRemarks(rm);
-      if (alreadyMarked && !canEditLocked) {
+      if (alreadyMarked && !canEditLocked && !hol?.is_holiday) {
         notify.warning('Attendance is locked for editing.');
       }
     } catch { notify.error('Server error'); }
@@ -219,6 +230,32 @@ export default function StudentAttendancePage() {
           </div>
         </div>
 
+        {/* HOLIDAY ALERT BANNER */}
+        {holidayInfo?.is_holiday && (
+          <div className="card border-0 shadow-sm rounded-4 mb-4 p-3.5 animate__animated animate__fadeInDown"
+            style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '1.5px solid #c4b5fd' }}>
+            <div className="d-flex align-items-center gap-3">
+              <div className="rounded-3 text-white fs-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                style={{ background: '#7c3aed', width: 48, height: 48, boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)' }}>
+                <i className="bi bi-sun-fill text-warning" />
+              </div>
+              <div>
+                <div className="d-flex align-items-center gap-2">
+                  <span className="badge rounded-pill text-white px-2.5 py-1 fw-bold text-uppercase"
+                    style={{ backgroundColor: '#7c3aed', fontSize: '0.72rem' }}>
+                    Official Student Holiday
+                  </span>
+                  <span className="text-secondary small fw-semibold">Attendance Exempt</span>
+                </div>
+                <h5 className="fw-bold text-dark mb-0 mt-1">{holidayInfo.title}</h5>
+                {holidayInfo.description && (
+                  <p className="text-secondary small mb-0 mt-0.5">{holidayInfo.description}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {students.length > 0 && (
           <>
             {/* ===== STAT CARDS ===== */}
@@ -303,8 +340,8 @@ export default function StudentAttendancePage() {
                       return (
                         <tr key={s.student_id}
                           style={{
-                            background: cur === 'Absent' ? '#fff8f8' : cur === 'Leave' ? '#f5f8ff' : '#fff',
-                            borderLeft: `3px solid ${S_COLOR[cur]}`, transition: 'background 0.2s'
+                            background: holidayInfo?.is_holiday ? '#fbf8ff' : cur === 'Absent' ? '#fff8f8' : cur === 'Leave' ? '#f5f8ff' : '#fff',
+                            borderLeft: `3px solid ${holidayInfo?.is_holiday ? '#7c3aed' : S_COLOR[cur]}`, transition: 'background 0.2s'
                           }}>
                           <td className="text-muted ps-4" style={{ fontSize: '0.82rem', width: 50 }}>
                             <span className="badge rounded-circle text-bg-secondary" style={{ width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem' }}>{idx + 1}</span>
@@ -320,28 +357,37 @@ export default function StudentAttendancePage() {
                           </td>
                           <td className="text-muted" style={{ fontSize: '0.85rem' }}>{s.roll_no || '—'}</td>
                           <td style={{ padding: '12px 16px' }}>
-                            <div className="btn-group" role="group">
-                              {STATUS_OPTS.map(opt => (
-                                <button key={opt} type="button" disabled={isLocked}
-                                  onClick={() => setStatuses(p => ({ ...p, [s.student_id]: opt }))}
-                                  className="btn btn-sm fw-semibold"
-                                  style={{
-                                    padding: '4px 12px', fontSize: '0.78rem',
-                                    background: cur === opt ? S_COLOR[opt] : S_BG[opt],
-                                    border: `1.5px solid ${cur === opt ? S_COLOR[opt] : '#dee2e6'}`,
-                                    color: cur === opt ? '#fff' : S_COLOR[opt],
-                                    transition: 'all 0.15s',
-                                    opacity: isLocked && cur !== opt ? 0.5 : 1
-                                  }}>
-                                  <i className={`bi ${S_ICON[opt]}`} style={{ fontSize: '0.72rem' }} />
-                                  <span className="d-none d-sm-inline ms-1">{opt}</span>
-                                </button>
-                              ))}
-                            </div>
+                            {holidayInfo?.is_holiday ? (
+                              <span className="badge rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-1"
+                                style={{ background: '#f3e8ff', color: '#7c3aed', border: '1.5px solid #c4b5fd', fontSize: '0.8rem' }}>
+                                <i className="bi bi-sun-fill text-warning" />
+                                <span className="ms-1">Holiday</span>
+                              </span>
+                            ) : (
+                              <div className="btn-group" role="group">
+                                {STATUS_OPTS.map(opt => (
+                                  <button key={opt} type="button" disabled={isLocked}
+                                    onClick={() => setStatuses(p => ({ ...p, [s.student_id]: opt }))}
+                                    className="btn btn-sm fw-semibold"
+                                    style={{
+                                      padding: '4px 12px', fontSize: '0.78rem',
+                                      background: cur === opt ? S_COLOR[opt] : S_BG[opt],
+                                      border: `1.5px solid ${cur === opt ? S_COLOR[opt] : '#dee2e6'}`,
+                                      color: cur === opt ? '#fff' : S_COLOR[opt],
+                                      transition: 'all 0.15s',
+                                      opacity: isLocked && cur !== opt ? 0.5 : 1
+                                    }}>
+                                    <i className={`bi ${S_ICON[opt]}`} style={{ fontSize: '0.72rem' }} />
+                                    <span className="d-none d-sm-inline ms-1">{opt}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </td>
                           <td style={{ padding: '12px 16px', minWidth: 180 }}>
                             <input type="text" className="form-control form-control-sm rounded-3"
-                              placeholder="Add remark…" disabled={isLocked}
+                              placeholder={holidayInfo?.is_holiday ? 'School holiday' : 'Add remark…'}
+                              disabled={isLocked || holidayInfo?.is_holiday}
                               value={remarks[s.student_id] || ''}
                               onChange={e => setRemarks(p => ({ ...p, [s.student_id]: e.target.value }))}
                               style={{ border: '1.5px solid #e9ecef', fontSize: '0.82rem' }} />
@@ -362,11 +408,13 @@ export default function StudentAttendancePage() {
                   ))}
                 </div>
                 {hasPermission('attendance', 'write') && (
-                  <button className="btn fw-bold px-4 rounded-3" onClick={saveAttendance} disabled={saving || isLocked}
-                    style={{ background: isLocked ? '#adb5bd' : 'var(--accent-orange)', color: '#fff', border: 'none', boxShadow: isLocked ? 'none' : '0 4px 14px rgba(254,127,45,0.4)', transition: 'opacity 0.2s', cursor: isLocked ? 'not-allowed' : 'pointer' }}>
+                  <button className="btn fw-bold px-4 rounded-3" onClick={saveAttendance} disabled={saving || isLocked || holidayInfo?.is_holiday}
+                    style={{ background: (isLocked || holidayInfo?.is_holiday) ? '#adb5bd' : 'var(--accent-orange)', color: '#fff', border: 'none', boxShadow: (isLocked || holidayInfo?.is_holiday) ? 'none' : '0 4px 14px rgba(254,127,45,0.4)', transition: 'opacity 0.2s', cursor: (isLocked || holidayInfo?.is_holiday) ? 'not-allowed' : 'pointer' }}>
                     {saving
                       ? <><span className="spinner-border spinner-border-sm me-2" />Saving…</>
-                      : isLocked ? <><i className="bi bi-lock-fill me-2" />Locked</> : <><i className="bi bi-cloud-check-fill me-2" />Save Attendance</>}
+                      : holidayInfo?.is_holiday
+                        ? <><i className="bi bi-calendar-check-fill me-2" />Holiday — Attendance Exempt</>
+                        : isLocked ? <><i className="bi bi-lock-fill me-2" />Locked</> : <><i className="bi bi-cloud-check-fill me-2" />Save Attendance</>}
                   </button>
                 )}
               </div>

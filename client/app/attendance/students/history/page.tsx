@@ -6,13 +6,13 @@ interface ClassItem { class_id: number; class_name: string; }
 interface StudentHistory {
     student_id: number; first_name: string; last_name: string;
     admission_no: string; roll_no: string | null;
-    present: number; absent: number; late: number; leave: number;
+    present: number; absent: number; late: number; leave: number; holiday?: number;
     total_days: number; daily: Record<string, string>;
 }
 
-const S_COLOR: Record<string, string> = { Present: '#0d9e6e', Absent: '#e13232', Late: '#e6860a', Leave: '#1a6fd4' };
-const S_ABBR: Record<string, string> = { Present: 'P', Absent: 'A', Late: 'L', Leave: 'V' };
-const S_BG: Record<string, string> = { Present: '#e6f9f3', Absent: '#fde8e8', Late: '#fef6e4', Leave: '#e8f0fd' };
+const S_COLOR: Record<string, string> = { Present: '#0d9e6e', Absent: '#e13232', Late: '#e6860a', Leave: '#1a6fd4', Holiday: '#7c3aed' };
+const S_ABBR: Record<string, string> = { Present: 'P', Absent: 'A', Late: 'L', Leave: 'V', Holiday: 'H' };
+const S_BG: Record<string, string> = { Present: '#e6f9f3', Absent: '#fde8e8', Late: '#fef6e4', Leave: '#e8f0fd', Holiday: '#f3e8ff' };
 
 function AttBadge({ status }: { status: string }) {
     return (
@@ -32,7 +32,7 @@ export default function StudentAttendanceHistoryPage() {
     const [classId, setClassId] = useState('');
     const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
     const [year, setYear] = useState(String(now.getFullYear()));
-    const [data, setData] = useState<{ students: StudentHistory[]; working_dates: string[] } | null>(null);
+    const [data, setData] = useState<{ students: StudentHistory[]; working_dates: string[]; holidays?: Record<string, string> } | null>(null);
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState<{ type: 'success' | 'danger'; msg: string } | null>(null);
     const [search, setSearch] = useState('');
@@ -239,9 +239,17 @@ export default function StudentAttendanceHistoryPage() {
                                             <th className="border-0 fw-semibold ps-4" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '12px 16px', minWidth: 200 }}>Student</th>
                                             <th className="border-0 fw-semibold text-center" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', textTransform: 'uppercase', padding: '12px 8px', minWidth: 56 }}>Att%</th>
                                             {visibleDates.map(d => {
-                                                const { day, dow } = fmtDate(d); return (
-                                                    <th key={d} className="border-0 text-center" style={{ color: filterDate ? '#ffd700' : 'rgba(255,255,255,0.7)', fontSize: '0.62rem', padding: '6px 3px', minWidth: 34, lineHeight: 1.2, background: filterDate ? 'rgba(255,215,0,0.15)' : undefined }}>
-                                                        <div style={{ fontWeight: 400 }}>{dow}</div>
+                                                const { day, dow } = fmtDate(d);
+                                                const holidayTitle = data?.holidays?.[d];
+                                                return (
+                                                    <th key={d} className="border-0 text-center"
+                                                        title={holidayTitle ? `🏖️ Holiday: ${holidayTitle}` : undefined}
+                                                        style={{
+                                                            color: holidayTitle ? '#c4b5fd' : filterDate ? '#ffd700' : 'rgba(255,255,255,0.7)',
+                                                            fontSize: '0.62rem', padding: '6px 3px', minWidth: 34, lineHeight: 1.2,
+                                                            background: holidayTitle ? 'rgba(124,58,237,0.35)' : filterDate ? 'rgba(255,215,0,0.15)' : undefined
+                                                        }}>
+                                                        <div style={{ fontWeight: 400 }}>{holidayTitle ? '🏖️' : dow}</div>
                                                         <div style={{ fontWeight: 700, fontSize: '0.7rem' }}>{day}</div>
                                                     </th>
                                                 );
