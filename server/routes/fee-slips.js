@@ -172,7 +172,8 @@ router.post('/generate', async (req, res) => {
         }
         const planId = planResult.rows[0].plan_id;
         const planHeads = await client.query(
-            `SELECT fph.amount, fh.head_id, fh.head_name, fh.head_type FROM fee_plan_heads fph
+            `SELECT fph.amount, fph.fine_after_day, fh.head_id, fh.head_name, fh.head_type, COALESCE(fh.track_arrears, TRUE) AS track_arrears 
+             FROM fee_plan_heads fph
              JOIN fee_heads fh ON fph.head_id = fh.head_id WHERE fph.plan_id = $1`, [planId]
         );
 
@@ -214,8 +215,6 @@ router.post('/generate', async (req, res) => {
         const pbPlanHead = planHeads.rows.find(h => h.head_type === 'prev_balance');
 
         // ─── Preload Head-Wise Arrears per family / student ───────────────────
-        // 1. Pure Tuition Arrears + OPB -> familyPBMap
-        // 2. Cumulative Tracked Heads (Annual Fee, Exam Fee, Lab Fee, etc.) -> familyCumulativeMap
         const allFamilyIds = [
             ...Object.keys(familyGroups),
             ...soloStudents.filter(s => s.family_id).map(s => s.family_id)
@@ -228,69 +227,44 @@ router.post('/generate', async (req, res) => {
         if (uniqueFamilyIds.length > 0) {
             // 1. OPB remaining from families table
             const opbRes = await client.query(
-                `SELECT family_id,
-                        GREATEST(0, COALESCE(opening_balance,0) - COALESCE(opening_balance_paid,0)) AS opb_remaining
-                 FROM families WHERE family_id = ANY($1)`,
+                `SELECT family_id, (opening_balance - COALESCE(opening_balance_paid, 0)) AS opb_remaining
+                 FROM families WHERE family_id = ANY($1::varchar[]) AND (opening_balance - COALESCE(opening_balance_paid, 0)) > 0`,
                 [uniqueFamilyIds]
             );
-            const opbMap = {};
-            for (const r of opbRes.rows) opbMap[r.family_id] = parseFloat(r.opb_remaining) || 0;
+            for (const r of opbRes.rows) {
+                familyPBMap[r.family_id] = parseFloat(r.opb_remaining) || 0;
+            }
 
-            // 2. Pure Tuition Arrears from previous unpaid/partial slips within session
-            // Only look at lines that are tuition/family monthly fee or non-tracked regular lines
-            const tuitionPendingRes = await client.query(
+            // 2. Pure Tuition Arrears from earlier slips in active session
+            const tuitionArrearsRes = await client.query(
                 `SELECT mfs.family_id,
-                        COALESCE(SUM(GREATEST(0,
-                            sli.amount - COALESCE(sli.paid_amount, 0)
-                        )), 0) AS pending_tuition
-                 FROM slip_line_items sli
-                 JOIN monthly_fee_slips mfs ON mfs.slip_id = sli.slip_id
-                 LEFT JOIN fee_heads fh ON fh.head_id = sli.head_id
-                 WHERE mfs.family_id = ANY($1)
-                   AND mfs.status != 'paid'
-                   AND (fh.head_type = 'regular' OR fh.head_type IS NULL)
-                   AND (
-                       fh.track_arrears = FALSE 
-                       OR sli.head_name ILIKE '%tuition%' 
-                       OR sli.head_name ILIKE '%family%'
-                       OR sli.head_id IS NULL
-                   )
-                   AND sli.head_name NOT ILIKE '%previous balance%'
-                   AND sli.head_name NOT ILIKE '%opening balance%'
-                   AND (
-                       ($4::int IS NOT NULL AND mfs.academic_year_id = $4::int)
-                       OR (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
-                   )
+                        SUM(GREATEST(0, mfs.total_amount - COALESCE(mfs.paid_amount, 0))) AS pending_tuition
+                 FROM monthly_fee_slips mfs
+                 WHERE mfs.family_id = ANY($1::varchar[])
+                   AND (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
+                   AND (mfs.academic_year_id = $4 OR $4 IS NULL)
+                   AND mfs.status IN ('unpaid', 'partial')
                  GROUP BY mfs.family_id`,
                 [uniqueFamilyIds, actualYear, month, targetYearId]
             );
-            const tuitionMap = {};
-            for (const r of tuitionPendingRes.rows) tuitionMap[r.family_id] = parseFloat(r.pending_tuition) || 0;
-
-            for (const fid of uniqueFamilyIds) {
-                const totalPB = (opbMap[fid] || 0) + (tuitionMap[fid] || 0);
-                if (totalPB > 0) familyPBMap[fid] = totalPB;
+            for (const r of tuitionArrearsRes.rows) {
+                const prev = familyPBMap[r.family_id] || 0;
+                familyPBMap[r.family_id] = prev + (parseFloat(r.pending_tuition) || 0);
             }
 
-            // 3. Cumulative Tracked Heads Arrears (Annual Fee, Exam Fee, Lab Fee, Sports Fee, etc.)
-            // Only sum original (non-carried-forward) charges so we never double count
+            // 3. Cumulative Tracked Extra Heads (Annual Fee, Exam Fee, etc. with track_arrears = TRUE)
             const cumulativeRes = await client.query(
                 `SELECT mfs.family_id, sli.head_id, sli.head_name,
                         SUM(GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0))) AS pending_amount
                  FROM slip_line_items sli
-                 JOIN monthly_fee_slips mfs ON mfs.slip_id = sli.slip_id
-                 JOIN fee_heads fh ON fh.head_id = sli.head_id
-                 WHERE mfs.family_id = ANY($1)
-                   AND mfs.status != 'paid'
+                 JOIN monthly_fee_slips mfs ON sli.slip_id = mfs.slip_id
+                 JOIN fee_heads fh ON sli.head_id = fh.head_id
+                 WHERE mfs.family_id = ANY($1::varchar[])
+                   AND (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
+                   AND (mfs.academic_year_id = $4 OR $4 IS NULL)
+                   AND mfs.status IN ('unpaid', 'partial')
                    AND fh.track_arrears = TRUE
-                   AND fh.head_type != 'prev_balance'
                    AND sli.is_carried_forward = FALSE
-                   AND sli.head_name NOT ILIKE '%tuition%'
-                   AND sli.head_name NOT ILIKE '%family%'
-                   AND (
-                       ($4::int IS NOT NULL AND mfs.academic_year_id = $4::int)
-                       OR (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
-                   )
                  GROUP BY mfs.family_id, sli.head_id, sli.head_name
                  HAVING SUM(GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0))) > 0`,
                 [uniqueFamilyIds, actualYear, month, targetYearId]
@@ -308,8 +282,31 @@ router.post('/generate', async (req, res) => {
 
         // ─── Helper: build line items from plan heads (skips prev_balance handled separately) ─
         const buildLineItems = (personalFee, multiplier = 1) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const slipDueDate = due_date ? new Date(due_date) : null;
+            if (slipDueDate) slipDueDate.setHours(0, 0, 0, 0);
+
             return planHeads.rows
-                .filter(head => head.head_type !== 'prev_balance') // Previous Balance added separately
+                .filter(head => {
+                    if (head.head_type === 'prev_balance') return false; // Previous Balance added separately
+
+                    // Late fine should NOT be pre-billed on fresh vouchers before due_date / fine_after_day
+                    const isFine = head.head_name.toLowerCase().includes('late') || head.head_name.toLowerCase().includes('fine');
+                    if (isFine) {
+                        let fineCutoffDate = slipDueDate;
+                        if (head.fine_after_day && parseInt(head.fine_after_day) > 0) {
+                            const d = parseInt(head.fine_after_day);
+                            fineCutoffDate = new Date(actualYear, parseInt(month) - 1, d);
+                            fineCutoffDate.setHours(0, 0, 0, 0);
+                        }
+                        // If generating before or on the fine cutoff day, do NOT pre-bill late fine upfront on fresh voucher
+                        if (fineCutoffDate && today <= fineCutoffDate) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
                 .map(head => {
                     const isTuition = head.head_name.toLowerCase().includes('tuition');
                     let unitAmount = (isTuition && personalFee > 0) ? personalFee : parseFloat(head.amount);

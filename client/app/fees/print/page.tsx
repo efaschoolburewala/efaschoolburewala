@@ -212,8 +212,23 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
 
     const rawFeeItems: { desc: string; amount: number }[] = [];
     for (const item of (v.primary.line_items || [])) {
-        const displayName = item.head_name.replace('Family Monthly Fee', 'Monthly Fee');
-        rawFeeItems.push({ desc: `${displayName} (${monthName})`, amount: parseFloat(item.amount as any) || 0 });
+        const rawName = (item.head_name || '').trim();
+        const displayName = rawName.replace(/Family Monthly Fee/i, 'Monthly Fee');
+        const isTuition = displayName.toLowerCase().includes('monthly fee') || displayName.toLowerCase().includes('tuition');
+        const isPb = displayName.toLowerCase().includes('previous balance') || displayName.toLowerCase().includes('opening balance');
+        
+        let desc = displayName;
+        if (isPb) {
+            desc = 'Previous Balance';
+        } else if (isTuition) {
+            desc = displayName.includes('(') ? displayName : `${displayName} (${monthName})`;
+        } else if ((item as any).is_carried_forward || item.note?.toLowerCase().includes('carried') || item.note?.toLowerCase().includes('arrears')) {
+            desc = `${displayName} (Arrears)`;
+        } else {
+            desc = displayName;
+        }
+
+        rawFeeItems.push({ desc, amount: parseFloat(item.amount as any) || 0 });
     }
     const totalPaid = parseFloat(v.total_paid as any) || 0;
     if (totalPaid > 0) {

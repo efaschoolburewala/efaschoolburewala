@@ -127,6 +127,8 @@ async function runEssentialMigrations() {
                 ADD COLUMN IF NOT EXISTS source_slip_id INTEGER REFERENCES monthly_fee_slips(slip_id) ON DELETE SET NULL;
 
             CREATE INDEX IF NOT EXISTS idx_sli_arrears ON slip_line_items(arrears_head_id, is_carried_forward);
+
+            ALTER TABLE fee_plan_heads ADD COLUMN IF NOT EXISTS fine_after_day INTEGER DEFAULT NULL;
         `).catch((err) => { console.error("Error migrating fee_heads/slip_line_items:", err.message); });
 
 

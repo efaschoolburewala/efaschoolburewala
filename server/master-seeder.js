@@ -926,8 +926,10 @@ async function runMasterSeeder() {
                     plan_id INTEGER NOT NULL REFERENCES fee_plans(plan_id) ON DELETE CASCADE,
                     head_id INTEGER NOT NULL REFERENCES fee_heads(head_id) ON DELETE CASCADE,
                     amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+                    fine_after_day INTEGER DEFAULT NULL,
                     UNIQUE(plan_id, head_id)
                 );
+                ALTER TABLE fee_plan_heads ADD COLUMN IF NOT EXISTS fine_after_day INTEGER DEFAULT NULL;
             `);
 
             // 8.5 monthly_fee_slips Table
