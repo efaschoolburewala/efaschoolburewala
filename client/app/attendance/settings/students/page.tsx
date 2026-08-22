@@ -308,51 +308,26 @@ export default function StudentAttendanceSettingsPage() {
 
     return (
         <div className="student-settings-container py-3 py-md-4 px-2 px-sm-3 px-md-4 animate__animated animate__fadeIn">
-            {/* Top Navigation & Breadcrumbs */}
+            {/* Top Navigation & Header with Back Button */}
             <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-                <div>
-                    <nav aria-label="breadcrumb">
-                        <ol className="breadcrumb mb-1 small text-muted">
-                            <li className="breadcrumb-item"><Link href="/" className="text-decoration-none text-muted">Dashboard</Link></li>
-                            <li className="breadcrumb-item"><Link href="/attendance/settings" className="text-decoration-none text-muted">Attendance Settings</Link></li>
-                            <li className="breadcrumb-item active text-primary fw-bold" aria-current="page">Student Attendance</li>
-                        </ol>
-                    </nav>
-                    <div className="d-flex align-items-center gap-2">
-                        <Link href="/attendance/settings" className="btn btn-sm btn-light border rounded-pill px-2.5 py-1 text-muted text-decoration-none d-flex align-items-center gap-1">
-                            <i className="bi bi-arrow-left"></i>
-                            <span className="small">Back to Settings Hub</span>
-                        </Link>
-                        <h2 className="fw-black text-dark mb-0 fs-3 fs-md-2 d-flex align-items-center gap-2">
-                            <span className="header-icon-box text-primary">
-                                <i className="bi bi-mortarboard-fill"></i>
-                            </span>
-                            Student Attendance &amp; Coordinator Delegations
+                <div className="d-flex align-items-center gap-3">
+                    <Link
+                        href="/attendance/settings"
+                        className="btn btn-light rounded-circle border shadow-sm d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: 42, height: 42, color: 'var(--primary-dark)' }}
+                        title="Back to Settings Hub"
+                    >
+                        <i className="bi bi-arrow-left fs-5" />
+                    </Link>
+                    <div>
+                        <h2 className="fw-bold mb-0 fs-3 fs-md-2" style={{ color: 'var(--primary-dark)' }}>
+                            <i className="bi bi-mortarboard-fill me-2" style={{ color: 'var(--accent-orange)' }} />
+                            Student Attendance Settings
                         </h2>
+                        <p className="text-muted mb-0 small">
+                            Coordinator class delegations, family per-child notifications, and student holidays
+                        </p>
                     </div>
-                </div>
-
-                <div className="d-flex align-items-center gap-2">
-                    <button
-                        type="button"
-                        className="btn btn-outline-primary d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-sm rounded-3"
-                        onClick={() => setShowHolidayModal(true)}
-                    >
-                        <i className="bi bi-sun-fill text-warning"></i>
-                        <span>Add Student Holiday</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-primary d-flex align-items-center gap-2 px-4 py-2 fw-bold shadow-sm rounded-3"
-                        onClick={handleSaveNotificationPolicy}
-                        disabled={savingSettings}
-                    >
-                        {savingSettings ? (
-                            <><span className="spinner-border spinner-border-sm" />Saving...</>
-                        ) : (
-                            <><i className="bi bi-check2-circle fs-5" /><span>Save Policy</span></>
-                        )}
-                    </button>
                 </div>
             </div>
 
@@ -363,9 +338,9 @@ export default function StudentAttendanceSettingsPage() {
                     <div className="card border-0 shadow-sm rounded-4 p-3.5 p-md-4 bg-white mb-4">
                         <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom pb-3 mb-3">
                             <div>
-                                <h5 className="fw-bold text-dark mb-0.5 d-flex align-items-center gap-2">
-                                    <i className="bi bi-person-lines-fill text-primary"></i>
-                                    School Staff &amp; Coordinator Class Assignments
+                                <h5 className="fw-bold mb-0.5 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)' }}>
+                                    <i className="bi bi-person-lines-fill" style={{ color: 'var(--primary-teal)' }} />
+                                    Staff &amp; Coordinator Class Delegations
                                 </h5>
                                 <p className="text-muted small mb-0">
                                     Assigned staff members will only see and mark attendance for their designated classes &amp; sections.
@@ -373,7 +348,7 @@ export default function StudentAttendanceSettingsPage() {
                             </div>
                             <div className="search-box-wrapper w-100 w-sm-auto" style={{ minWidth: 240 }}>
                                 <div className="input-group input-group-sm">
-                                    <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
+                                    <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted" /></span>
                                     <input
                                         type="text"
                                         className="form-control border-start-0"
@@ -388,7 +363,7 @@ export default function StudentAttendanceSettingsPage() {
                         <div className="table-responsive">
                             <table className="table table-hover align-middle mb-0">
                                 <thead className="table-light">
-                                    <tr className="small text-uppercase text-secondary">
+                                    <tr className="small text-uppercase text-secondary" style={{ letterSpacing: '0.5px' }}>
                                         <th>Staff / Coordinator</th>
                                         <th>Role &amp; Department</th>
                                         <th>Assigned Classes &amp; Sections</th>
@@ -399,7 +374,7 @@ export default function StudentAttendanceSettingsPage() {
                                     {filteredCoordinators.length === 0 ? (
                                         <tr>
                                             <td colSpan={4} className="text-center py-5 text-muted">
-                                                <i className="bi bi-person-x fs-2 d-block mb-1 opacity-50"></i>
+                                                <i className="bi bi-person-x fs-2 d-block mb-1 opacity-50" />
                                                 <span className="small">No staff member matches your search filter.</span>
                                             </td>
                                         </tr>
@@ -411,8 +386,13 @@ export default function StudentAttendanceSettingsPage() {
                                                     <td>
                                                         <div className="d-flex align-items-center gap-2.5">
                                                             <div
-                                                                className="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center flex-shrink-0"
-                                                                style={{ width: 40, height: 40, fontSize: '0.88rem' }}
+                                                                className="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm"
+                                                                style={{
+                                                                    width: 40,
+                                                                    height: 40,
+                                                                    fontSize: '0.85rem',
+                                                                    background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))'
+                                                                }}
                                                             >
                                                                 {(c.first_name?.[0] || 'S') + (c.last_name?.[0] || '')}
                                                             </div>
@@ -432,31 +412,44 @@ export default function StudentAttendanceSettingsPage() {
                                                     </td>
                                                     <td>
                                                         {assigned.length === 0 ? (
-                                                            <span className="badge bg-secondary-subtle text-secondary small px-2 py-1">
-                                                                No Classes Assigned (All Access)
+                                                            <span className="badge rounded-pill fw-normal px-2.5 py-1 text-muted bg-light border" style={{ fontSize: '0.72rem' }}>
+                                                                No classes assigned (All / None)
                                                             </span>
                                                         ) : (
-                                                            <div className="d-flex flex-wrap gap-1" style={{ maxWidth: 320 }}>
-                                                                {assigned.slice(0, 4).map((a, i) => (
-                                                                    <span key={i} className="badge bg-teal-subtle text-teal border border-teal-subtle small px-2 py-1" style={{ color: '#0f766e', backgroundColor: '#f0fdfa' }}>
-                                                                        {a.class_name} ({a.section_name})
+                                                            <div className="d-flex flex-wrap gap-1.5 align-items-center" style={{ maxWidth: 360 }}>
+                                                                {assigned.slice(0, 3).map((a, idx) => (
+                                                                    <span
+                                                                        key={idx}
+                                                                        className="badge rounded-pill fw-semibold px-2 py-1"
+                                                                        style={{ background: 'rgba(33, 94, 97, 0.08)', color: 'var(--primary-teal)', border: '1px solid rgba(33, 94, 97, 0.2)', fontSize: '0.73rem' }}
+                                                                    >
+                                                                        {a.class_name} - Sec {a.section_name}
                                                                     </span>
                                                                 ))}
-                                                                {assigned.length > 4 && (
-                                                                    <span className="badge bg-light text-dark border small px-2 py-1">
-                                                                        +{assigned.length - 4} more
+                                                                {assigned.length > 3 && (
+                                                                    <span
+                                                                        className="badge rounded-pill fw-bold px-2 py-1"
+                                                                        style={{ background: 'rgba(254, 127, 45, 0.1)', color: 'var(--accent-orange)', border: '1px solid rgba(254, 127, 45, 0.3)', fontSize: '0.73rem' }}
+                                                                    >
+                                                                        +{assigned.length - 3} more
                                                                     </span>
                                                                 )}
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="text-end text-nowrap">
+                                                    <td className="text-end">
                                                         <button
                                                             type="button"
-                                                            className="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5"
+                                                            className="btn btn-sm rounded-pill px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5"
+                                                            style={{
+                                                                background: 'rgba(33, 94, 97, 0.08)',
+                                                                color: 'var(--primary-teal)',
+                                                                border: '1.5px solid rgba(33, 94, 97, 0.25)',
+                                                                transition: 'all 0.2s ease'
+                                                            }}
                                                             onClick={() => handleOpenAssignmentModal(c)}
                                                         >
-                                                            <i className="bi bi-pencil-square"></i>
+                                                            <i className="bi bi-sliders" />
                                                             <span>Manage</span>
                                                         </button>
                                                     </td>
@@ -470,21 +463,44 @@ export default function StudentAttendanceSettingsPage() {
                     </div>
                 </div>
 
-                {/* Column 2: Notification Policies & Student Holidays */}
+                {/* Column 2: Family Notifications & Student Holidays */}
                 <div className="col-12 col-xl-4">
-                    {/* Family Multi-Child Notification Rules */}
+                    {/* Card 1: Family Notification Policy */}
                     <div className="card border-0 shadow-sm rounded-4 p-3.5 p-md-4 bg-white mb-4">
-                        <div className="d-flex align-items-center justify-content-between border-bottom pb-2.5 mb-3">
-                            <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                <i className="bi bi-chat-heart-fill text-danger"></i>
+                        <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
+                            <h5 className="fw-bold mb-0 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)' }}>
+                                <i className="bi bi-bell-fill" style={{ color: 'var(--accent-orange)' }} />
                                 Family Per-Child Alerts
                             </h5>
-                            <span className="badge bg-primary-subtle text-primary fw-bold rounded-pill px-2.5 py-1">
-                                Smart Dispatch
+                            <span className="badge rounded-pill fw-bold px-2.5 py-1"
+                                style={{ background: 'rgba(254, 127, 45, 0.1)', color: 'var(--accent-orange)', fontSize: '0.75rem' }}>
+                                Policy
                             </span>
                         </div>
 
-                        <div className="p-3 rounded-3 bg-light-subtle border mb-3">
+                        <p className="text-muted small mb-3">
+                            Define which automated push notifications are dispatched to parents when daily student attendance is registered.
+                        </p>
+
+                        <div className="p-3 rounded-3 bg-light-subtle border mb-2.5">
+                            <div className="form-check form-switch mb-0">
+                                <input
+                                    className="form-check-input cursor-pointer"
+                                    type="checkbox"
+                                    id="studentNotifyParentsToggle"
+                                    checked={settings.student_notify_parents}
+                                    onChange={e => setSettings({ ...settings, student_notify_parents: e.target.checked })}
+                                />
+                                <label className="form-check-label fw-bold cursor-pointer ms-2" htmlFor="studentNotifyParentsToggle" style={{ color: 'var(--primary-dark)' }}>
+                                    Parent Attendance SMS / Alerts
+                                </label>
+                                <p className="text-muted mb-0 small mt-1 ms-2" style={{ fontSize: '0.75rem' }}>
+                                    Send automated push &amp; SMS alerts to parents when student attendance is marked.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-3 rounded-3 bg-light-subtle border mb-2.5">
                             <div className="form-check form-switch mb-0">
                                 <input
                                     className="form-check-input cursor-pointer"
@@ -493,75 +509,102 @@ export default function StudentAttendanceSettingsPage() {
                                     checked={settings.family_notify_each_child}
                                     onChange={e => setSettings({ ...settings, family_notify_each_child: e.target.checked })}
                                 />
-                                <label className="form-check-label fw-bold text-dark cursor-pointer ms-2" htmlFor="familyNotifyEachChildToggle">
+                                <label className="form-check-label fw-bold cursor-pointer ms-2" htmlFor="familyNotifyEachChildToggle" style={{ color: 'var(--primary-dark)' }}>
                                     Personalized Salutation Per Child
                                 </label>
-                                <p className="text-muted mb-0 small mt-1 ms-2">
-                                    Addresses parent by name (e.g. <em>Dear Mr. [Father Name]</em>) with distinct details for each registered child in the family.
+                                <p className="text-muted mb-0 small mt-1 ms-2" style={{ fontSize: '0.75rem' }}>
+                                    Address parent with distinct student name &amp; class details for each child in family.
                                 </p>
                             </div>
                         </div>
 
-                        {/* 3-Consecutive Absents Strict Warning Rule */}
-                        <div className="p-3 rounded-3 border border-danger-subtle bg-danger-subtle bg-opacity-25 mb-3">
-                            <div className="d-flex align-items-center gap-2 mb-1.5">
-                                <i className="bi bi-exclamation-triangle-fill text-danger"></i>
-                                <span className="fw-bold text-danger small text-uppercase">Strict 3-Days Absent Alert</span>
+                        <div className="p-3 rounded-3 bg-light-subtle border mb-3">
+                            <div className="form-check form-switch mb-0">
+                                <input
+                                    className="form-check-input cursor-pointer"
+                                    type="checkbox"
+                                    id="studentNotifyHolidaysToggle"
+                                    checked={settings.student_notify_holidays}
+                                    onChange={e => setSettings({ ...settings, student_notify_holidays: e.target.checked })}
+                                />
+                                <label className="form-check-label fw-bold cursor-pointer ms-2" htmlFor="studentNotifyHolidaysToggle" style={{ color: 'var(--primary-dark)' }}>
+                                    Broadcast Holiday Alerts to Parents
+                                </label>
+                                <p className="text-muted mb-0 small mt-1 ms-2" style={{ fontSize: '0.75rem' }}>
+                                    Notify parents in advance about scheduled vacations &amp; student holidays.
+                                </p>
                             </div>
-                            <p className="text-dark small mb-0" style={{ fontSize: '0.8rem', lineHeight: '1.5' }}>
-                                When a student is absent 3 days in a row, the system dispatches an urgent alert demanding reason/medical proof to prevent fines.
-                            </p>
                         </div>
 
                         <button
                             type="button"
-                            className="btn btn-primary w-100 fw-bold rounded-3 py-2 shadow-sm"
+                            className="btn w-100 text-white fw-bold py-2.5 rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2"
+                            style={{ background: 'var(--accent-orange)', border: 'none' }}
                             onClick={handleSaveNotificationPolicy}
                             disabled={savingSettings}
                         >
-                            {savingSettings ? 'Saving Policy...' : 'Save Notification Policy'}
+                            {savingSettings ? (
+                                <><span className="spinner-border spinner-border-sm" />Saving Policy...</>
+                            ) : (
+                                <><i className="bi bi-cloud-check-fill fs-5" /><span>Save Notification Policy</span></>
+                            )}
                         </button>
                     </div>
 
-                    {/* Student Holidays Calendar */}
+                    {/* Card 2: Student Holidays & Breaks */}
                     <div className="card border-0 shadow-sm rounded-4 p-3.5 p-md-4 bg-white">
-                        <div className="d-flex align-items-center justify-content-between border-bottom pb-2.5 mb-3">
+                        <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
                             <div>
-                                <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                    <i className="bi bi-sun-fill text-warning"></i>
+                                <h5 className="fw-bold mb-0 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)' }}>
+                                    <i className="bi bi-calendar-event-fill" style={{ color: 'var(--primary-teal)' }} />
                                     Student Holidays &amp; Breaks
                                 </h5>
-                                <p className="text-muted small mb-0 mt-0.5">Vacations &amp; official holidays for students.</p>
+                                <p className="text-muted small mb-0 mt-0.5">Vacations and breaks exempt from attendance.</p>
                             </div>
                             <button
                                 type="button"
-                                className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold"
+                                className="btn btn-sm fw-bold px-3 py-1.5 rounded-3 d-flex align-items-center gap-1.5"
+                                style={{ background: 'rgba(33, 94, 97, 0.1)', color: 'var(--primary-teal)', border: '1px solid rgba(33, 94, 97, 0.2)' }}
                                 onClick={() => setShowHolidayModal(true)}
                             >
-                                + Add
+                                <i className="bi bi-plus-lg" />
+                                <span>Add Holiday</span>
                             </button>
                         </div>
 
-                        <div className="holidays-scroll-list overflow-auto" style={{ maxHeight: 260 }}>
+                        <div className="holidays-scroll-list overflow-auto" style={{ maxHeight: 380 }}>
                             {holidays.length === 0 ? (
                                 <div className="text-center py-4 text-muted">
-                                    <span className="small">No student holidays scheduled.</span>
+                                    <i className="bi bi-calendar-x fs-2 d-block mb-1 text-secondary opacity-50" />
+                                    <p className="small mb-0">No student holidays scheduled.</p>
+                                    <button
+                                        type="button"
+                                        className="btn btn-link text-decoration-none small fw-bold mt-1"
+                                        style={{ color: 'var(--primary-teal)' }}
+                                        onClick={() => setShowHolidayModal(true)}
+                                    >
+                                        Schedule holiday / vacation
+                                    </button>
                                 </div>
                             ) : (
                                 holidays.map(h => (
-                                    <div key={h.id} className="p-2.5 mb-2 rounded-3 border bg-light-subtle d-flex align-items-center justify-content-between gap-2">
+                                    <div key={h.id} className="p-3 mb-2 rounded-3 border bg-light-subtle d-flex align-items-start justify-content-between gap-2">
                                         <div>
-                                            <span className="badge bg-primary-subtle text-primary fw-bold mb-0.5" style={{ fontSize: '0.7rem' }}>
+                                            <span className="badge rounded-pill fw-bold mb-1"
+                                                style={{ background: 'rgba(124, 58, 237, 0.1)', color: '#7c3aed', fontSize: '0.74rem', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
+                                                <i className="bi bi-calendar-heart-fill me-1" />
                                                 {h.start_date === h.end_date ? h.start_date : `${h.start_date} to ${h.end_date}`}
                                             </span>
-                                            <div className="fw-bold text-dark small">{h.title}</div>
+                                            <h6 className="fw-bold text-dark mb-0.5">{h.title}</h6>
+                                            {h.description && <p className="text-muted mb-0 small" style={{ fontSize: '0.75rem' }}>{h.description}</p>}
                                         </div>
                                         <button
                                             type="button"
                                             className="btn btn-sm btn-outline-danger border-0 rounded-circle"
                                             onClick={() => handleDeleteHoliday(h.id, h.title)}
+                                            title="Delete Holiday"
                                         >
-                                            <i className="bi bi-trash3-fill"></i>
+                                            <i className="bi bi-trash3-fill" />
                                         </button>
                                     </div>
                                 ))
@@ -575,352 +618,361 @@ export default function StudentAttendanceSettingsPage() {
             {/* 3-COLUMN COORDINATOR ASSIGNMENT MODAL (HIGHLY RESPONSIVE) */}
             {/* ═════════════════════════════════════════════════════════════════════ */}
             {selectedCoordinator && (
-                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(6px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: 1100 }}>
-                        <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                            {/* Modal Header */}
-                            <div className="modal-header bg-dark text-white border-0 py-3 px-3 px-md-4" style={{ background: '#0f172a' }}>
-                                <div>
-                                    <h5 className="modal-title fw-bold text-white mb-0 fs-5">
-                                        Assignments: {selectedCoordinator.first_name} {selectedCoordinator.last_name || ''}
-                                    </h5>
-                                    <p className="text-white-50 small mb-0">
-                                        Select classes and sections below. Changes are saved when you click Confirm.
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="btn-close btn-close-white"
-                                    onClick={() => setSelectedCoordinator(null)}
-                                />
-                            </div>
-
-                            {/* Mobile Step Navigator (< 768px) */}
-                            <div className="d-md-none bg-light border-bottom p-2 d-flex gap-1 justify-content-between">
-                                <button
-                                    type="button"
-                                    className={`btn btn-sm flex-fill fw-bold rounded-3 ${modalMobileTab === 'classes' ? 'btn-primary' : 'btn-light border'}`}
-                                    onClick={() => setModalMobileTab('classes')}
-                                >
-                                    1. Classes ({allClasses.length})
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`btn btn-sm flex-fill fw-bold rounded-3 ${modalMobileTab === 'sections' ? 'btn-primary' : 'btn-light border'}`}
-                                    onClick={() => setModalMobileTab('sections')}
-                                >
-                                    2. Sections
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`btn btn-sm flex-fill fw-bold rounded-3 ${modalMobileTab === 'summary' ? 'btn-primary' : 'btn-light border'}`}
-                                    onClick={() => setModalMobileTab('summary')}
-                                >
-                                    3. Summary ({modalSelectedPairs.length})
-                                </button>
-                            </div>
-
-                            {/* 3-Columns Modal Body */}
-                            <div className="modal-body p-0">
-                                <div className="row g-0" style={{ minHeight: 460 }}>
-                                    {/* COLUMN 1: 1. SELECT CLASS */}
-                                    <div className={`col-12 col-md-3 border-end bg-light-subtle ${modalMobileTab !== 'classes' ? 'd-none d-md-block' : 'd-block'}`}>
-                                        <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center gap-2">
-                                            <i className="bi bi-building"></i>
-                                            <span>1. Select Class</span>
-                                        </div>
-                                        <div className="class-list overflow-auto" style={{ maxHeight: 420 }}>
-                                            {allClasses.map(c => {
-                                                const selectedCount = getSelectedCountForClass(c.class_id);
-                                                const isActive = modalActiveTabClassId === c.class_id;
-                                                return (
-                                                    <div
-                                                        key={c.class_id}
-                                                        className={`p-3 d-flex align-items-center justify-content-between cursor-pointer border-bottom transition-all ${isActive ? 'bg-white fw-bold shadow-sm' : 'text-dark'}`}
-                                                        style={{
-                                                            cursor: 'pointer',
-                                                            borderLeft: isActive ? '4px solid #2563eb' : '4px solid transparent'
-                                                        }}
-                                                        onClick={() => {
-                                                            setModalActiveTabClassId(c.class_id);
-                                                            setModalMobileTab('sections');
-                                                        }}
-                                                    >
-                                                        <span className="small">{c.class_name}</span>
-                                                        {selectedCount > 0 && (
-                                                            <span
-                                                                className="badge rounded-pill fw-bold"
-                                                                style={{ backgroundColor: '#f59e0b', color: '#fff', fontSize: '0.75rem' }}
-                                                            >
-                                                                {selectedCount}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                <>
+                    <div
+                        className="modal-backdrop fade show"
+                        style={{ zIndex: 2040, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+                        onClick={() => setSelectedCoordinator(null)}
+                    />
+                    <div className="modal show d-block" tabIndex={-1} style={{ zIndex: 2050 }}>
+                        <div className="modal-dialog modal-xl modal-dialog-centered" style={{ maxWidth: 1100 }}>
+                            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                {/* Modal Header */}
+                                <div className="modal-header border-0 py-3 px-3 px-md-4" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                                    <div>
+                                        <h5 className="modal-title fw-bold text-white mb-0 fs-5 d-flex align-items-center gap-2">
+                                            <i className="bi bi-person-gear text-warning" />
+                                            Class Delegations: {selectedCoordinator.first_name} {selectedCoordinator.last_name || ''}
+                                        </h5>
+                                        <p className="text-white-50 small mb-0 mt-0.5">
+                                            Select classes and sections to grant attendance roll call permissions.
+                                        </p>
                                     </div>
-
-                                    {/* COLUMN 2: 2. SELECT SECTION */}
-                                    <div className={`col-12 col-md-4 border-end bg-white ${modalMobileTab !== 'sections' ? 'd-none d-md-block' : 'd-block'}`}>
-                                        <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center justify-content-between">
-                                            <div className="d-flex align-items-center gap-2">
-                                                <i className="bi bi-grid-3x3-gap"></i>
-                                                <span>2. Select Section</span>
-                                            </div>
-                                            {modalActiveTabClassId && (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-link text-decoration-none p-0 small fw-bold"
-                                                    style={{ color: '#2563eb', fontSize: '0.75rem' }}
-                                                    onClick={() => handleToggleAllSectionsForClass(modalActiveTabClassId)}
-                                                >
-                                                    Toggle All
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <div className="section-list p-3 overflow-auto" style={{ maxHeight: 420 }}>
-                                            {!modalActiveTabClassId ? (
-                                                <div className="text-center py-5 text-muted">
-                                                    <i className="bi bi-arrow-left fs-3 d-block mb-1 opacity-50"></i>
-                                                    <span className="small">Select a class to view sections</span>
-                                                </div>
-                                            ) : (
-                                                allSections
-                                                    .filter(s => Number(s.class_id) === Number(modalActiveTabClassId))
-                                                    .map(s => {
-                                                        const isChecked = modalSelectedPairs.some(
-                                                            p => p.class_id === modalActiveTabClassId && p.section_id === s.section_id
-                                                        );
-                                                        return (
-                                                            <div
-                                                                key={s.section_id}
-                                                                className={`p-3 mb-2 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer transition-all ${isChecked ? 'border-primary bg-primary-subtle' : 'bg-light-subtle'}`}
-                                                                style={{
-                                                                    cursor: 'pointer',
-                                                                    borderColor: isChecked ? '#2563eb' : '#e2e8f0',
-                                                                    backgroundColor: isChecked ? '#eff6ff' : '#f8fafc'
-                                                                }}
-                                                                onClick={() => handleToggleSectionPair(modalActiveTabClassId, s.section_id)}
-                                                            >
-                                                                <div className="d-flex align-items-center gap-2.5">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        className="form-check-input"
-                                                                        checked={isChecked}
-                                                                        onChange={() => {}}
-                                                                    />
-                                                                    <span className="fw-bold text-dark small">
-                                                                        Section {s.section_name}
-                                                                    </span>
-                                                                </div>
-                                                                {isChecked && (
-                                                                    <span className="badge rounded-pill bg-primary text-white small">
-                                                                        Assigned
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* COLUMN 3: 3. ASSIGNMENT SUMMARY */}
-                                    <div className={`col-12 col-md-5 bg-light-subtle ${modalMobileTab !== 'summary' ? 'd-none d-md-block' : 'd-block'}`}>
-                                        <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center gap-2">
-                                            <i className="bi bi-clipboard-check"></i>
-                                            <span>3. Selected Summary</span>
-                                        </div>
-
-                                        <div className="p-3 overflow-auto" style={{ maxHeight: 420 }}>
-                                            {modalSelectedPairs.length === 0 ? (
-                                                <div className="text-center py-5 text-muted">
-                                                    <i className="bi bi-card-checklist fs-2 d-block mb-2 opacity-50"></i>
-                                                    <p className="small mb-0">Select classes &amp; sections to assign to this coordinator.</p>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <h6 className="fw-bold text-dark small mb-2">Assigned Delegations:</h6>
-                                                    <div className="d-flex flex-column gap-2">
-                                                        {allClasses
-                                                            .filter(c => getSelectedCountForClass(c.class_id) > 0)
-                                                            .map(c => {
-                                                                const classSelectedSections = allSections.filter(s =>
-                                                                    Number(s.class_id) === Number(c.class_id) &&
-                                                                    modalSelectedPairs.some(p => p.class_id === c.class_id && p.section_id === s.section_id)
-                                                                );
-                                                                return (
-                                                                    <div key={c.class_id} className="p-3 bg-white border rounded-3 shadow-sm">
-                                                                        <div className="d-flex align-items-center justify-content-between mb-2">
-                                                                            <span className="fw-bold text-dark">{c.class_name}</span>
-                                                                            <span className="badge bg-teal-subtle text-teal fw-bold" style={{ color: '#0f766e', backgroundColor: '#e6fffa' }}>
-                                                                                {classSelectedSections.length} Sections
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="d-flex flex-wrap gap-1.5">
-                                                                            {classSelectedSections.map(s => (
-                                                                                <span key={s.section_id} className="badge bg-light text-dark border small px-2 py-1">
-                                                                                    Section {s.section_name}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Modal Footer */}
-                            <div className="modal-footer border-top bg-white py-3 px-3 px-md-4 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2">
-                                <div>
-                                    <span
-                                        className="badge rounded-pill px-3 py-2 fw-bold w-100 text-center"
-                                        style={{ backgroundColor: '#0284c7', color: '#fff', fontSize: '0.85rem' }}
-                                    >
-                                        <span className="me-1.5">{modalSelectedPairs.length}</span>
-                                        Sections selected in total
-                                    </span>
-                                </div>
-                                <div className="d-flex align-items-center gap-2 justify-content-end">
                                     <button
                                         type="button"
-                                        className="btn btn-light px-4 py-2 fw-bold rounded-3 flex-fill flex-sm-grow-0"
+                                        className="btn-close btn-close-white"
                                         onClick={() => setSelectedCoordinator(null)}
+                                    />
+                                </div>
+
+                                {/* Mobile Step Navigator (< 768px) */}
+                                <div className="d-md-none bg-light border-bottom p-2 d-flex gap-1 justify-content-between">
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm flex-fill fw-bold rounded-3 ${modalMobileTab === 'classes' ? 'text-white' : 'btn-light border'}`}
+                                        style={modalMobileTab === 'classes' ? { background: 'var(--primary-teal)' } : {}}
+                                        onClick={() => setModalMobileTab('classes')}
                                     >
-                                        Cancel
+                                        1. Classes ({allClasses.length})
                                     </button>
                                     <button
                                         type="button"
-                                        className="btn btn-teal text-white px-4 py-2 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2 flex-fill flex-sm-grow-0"
-                                        style={{ backgroundColor: '#134e4a' }}
-                                        onClick={handleSaveCoordinatorAssignments}
-                                        disabled={savingAssignments}
+                                        className={`btn btn-sm flex-fill fw-bold rounded-3 ${modalMobileTab === 'sections' ? 'text-white' : 'btn-light border'}`}
+                                        style={modalMobileTab === 'sections' ? { background: 'var(--primary-teal)' } : {}}
+                                        onClick={() => setModalMobileTab('sections')}
                                     >
-                                        {savingAssignments ? (
-                                            <><span className="spinner-border spinner-border-sm" />Saving...</>
-                                        ) : (
-                                            <><i className="bi bi-check2 fs-5" /><span>Confirm &amp; Save</span></>
-                                        )}
+                                        2. Sections
                                     </button>
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm flex-fill fw-bold rounded-3 ${modalMobileTab === 'summary' ? 'text-white' : 'btn-light border'}`}
+                                        style={modalMobileTab === 'summary' ? { background: 'var(--accent-orange)' } : {}}
+                                        onClick={() => setModalMobileTab('summary')}
+                                    >
+                                        3. Summary ({modalSelectedPairs.length})
+                                    </button>
+                                </div>
+
+                                {/* 3-Columns Modal Body */}
+                                <div className="modal-body p-0">
+                                    <div className="row g-0" style={{ minHeight: 460 }}>
+                                        {/* COLUMN 1: 1. SELECT CLASS */}
+                                        <div className={`col-12 col-md-3 border-end bg-light-subtle ${modalMobileTab !== 'classes' ? 'd-none d-md-block' : 'd-block'}`}>
+                                            <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center gap-2">
+                                                <i className="bi bi-building" style={{ color: 'var(--primary-teal)' }} />
+                                                <span>1. Select Class</span>
+                                            </div>
+                                            <div className="class-list overflow-auto" style={{ maxHeight: 420 }}>
+                                                {allClasses.map(c => {
+                                                    const selectedCount = getSelectedCountForClass(c.class_id);
+                                                    const isActive = modalActiveTabClassId === c.class_id;
+                                                    return (
+                                                        <div
+                                                            key={c.class_id}
+                                                            className={`p-3 d-flex align-items-center justify-content-between cursor-pointer border-bottom transition-all ${isActive ? 'bg-white fw-bold shadow-sm' : 'text-dark'}`}
+                                                            style={{
+                                                                cursor: 'pointer',
+                                                                borderLeft: isActive ? '4px solid var(--accent-orange)' : '4px solid transparent',
+                                                                backgroundColor: isActive ? 'rgba(254, 127, 45, 0.06)' : undefined
+                                                            }}
+                                                            onClick={() => {
+                                                                setModalActiveTabClassId(c.class_id);
+                                                                setModalMobileTab('sections');
+                                                            }}
+                                                        >
+                                                            <span className="small">{c.class_name}</span>
+                                                            {selectedCount > 0 && (
+                                                                <span
+                                                                    className="badge rounded-pill fw-bold"
+                                                                    style={{ backgroundColor: 'var(--accent-orange)', color: '#fff', fontSize: '0.75rem' }}
+                                                                >
+                                                                    {selectedCount}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* COLUMN 2: 2. SELECT SECTION */}
+                                        <div className={`col-12 col-md-4 border-end bg-white ${modalMobileTab !== 'sections' ? 'd-none d-md-block' : 'd-block'}`}>
+                                            <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center justify-content-between">
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <i className="bi bi-grid-3x3-gap" style={{ color: 'var(--primary-teal)' }} />
+                                                    <span>2. Select Section</span>
+                                                </div>
+                                                {modalActiveTabClassId && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-link text-decoration-none p-0 small fw-bold"
+                                                        style={{ color: 'var(--accent-orange)', fontSize: '0.75rem' }}
+                                                        onClick={() => handleToggleAllSectionsForClass(modalActiveTabClassId)}
+                                                    >
+                                                        Toggle All
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="section-list p-3 overflow-auto" style={{ maxHeight: 420 }}>
+                                                {!modalActiveTabClassId ? (
+                                                    <div className="text-center py-5 text-muted">
+                                                        <i className="bi bi-arrow-left fs-3 d-block mb-1 opacity-50" />
+                                                        <span className="small">Select a class on the left to view sections</span>
+                                                    </div>
+                                                ) : (
+                                                    allSections
+                                                        .filter(s => Number(s.class_id) === Number(modalActiveTabClassId))
+                                                        .map(s => {
+                                                            const isChecked = modalSelectedPairs.some(
+                                                                p => p.class_id === modalActiveTabClassId && p.section_id === s.section_id
+                                                            );
+                                                            return (
+                                                                <div
+                                                                    key={s.section_id}
+                                                                    className={`p-3 mb-2 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer transition-all ${isChecked ? 'shadow-sm' : 'bg-light-subtle'}`}
+                                                                    style={{
+                                                                        cursor: 'pointer',
+                                                                        borderColor: isChecked ? 'var(--primary-teal)' : '#e2e8f0',
+                                                                        backgroundColor: isChecked ? 'rgba(33, 94, 97, 0.08)' : '#f8fafc'
+                                                                    }}
+                                                                    onClick={() => handleToggleSectionPair(modalActiveTabClassId, s.section_id)}
+                                                                >
+                                                                    <div className="d-flex align-items-center gap-2.5">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="form-check-input cursor-pointer"
+                                                                            checked={isChecked}
+                                                                            onChange={() => {}}
+                                                                        />
+                                                                        <span className="fw-bold text-dark small">
+                                                                            Section {s.section_name}
+                                                                        </span>
+                                                                    </div>
+                                                                    {isChecked && (
+                                                                        <span className="badge rounded-pill fw-bold text-white small" style={{ background: 'var(--primary-teal)' }}>
+                                                                            Assigned
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* COLUMN 3: 3. ASSIGNMENT SUMMARY */}
+                                        <div className={`col-12 col-md-5 bg-light-subtle ${modalMobileTab !== 'summary' ? 'd-none d-md-block' : 'd-block'}`}>
+                                            <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center gap-2">
+                                                <i className="bi bi-clipboard-check" style={{ color: 'var(--primary-teal)' }} />
+                                                <span>3. Selected Summary</span>
+                                            </div>
+
+                                            <div className="p-3 overflow-auto" style={{ maxHeight: 420 }}>
+                                                {modalSelectedPairs.length === 0 ? (
+                                                    <div className="text-center py-5 text-muted">
+                                                        <i className="bi bi-card-checklist fs-2 d-block mb-2 opacity-50" />
+                                                        <p className="small mb-0">Select classes &amp; sections to assign to this coordinator.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <h6 className="fw-bold small mb-2" style={{ color: 'var(--primary-dark)' }}>Assigned Delegations:</h6>
+                                                        <div className="d-flex flex-column gap-2">
+                                                            {allClasses
+                                                                .filter(c => getSelectedCountForClass(c.class_id) > 0)
+                                                                .map(c => {
+                                                                    const classSelectedSections = allSections.filter(s =>
+                                                                        Number(s.class_id) === Number(c.class_id) &&
+                                                                        modalSelectedPairs.some(p => p.class_id === c.class_id && p.section_id === s.section_id)
+                                                                    );
+                                                                    return (
+                                                                        <div key={c.class_id} className="p-3 bg-white border rounded-3 shadow-sm">
+                                                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                                <span className="fw-bold text-dark">{c.class_name}</span>
+                                                                                <span className="badge rounded-pill fw-bold"
+                                                                                    style={{ background: 'rgba(33, 94, 97, 0.1)', color: 'var(--primary-teal)' }}>
+                                                                                    {classSelectedSections.length} Sections
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="d-flex flex-wrap gap-1.5">
+                                                                                {classSelectedSections.map(s => (
+                                                                                    <span key={s.section_id} className="badge bg-light text-dark border small px-2 py-1">
+                                                                                        Section {s.section_name}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Modal Footer */}
+                                <div className="modal-footer border-top bg-white py-3 px-3 px-md-4 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2">
+                                    <div>
+                                        <span
+                                            className="badge rounded-pill px-3 py-2 fw-bold w-100 text-center"
+                                            style={{ backgroundColor: 'var(--primary-teal)', color: '#fff', fontSize: '0.85rem' }}
+                                        >
+                                            <span className="me-1.5">{modalSelectedPairs.length}</span>
+                                            Sections selected in total
+                                        </span>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-2 justify-content-end">
+                                        <button
+                                            type="button"
+                                            className="btn btn-light px-4 py-2 fw-bold rounded-3 flex-fill flex-sm-grow-0 border"
+                                            onClick={() => setSelectedCoordinator(null)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn text-white px-4 py-2 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2 flex-fill flex-sm-grow-0"
+                                            style={{ background: 'var(--accent-orange)', border: 'none' }}
+                                            onClick={handleSaveCoordinatorAssignments}
+                                            disabled={savingAssignments}
+                                        >
+                                            {savingAssignments ? (
+                                                <><span className="spinner-border spinner-border-sm" />Saving...</>
+                                            ) : (
+                                                <><i className="bi bi-cloud-check-fill fs-5" /><span>Confirm &amp; Save</span></>
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Add Holiday Modal */}
             {showHolidayModal && (
-                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
-                        <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                            <div className="modal-header bg-dark text-white border-0 py-3 px-4" style={{ background: '#1e3a8a' }}>
-                                <h5 className="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
-                                    <i className="bi bi-sun-fill text-warning"></i>
-                                    Add Student Holiday / Vacation
-                                </h5>
-                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowHolidayModal(false)} />
-                            </div>
+                <>
+                    <div
+                        className="modal-backdrop fade show"
+                        style={{ zIndex: 2040, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+                        onClick={() => setShowHolidayModal(false)}
+                    />
+                    <div className="modal show d-block" tabIndex={-1} style={{ zIndex: 2050 }}>
+                        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
+                            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                <div className="modal-header border-0 py-3 px-4" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                                    <h5 className="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
+                                        <i className="bi bi-sun-fill text-warning" />
+                                        Add Student Holiday / Vacation
+                                    </h5>
+                                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowHolidayModal(false)} />
+                                </div>
 
-                            <form onSubmit={handleAddHoliday}>
-                                <div className="modal-body p-4">
-                                    <div className="mb-3">
-                                        <label className="form-label fw-bold small text-secondary">Holiday Title <span className="text-danger">*</span></label>
-                                        <input
-                                            type="text"
-                                            className="form-control fw-bold"
-                                            placeholder="e.g. Summer Vacation, Eid Holidays"
-                                            value={holidayTitle}
-                                            onChange={e => setHolidayTitle(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-6">
-                                            <label className="form-label fw-bold small text-secondary">Start Date <span className="text-danger">*</span></label>
+                                <form onSubmit={handleAddHoliday}>
+                                    <div className="modal-body p-4">
+                                        <div className="mb-3">
+                                            <label className="form-label fw-bold small text-secondary">Holiday Title <span className="text-danger">*</span></label>
                                             <input
-                                                type="date"
+                                                type="text"
                                                 className="form-control fw-bold"
-                                                value={holidayStartDate}
-                                                onChange={e => setHolidayStartDate(e.target.value)}
+                                                placeholder="e.g. Summer Vacation, Eid Holidays"
+                                                value={holidayTitle}
+                                                onChange={e => setHolidayTitle(e.target.value)}
                                                 required
                                             />
                                         </div>
-                                        <div className="col-6">
-                                            <label className="form-label fw-bold small text-secondary">End Date (Optional)</label>
-                                            <input
-                                                type="date"
-                                                className="form-control fw-bold"
-                                                value={holidayEndDate}
-                                                onChange={e => setHolidayEndDate(e.target.value)}
+
+                                        <div className="row g-2 mb-3">
+                                            <div className="col-6">
+                                                <label className="form-label fw-bold small text-secondary">Start Date <span className="text-danger">*</span></label>
+                                                <input
+                                                    type="date"
+                                                    className="form-control fw-bold"
+                                                    value={holidayStartDate}
+                                                    onChange={e => setHolidayStartDate(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="col-6">
+                                                <label className="form-label fw-bold small text-secondary">End Date (Optional)</label>
+                                                <input
+                                                    type="date"
+                                                    className="form-control fw-bold"
+                                                    value={holidayEndDate}
+                                                    onChange={e => setHolidayEndDate(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="form-label fw-bold small text-secondary">Notice / Details</label>
+                                            <textarea
+                                                className="form-control"
+                                                rows={2}
+                                                placeholder="Optional note for parents and students"
+                                                value={holidayDesc}
+                                                onChange={e => setHolidayDesc(e.target.value)}
                                             />
+                                        </div>
+
+                                        <div className="form-check form-switch mb-2">
+                                            <input
+                                                className="form-check-input cursor-pointer"
+                                                type="checkbox"
+                                                id="studentHolidayBroadcastCheck"
+                                                checked={holidayBroadcast}
+                                                onChange={e => setHolidayBroadcast(e.target.checked)}
+                                            />
+                                            <label className="form-check-label fw-semibold text-dark small cursor-pointer ms-1" htmlFor="studentHolidayBroadcastCheck">
+                                                Send broadcast alert to student/family portal &amp; mobile app
+                                            </label>
                                         </div>
                                     </div>
 
-                                    <div className="mb-3">
-                                        <label className="form-label fw-bold small text-secondary">Notice / Details</label>
-                                        <textarea
-                                            className="form-control"
-                                            rows={2}
-                                            placeholder="Optional note for parents and students"
-                                            value={holidayDesc}
-                                            onChange={e => setHolidayDesc(e.target.value)}
-                                        />
+                                    <div className="modal-footer border-top bg-light py-2.5 px-4">
+                                        <button type="button" className="btn btn-secondary px-3 py-2 fw-bold rounded-3" onClick={() => setShowHolidayModal(false)}>
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn text-white px-4 py-2 fw-bold rounded-3 shadow-sm"
+                                            style={{ background: 'var(--accent-orange)', border: 'none' }}
+                                            disabled={savingHoliday}
+                                        >
+                                            {savingHoliday ? 'Saving...' : 'Create Holiday'}
+                                        </button>
                                     </div>
-
-                                    <div className="form-check form-switch mb-2">
-                                        <input
-                                            className="form-check-input"
-                                            type="checkbox"
-                                            id="studentHolidayBroadcastCheck"
-                                            checked={holidayBroadcast}
-                                            onChange={e => setHolidayBroadcast(e.target.checked)}
-                                        />
-                                        <label className="form-check-label fw-semibold text-dark small" htmlFor="studentHolidayBroadcastCheck">
-                                            Send broadcast alert to student/family portal &amp; mobile app
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div className="modal-footer border-top bg-light py-2.5 px-4">
-                                    <button type="button" className="btn btn-secondary px-3 py-2 fw-bold rounded-3" onClick={() => setShowHolidayModal(false)}>
-                                        Cancel
-                                    </button>
-                                    <button type="submit" className="btn btn-primary px-4 py-2 fw-bold rounded-3 shadow-sm" disabled={savingHoliday}>
-                                        {savingHoliday ? 'Saving...' : 'Create Holiday'}
-                                    </button>
-                                </div>
-                            </form>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             <style jsx>{`
-                .student-settings-container {
-                    max-width: 1400px;
-                    margin: 0 auto;
-                }
-                .header-icon-box {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 38px;
-                    height: 38px;
-                    background: #eff6ff;
-                    border-radius: 10px;
-                    color: #2563eb;
-                    font-size: 1.2rem;
-                }
-                .text-teal { color: #0d9488 !important; }
                 .cursor-pointer { cursor: pointer; }
                 .holidays-scroll-list::-webkit-scrollbar {
                     width: 5px;

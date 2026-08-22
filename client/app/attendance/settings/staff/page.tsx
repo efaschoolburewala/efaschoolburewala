@@ -181,51 +181,41 @@ export default function StaffAttendanceSettingsPage() {
     };
 
     return (
-        <div className="staff-settings-container py-3 py-md-4 px-2 px-sm-3 px-md-4 animate__animated animate__fadeIn">
-            {/* Top Navigation & Breadcrumbs */}
+        <div className="container-fluid px-3 px-md-4 py-3 animate__animated animate__fadeIn">
+            {/* Header with Back Button */}
             <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-                <div>
-                    <nav aria-label="breadcrumb">
-                        <ol className="breadcrumb mb-1 small text-muted">
-                            <li className="breadcrumb-item"><Link href="/" className="text-decoration-none text-muted">Dashboard</Link></li>
-                            <li className="breadcrumb-item"><Link href="/attendance/settings" className="text-decoration-none text-muted">Attendance Settings</Link></li>
-                            <li className="breadcrumb-item active text-teal fw-bold" aria-current="page" style={{ color: '#0d9488' }}>Staff Attendance</li>
-                        </ol>
-                    </nav>
-                    <div className="d-flex align-items-center gap-2">
-                        <Link href="/attendance/settings" className="btn btn-sm btn-light border rounded-pill px-2.5 py-1 text-muted text-decoration-none d-flex align-items-center gap-1">
-                            <i className="bi bi-arrow-left"></i>
-                            <span className="small">Back to Settings Hub</span>
-                        </Link>
-                        <h2 className="fw-black text-dark mb-0 fs-3 fs-md-2 d-flex align-items-center gap-2">
-                            <span className="header-icon-box text-teal">
-                                <i className="bi bi-person-badge-fill"></i>
-                            </span>
+                <div className="d-flex align-items-center gap-3">
+                    <Link
+                        href="/attendance/settings"
+                        className="btn btn-light rounded-circle border shadow-sm d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: 42, height: 42, color: 'var(--primary-dark)' }}
+                        title="Back to Settings Hub"
+                    >
+                        <i className="bi bi-arrow-left fs-5" />
+                    </Link>
+                    <div>
+                        <h2 className="fw-bold mb-0 fs-3 fs-md-2" style={{ color: 'var(--primary-dark)' }}>
+                            <i className="bi bi-person-badge-fill me-2" style={{ color: 'var(--accent-orange)' }} />
                             Staff Attendance Settings
                         </h2>
+                        <p className="text-muted mb-0 small">
+                            Configure duty shift timings, biometric modes, notifications, and holidays
+                        </p>
                     </div>
                 </div>
 
-                <div className="d-flex align-items-center gap-2">
+                <div>
                     <button
                         type="button"
-                        className="btn btn-primary d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-sm rounded-3"
-                        onClick={() => setShowHolidayModal(true)}
-                    >
-                        <i className="bi bi-calendar-plus-fill"></i>
-                        <span>Add Staff Holiday</span>
-                    </button>
-                    <button
-                        type="button"
-                        className="btn btn-teal text-white d-flex align-items-center gap-2 px-4 py-2 fw-bold shadow-sm rounded-3"
-                        style={{ backgroundColor: '#0d9488' }}
-                        onClick={handleSaveSettings}
+                        className="btn fw-bold px-4 py-2 rounded-3 shadow-sm d-flex align-items-center gap-2"
+                        style={{ background: 'var(--accent-orange)', color: '#fff', border: 'none', transition: 'all 0.2s ease' }}
+                        onClick={() => handleSaveSettings()}
                         disabled={savingSettings}
                     >
                         {savingSettings ? (
                             <><span className="spinner-border spinner-border-sm" />Saving...</>
                         ) : (
-                            <><i className="bi bi-check2-circle fs-5" /><span>Save All Settings</span></>
+                            <><i className="bi bi-cloud-check-fill fs-5" /><span>Save Settings</span></>
                         )}
                     </button>
                 </div>
@@ -237,11 +227,12 @@ export default function StaffAttendanceSettingsPage() {
                 <div className="col-12 col-xl-7">
                     <div className="card border-0 shadow-sm rounded-4 p-3.5 p-md-4 bg-white mb-4">
                         <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
-                            <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                <i className="bi bi-clock-history text-teal" style={{ color: '#0d9488' }}></i>
+                            <h5 className="fw-bold mb-0 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)' }}>
+                                <i className="bi bi-clock-history" style={{ color: 'var(--primary-teal)' }} />
                                 Shift Duty Timings &amp; Verification
                             </h5>
-                            <span className="badge bg-teal-subtle text-teal fw-bold px-2.5 py-1 rounded-pill" style={{ color: '#0f766e', backgroundColor: '#e6fffa' }}>
+                            <span className="badge rounded-pill fw-bold px-3 py-1"
+                                style={{ background: 'rgba(33, 94, 97, 0.1)', color: 'var(--primary-teal)', fontSize: '0.75rem' }}>
                                 Core Policy
                             </span>
                         </div>
@@ -253,7 +244,7 @@ export default function StaffAttendanceSettingsPage() {
                                         Staff In-Time (Start of Duty) <span className="text-danger">*</span>
                                     </label>
                                     <div className="input-group">
-                                        <span className="input-group-text bg-light"><i className="bi bi-box-arrow-in-right text-success"></i></span>
+                                        <span className="input-group-text bg-light"><i className="bi bi-box-arrow-in-right text-success" /></span>
                                         <input
                                             type="time"
                                             className="form-control fw-bold fs-6"
@@ -270,7 +261,7 @@ export default function StaffAttendanceSettingsPage() {
                                         Staff Out-Time (Shift End) <span className="text-danger">*</span>
                                     </label>
                                     <div className="input-group">
-                                        <span className="input-group-text bg-light"><i className="bi bi-box-arrow-right text-danger"></i></span>
+                                        <span className="input-group-text bg-light"><i className="bi bi-box-arrow-right text-danger" /></span>
                                         <input
                                             type="time"
                                             className="form-control fw-bold fs-6"
@@ -287,7 +278,7 @@ export default function StaffAttendanceSettingsPage() {
                                         Late Grace Period (Minutes)
                                     </label>
                                     <div className="input-group">
-                                        <span className="input-group-text bg-light"><i className="bi bi-hourglass-split text-warning"></i></span>
+                                        <span className="input-group-text bg-light"><i className="bi bi-hourglass-split" style={{ color: 'var(--accent-orange)' }} /></span>
                                         <input
                                             type="number"
                                             min={0}
@@ -306,7 +297,7 @@ export default function StaffAttendanceSettingsPage() {
                                         Biometric Verification Mode
                                     </label>
                                     <div className="input-group">
-                                        <span className="input-group-text bg-light"><i className="bi bi-fingerprint text-primary"></i></span>
+                                        <span className="input-group-text bg-light"><i className="bi bi-fingerprint text-primary" /></span>
                                         <select
                                             className="form-select fw-bold fs-6"
                                             value={settings.staff_biometric_mode}
@@ -322,9 +313,9 @@ export default function StaffAttendanceSettingsPage() {
                                 </div>
                             </div>
 
-                            <div className="border-top pt-3.5 mb-3">
-                                <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                                    <i className="bi bi-bell-fill text-warning"></i>
+                            <div className="border-top pt-3.5 mb-2">
+                                <h6 className="fw-bold mb-3 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)' }}>
+                                    <i className="bi bi-bell-fill" style={{ color: 'var(--accent-orange)' }} />
                                     Push Notifications &amp; Automation
                                 </h6>
 
@@ -337,7 +328,7 @@ export default function StaffAttendanceSettingsPage() {
                                             checked={settings.staff_notify_in_out}
                                             onChange={e => setSettings({ ...settings, staff_notify_in_out: e.target.checked })}
                                         />
-                                        <label className="form-check-label fw-bold text-dark cursor-pointer ms-2" htmlFor="staffNotifyInOutToggle">
+                                        <label className="form-check-label fw-bold cursor-pointer ms-2" htmlFor="staffNotifyInOutToggle" style={{ color: 'var(--primary-dark)' }}>
                                             Send Instant Mobile Push Notification on Staff In &amp; Out Check
                                         </label>
                                         <p className="text-muted mb-0 small mt-1 ms-2">
@@ -346,7 +337,7 @@ export default function StaffAttendanceSettingsPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-3 rounded-3 bg-light-subtle border mb-3">
+                                <div className="p-3 rounded-3 bg-light-subtle border mb-2">
                                     <div className="form-check form-switch mb-0">
                                         <input
                                             className="form-check-input cursor-pointer"
@@ -355,7 +346,7 @@ export default function StaffAttendanceSettingsPage() {
                                             checked={settings.staff_notify_holidays}
                                             onChange={e => setSettings({ ...settings, staff_notify_holidays: e.target.checked })}
                                         />
-                                        <label className="form-check-label fw-bold text-dark cursor-pointer ms-2" htmlFor="staffNotifyHolidaysToggle">
+                                        <label className="form-check-label fw-bold cursor-pointer ms-2" htmlFor="staffNotifyHolidaysToggle" style={{ color: 'var(--primary-dark)' }}>
                                             Broadcast Holiday &amp; Weekend Alerts to Staff Portals
                                         </label>
                                         <p className="text-muted mb-0 small mt-1 ms-2">
@@ -363,17 +354,6 @@ export default function StaffAttendanceSettingsPage() {
                                         </p>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="pt-2">
-                                <button
-                                    type="submit"
-                                    className="btn btn-teal text-white fw-bold px-4 py-2.5 rounded-3 shadow-sm"
-                                    style={{ backgroundColor: '#0d9488' }}
-                                    disabled={savingSettings}
-                                >
-                                    {savingSettings ? 'Saving...' : 'Save Staff Settings'}
-                                </button>
                             </div>
                         </form>
                     </div>
@@ -384,29 +364,32 @@ export default function StaffAttendanceSettingsPage() {
                     <div className="card border-0 shadow-sm rounded-4 p-3.5 p-md-4 bg-white h-100">
                         <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
                             <div>
-                                <h5 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                                    <i className="bi bi-calendar2-check-fill text-teal" style={{ color: '#0d9488' }}></i>
+                                <h5 className="fw-bold mb-0 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)' }}>
+                                    <i className="bi bi-calendar2-check-fill" style={{ color: 'var(--primary-teal)' }} />
                                     Staff Holidays Calendar
                                 </h5>
                                 <p className="text-muted small mb-0 mt-0.5">Official off-days where attendance is exempt.</p>
                             </div>
                             <button
                                 type="button"
-                                className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold"
+                                className="btn btn-sm fw-bold px-3 py-1.5 rounded-3 d-flex align-items-center gap-1.5"
+                                style={{ background: 'rgba(33, 94, 97, 0.1)', color: 'var(--primary-teal)', border: '1px solid rgba(33, 94, 97, 0.2)' }}
                                 onClick={() => setShowHolidayModal(true)}
                             >
-                                + Add
+                                <i className="bi bi-plus-lg" />
+                                <span>Add Holiday</span>
                             </button>
                         </div>
 
                         <div className="holidays-scroll-list overflow-auto" style={{ maxHeight: 480 }}>
                             {holidays.length === 0 ? (
                                 <div className="text-center py-5 text-muted">
-                                    <i className="bi bi-calendar-x fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                    <i className="bi bi-calendar-x fs-1 d-block mb-2 text-secondary opacity-50" />
                                     <p className="small mb-0">No staff holidays scheduled yet.</p>
                                     <button
                                         type="button"
                                         className="btn btn-link text-decoration-none small fw-bold mt-1"
+                                        style={{ color: 'var(--primary-teal)' }}
                                         onClick={() => setShowHolidayModal(true)}
                                     >
                                         Schedule a new holiday
@@ -416,7 +399,9 @@ export default function StaffAttendanceSettingsPage() {
                                 holidays.map(h => (
                                     <div key={h.id} className="p-3 mb-2.5 rounded-3 border bg-light-subtle d-flex align-items-start justify-content-between gap-2 transition-all">
                                         <div>
-                                            <span className="badge bg-teal-subtle text-teal fw-bold mb-1" style={{ color: '#0f766e', backgroundColor: '#e6fffa' }}>
+                                            <span className="badge rounded-pill fw-bold mb-1"
+                                                style={{ background: 'rgba(124, 58, 237, 0.1)', color: '#7c3aed', fontSize: '0.74rem', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
+                                                <i className="bi bi-calendar-heart-fill me-1" />
                                                 {h.start_date === h.end_date ? h.start_date : `${h.start_date} to ${h.end_date}`}
                                             </span>
                                             <h6 className="fw-bold text-dark mb-0.5">{h.title}</h6>
@@ -428,7 +413,7 @@ export default function StaffAttendanceSettingsPage() {
                                             onClick={() => handleDeleteHoliday(h.id, h.title)}
                                             title="Delete Holiday"
                                         >
-                                            <i className="bi bi-trash3-fill"></i>
+                                            <i className="bi bi-trash3-fill" />
                                         </button>
                                     </div>
                                 ))
@@ -440,109 +425,105 @@ export default function StaffAttendanceSettingsPage() {
 
             {/* Add Holiday Modal */}
             {showHolidayModal && (
-                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
-                        <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                            <div className="modal-header bg-dark text-white border-0 py-3 px-4" style={{ background: '#134e4a' }}>
-                                <h5 className="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
-                                    <i className="bi bi-calendar-plus text-warning"></i>
-                                    Add Staff Holiday / Off-Day
-                                </h5>
-                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowHolidayModal(false)} />
-                            </div>
+                <>
+                    <div
+                        className="modal-backdrop fade show"
+                        style={{ zIndex: 2040, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)' }}
+                        onClick={() => setShowHolidayModal(false)}
+                    />
+                    <div className="modal show d-block" tabIndex={-1} style={{ zIndex: 2050 }}>
+                        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
+                            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                <div className="modal-header border-0 py-3 px-4" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                                    <h5 className="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
+                                        <i className="bi bi-calendar-plus text-warning" />
+                                        Add Staff Holiday / Off-Day
+                                    </h5>
+                                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowHolidayModal(false)} />
+                                </div>
 
-                            <form onSubmit={handleAddHoliday}>
-                                <div className="modal-body p-4">
-                                    <div className="mb-3">
-                                        <label className="form-label fw-bold small text-secondary">Holiday Title <span className="text-danger">*</span></label>
-                                        <input
-                                            type="text"
-                                            className="form-control fw-bold"
-                                            placeholder="e.g. Staff Development Day, Independence Day"
-                                            value={holidayTitle}
-                                            onChange={e => setHolidayTitle(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="row g-2 mb-3">
-                                        <div className="col-6">
-                                            <label className="form-label fw-bold small text-secondary">Start Date <span className="text-danger">*</span></label>
+                                <form onSubmit={handleAddHoliday}>
+                                    <div className="modal-body p-4">
+                                        <div className="mb-3">
+                                            <label className="form-label fw-bold small text-secondary">Holiday Title <span className="text-danger">*</span></label>
                                             <input
-                                                type="date"
+                                                type="text"
                                                 className="form-control fw-bold"
-                                                value={holidayStartDate}
-                                                onChange={e => setHolidayStartDate(e.target.value)}
+                                                placeholder="e.g. Staff Development Day, Independence Day"
+                                                value={holidayTitle}
+                                                onChange={e => setHolidayTitle(e.target.value)}
                                                 required
                                             />
                                         </div>
-                                        <div className="col-6">
-                                            <label className="form-label fw-bold small text-secondary">End Date (Optional)</label>
-                                            <input
-                                                type="date"
-                                                className="form-control fw-bold"
-                                                value={holidayEndDate}
-                                                onChange={e => setHolidayEndDate(e.target.value)}
+
+                                        <div className="row g-2 mb-3">
+                                            <div className="col-6">
+                                                <label className="form-label fw-bold small text-secondary">Start Date <span className="text-danger">*</span></label>
+                                                <input
+                                                    type="date"
+                                                    className="form-control fw-bold"
+                                                    value={holidayStartDate}
+                                                    onChange={e => setHolidayStartDate(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="col-6">
+                                                <label className="form-label fw-bold small text-secondary">End Date (Optional)</label>
+                                                <input
+                                                    type="date"
+                                                    className="form-control fw-bold"
+                                                    value={holidayEndDate}
+                                                    onChange={e => setHolidayEndDate(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="form-label fw-bold small text-secondary">Description / Notice</label>
+                                            <textarea
+                                                className="form-control"
+                                                rows={2}
+                                                placeholder="Optional notice for staff"
+                                                value={holidayDesc}
+                                                onChange={e => setHolidayDesc(e.target.value)}
                                             />
+                                        </div>
+
+                                        <div className="form-check form-switch mb-2">
+                                            <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                id="staffHolidayBroadcastCheck"
+                                                checked={holidayBroadcast}
+                                                onChange={e => setHolidayBroadcast(e.target.checked)}
+                                            />
+                                            <label className="form-check-label fw-semibold text-dark small" htmlFor="staffHolidayBroadcastCheck">
+                                                Send broadcast alert to staff portal &amp; mobile app
+                                            </label>
                                         </div>
                                     </div>
 
-                                    <div className="mb-3">
-                                        <label className="form-label fw-bold small text-secondary">Description / Notice</label>
-                                        <textarea
-                                            className="form-control"
-                                            rows={2}
-                                            placeholder="Optional notice for staff"
-                                            value={holidayDesc}
-                                            onChange={e => setHolidayDesc(e.target.value)}
-                                        />
+                                    <div className="modal-footer border-top bg-light py-2.5 px-4">
+                                        <button type="button" className="btn btn-secondary px-3 py-2 fw-bold rounded-3" onClick={() => setShowHolidayModal(false)}>
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="btn text-white px-4 py-2 fw-bold rounded-3 shadow-sm"
+                                            style={{ background: 'var(--accent-orange)', border: 'none' }}
+                                            disabled={savingHoliday}
+                                        >
+                                            {savingHoliday ? 'Saving...' : 'Create Holiday'}
+                                        </button>
                                     </div>
-
-                                    <div className="form-check form-switch mb-2">
-                                        <input
-                                            className="form-check-input"
-                                            type="checkbox"
-                                            id="staffHolidayBroadcastCheck"
-                                            checked={holidayBroadcast}
-                                            onChange={e => setHolidayBroadcast(e.target.checked)}
-                                        />
-                                        <label className="form-check-label fw-semibold text-dark small" htmlFor="staffHolidayBroadcastCheck">
-                                            Send broadcast alert to staff portal &amp; mobile app
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div className="modal-footer border-top bg-light py-2.5 px-4">
-                                    <button type="button" className="btn btn-secondary px-3 py-2 fw-bold rounded-3" onClick={() => setShowHolidayModal(false)}>
-                                        Cancel
-                                    </button>
-                                    <button type="submit" className="btn btn-teal text-white px-4 py-2 fw-bold rounded-3 shadow-sm" style={{ backgroundColor: '#0d9488' }} disabled={savingHoliday}>
-                                        {savingHoliday ? 'Saving...' : 'Create Holiday'}
-                                    </button>
-                                </div>
-                            </form>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             <style jsx>{`
-                .staff-settings-container {
-                    max-width: 1400px;
-                    margin: 0 auto;
-                }
-                .header-icon-box {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 38px;
-                    height: 38px;
-                    background: #f0fdfa;
-                    border-radius: 10px;
-                    color: #0d9488;
-                    font-size: 1.2rem;
-                }
-                .text-teal { color: #0d9488 !important; }
                 .cursor-pointer { cursor: pointer; }
                 .holidays-scroll-list::-webkit-scrollbar {
                     width: 5px;
