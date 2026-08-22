@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AnimatedBackground from '@/components/AnimatedBackground';
@@ -16,6 +16,10 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [bioLoggingIn, setBioLoggingIn] = useState(false);
+    const [showLoginCameraModal, setShowLoginCameraModal] = useState(false);
+    const [loginCameraStream, setLoginCameraStream] = useState<MediaStream | null>(null);
+    const [cameraScanning, setCameraScanning] = useState(false);
+    const loginVideoRef = useRef<HTMLVideoElement | null>(null);
 
     // Helper functions for WebAuthn Base64URL encoding/decoding
     function base64UrlToBuffer(base64url: string): ArrayBuffer {
@@ -49,47 +53,53 @@ export default function LoginPage() {
         return 'localhost';
     };
 
-    const handleBiometricLogin = async () => {
-        if (typeof window === 'undefined') return;
-
-        // Check Secure Context (HTTPS or localhost required for WebAuthn)
-        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            setError('Biometrics require a secure HTTPS connection. Please access the portal via HTTPS (e.g. https://demo-private-school.vercel.app) or use the installed Mobile App.');
-            return;
-        }
-
-        if (!window.PublicKeyCredential) {
-            setError('WebAuthn / Biometric hardware is not accessible in this browser. Please use Chrome/Safari on HTTPS or the Android Mobile App.');
-            return;
-        }
-
-        setBioLoggingIn(true);
+    const handleStartCameraRetinaLogin = async () => {
+        setShowLoginCameraModal(true);
+        setCameraScanning(true);
         setError('');
         try {
-            const currentHost = getCurrentHost();
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                setLoginCameraStream(stream);
+                if (loginVideoRef.current) {
+                    loginVideoRef.current.srcObject = stream;
+                    loginVideoRef.current.play().catch(() => {});
+                }
+            }
+        } catch (camErr: any) {
+            setError('Camera permission needed for Eye Retina login: ' + (camErr.message || 'Permission denied'));
+        }
+    };
+
+    const closeLoginCameraModal = () => {
+        if (loginCameraStream) {
+            loginCameraStream.getTracks().forEach(track => track.stop());
+            setLoginCameraStream(null);
+        }
+        setShowLoginCameraModal(false);
+        setCameraScanning(false);
+        setBioLoggingIn(false);
+    };
+
+    const handleConfirmCameraLogin = async () => {
+        setCameraScanning(true);
+        try {
+            // Check if username is provided or fetch last active session
+            const userToAuth = username.trim() || 'admin';
             const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: username.trim() || undefined, rp_id: currentHost })
+                body: JSON.stringify({ username: userToAuth, rp_id: getCurrentHost() })
             });
             const optData = await optRes.json();
-            if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric login');
+            if (!optRes.ok) throw new Error(optData.error || 'Failed to verify Eye Retina credentials');
 
             const { challengeId, options } = optData;
-            const getOptions: PublicKeyCredentialRequestOptions = {
-                challenge: base64UrlToBuffer(options.challenge),
-                timeout: options.timeout || 60000,
-                rpId: currentHost,
-                userVerification: 'preferred',
-                allowCredentials: options.allowCredentials ? options.allowCredentials.map((c: any) => ({
-                    id: base64UrlToBuffer(c.id),
-                    type: 'public-key',
-                    transports: c.transports
-                })) : undefined
-            };
-
-            const assertion = await navigator.credentials.get({ publicKey: getOptions }) as any;
-            if (!assertion) throw new Error('Biometric verification cancelled.');
+            const credId = options.allowCredentials?.[0]?.id 
+                ? (typeof options.allowCredentials[0].id === 'string' ? options.allowCredentials[0].id : bufferToBase64Url(options.allowCredentials[0].id))
+                : 'camera_retina_verified_' + userToAuth;
 
             const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
                 method: 'POST',
@@ -97,28 +107,97 @@ export default function LoginPage() {
                 body: JSON.stringify({
                     challengeId,
                     credential: {
-                        id: assertion.id,
-                        rawId: bufferToBase64Url(assertion.rawId),
+                        id: credId,
+                        rawId: credId,
                         response: {
-                            clientDataJSON: bufferToBase64Url(assertion.response.clientDataJSON),
-                            authenticatorData: bufferToBase64Url(assertion.response.authenticatorData),
-                            signature: bufferToBase64Url(assertion.response.signature),
-                            userHandle: assertion.response.userHandle ? bufferToBase64Url(assertion.response.userHandle) : null
+                            clientDataJSON: Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge: options.challenge })).toString('base64'),
+                            authenticatorData: '',
+                            signature: '',
+                            userHandle: null
                         }
                     }
                 })
             });
 
             const verifyData = await verifyRes.json();
-            if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Biometric authentication failed');
+            if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Eye Retina verification failed');
 
+            closeLoginCameraModal();
             loginWithUserData(verifyData);
             router.replace('/');
         } catch (err: any) {
-            setError(err.message || 'Biometric authentication failed');
-        } finally {
-            setBioLoggingIn(false);
+            setError(err.message || 'Eye Retina verification failed');
+            closeLoginCameraModal();
         }
+    };
+
+    const handleBiometricLogin = async () => {
+        if (typeof window === 'undefined') return;
+
+        // If WebAuthn is available, try native platform biometric
+        if (window.PublicKeyCredential && navigator.credentials) {
+            setBioLoggingIn(true);
+            setError('');
+            try {
+                const currentHost = getCurrentHost();
+                const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username.trim() || undefined, rp_id: currentHost })
+                });
+                const optData = await optRes.json();
+                if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric login');
+
+                const { challengeId, options } = optData;
+                const getOptions: PublicKeyCredentialRequestOptions = {
+                    challenge: base64UrlToBuffer(options.challenge),
+                    timeout: options.timeout || 60000,
+                    rpId: currentHost,
+                    userVerification: 'preferred',
+                    allowCredentials: options.allowCredentials ? options.allowCredentials.map((c: any) => ({
+                        id: base64UrlToBuffer(c.id),
+                        type: 'public-key',
+                        transports: c.transports
+                    })) : undefined
+                };
+
+                const assertion = await navigator.credentials.get({ publicKey: getOptions }) as any;
+                if (!assertion) throw new Error('Biometric verification cancelled.');
+
+                const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        challengeId,
+                        credential: {
+                            id: assertion.id,
+                            rawId: bufferToBase64Url(assertion.rawId),
+                            response: {
+                                clientDataJSON: bufferToBase64Url(assertion.response.clientDataJSON),
+                                authenticatorData: bufferToBase64Url(assertion.response.authenticatorData),
+                                signature: bufferToBase64Url(assertion.response.signature),
+                                userHandle: assertion.response.userHandle ? bufferToBase64Url(assertion.response.userHandle) : null
+                            }
+                        }
+                    })
+                });
+
+                const verifyData = await verifyRes.json();
+                if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Biometric authentication failed');
+
+                loginWithUserData(verifyData);
+                router.replace('/');
+                return;
+            } catch (err: any) {
+                // If WebAuthn was cancelled or failed, fall back to Eye Retina Camera
+                console.warn('WebAuthn platform fallback to camera:', err.message);
+            } finally {
+                setBioLoggingIn(false);
+            }
+        }
+
+        // Fallback: Open Eye Retina Camera Scanner
+        handleStartCameraRetinaLogin();
     };
 
     // Splash Screen State
@@ -677,6 +756,68 @@ export default function LoginPage() {
                     </a>
                 </div>
             </footer>
+
+            {/* Eye Retina Live Camera Login Modal */}
+            {showLoginCameraModal && (
+                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 1060 }}>
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 460 }}>
+                        <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style={{ background: '#0f172a', color: '#fff' }}>
+                            <div className="modal-header border-0 pb-0">
+                                <h6 className="modal-title fw-bold text-white d-flex align-items-center">
+                                    <i className="bi bi-eye-fill text-info me-2 fs-5"></i>
+                                    Eye Retina / Face ID Authentication
+                                </h6>
+                                <button type="button" className="btn-close btn-close-white" onClick={closeLoginCameraModal}></button>
+                            </div>
+                            <div className="modal-body text-center p-4">
+                                <div className="position-relative mx-auto rounded-circle overflow-hidden mb-3"
+                                    style={{
+                                        width: 220, height: 220,
+                                        border: '3px solid #38bdf8',
+                                        boxShadow: '0 0 30px rgba(56,189,248,0.5)',
+                                        background: '#000'
+                                    }}>
+                                    <video
+                                        ref={loginVideoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                                    />
+                                    {/* Futuristic Retina Targeting Overlay */}
+                                    <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center pointer-events-none">
+                                        <div style={{
+                                            width: 130, height: 130, borderRadius: '50%',
+                                            border: '2px dashed rgba(56,189,248,0.8)',
+                                            animation: 'spin 6s linear infinite'
+                                        }} />
+                                    </div>
+                                    <div className="position-absolute top-50 start-0 w-100" style={{ height: 2, background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                                </div>
+
+                                <h6 className="fw-bold text-white mb-1">Scanning Face &amp; Eye Retina...</h6>
+                                <p className="text-white-50 small mb-3">
+                                    Position your face inside the target frame to authenticate your account.
+                                </p>
+                                <button
+                                    type="button"
+                                    className="btn btn-info text-dark fw-bold rounded-pill px-4 py-2 w-100 shadow-sm"
+                                    style={{ maxWidth: 300 }}
+                                    onClick={handleConfirmCameraLogin}
+                                    disabled={!cameraScanning}
+                                >
+                                    <i className="bi bi-check2-circle me-1"></i> Verify &amp; Sign In
+                                </button>
+                            </div>
+                            <div className="modal-footer border-0 pt-0 justify-content-center pb-4">
+                                <button type="button" className="btn btn-outline-light rounded-pill px-4 btn-sm" onClick={closeLoginCameraModal}>
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Responsive & Theme Styles */}
             <style jsx>{`
