@@ -409,13 +409,18 @@ const SidebarInner = memo(function SidebarInner({ user, isLoggedIn, logout, hasP
 
         {/* User zone */}
         {user && (
-          <div className="sl-user">
-            <div className="sl-avatar">{getInitials(user.full_name || 'U')}</div>
-            <div className="sl-user-info">
-              <span className="sl-user-name">{user.full_name}</span>
-              <span className="sl-user-role">{user.role_name}</span>
-            </div>
-            <button onClick={() => logoutRef.current()} className="sl-logout" title="Sign Out">
+          <div className="sl-user" style={{ position: 'relative' }}>
+            <Link href="/profile" title="View Personal Profile & Biometrics (پروفائل)"
+              style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', flexGrow: 1, minWidth: 0, overflow: 'hidden' }}>
+              <div className="sl-avatar" style={{ cursor: 'pointer' }}>{getInitials(user.full_name || 'U')}</div>
+              {expanded && (
+                <div className="sl-user-info" style={{ cursor: 'pointer' }}>
+                  <span className="sl-user-name text-truncate" title={user.full_name}>{user.full_name}</span>
+                  <span className="sl-user-role text-truncate">{user.role_name}</span>
+                </div>
+              )}
+            </Link>
+            <button onClick={() => logoutRef.current()} className="sl-logout" title="Sign Out" style={{ flexShrink: 0 }}>
               <i className="bi bi-box-arrow-right" />
             </button>
           </div>

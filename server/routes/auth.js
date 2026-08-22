@@ -292,4 +292,460 @@ router.post('/revoke-all-sessions', async (req, res) => {
     }
 });
 
+// =========================================================================
+// 4. USER PROFILE & SECURITY MANAGEMENT
+// =========================================================================
+
+const crypto = require('crypto');
+
+// Helper to authenticate request token
+function getAuthUser(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return null;
+    const token = authHeader.replace('Bearer ', '').trim();
+    try {
+        return jwt.verify(token, JWT_SECRET);
+    } catch (e) {
+        return null;
+    }
+}
+
+// GET /auth/me - Fetch full user profile, permissions, and biometric credentials
+router.get('/me', async (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+        }
+
+        const userRes = await pool.query(`
+            SELECT 
+                u.id, u.username, u.full_name, u.email, u.is_active, u.role_id, u.created_at,
+                r.role_name, r.role_level, r.dashboard_access,
+                MAX(e.employee_id) as employee_id,
+                MAX(e.phone) as employee_phone,
+                MAX(e.designation) as designation,
+                MAX(
+                    (SELECT json_build_object('class_id', tca.class_id, 'section_id', tca.section_id)
+                     FROM teacher_class_assignment tca
+                     WHERE tca.employee_id = e.employee_id AND tca.is_class_teacher = true
+                     LIMIT 1)::text
+                ) AS incharge_class,
+                COALESCE(
+                    json_agg(
+                        DISTINCT jsonb_build_object(
+                            'module_name', p.module_name,
+                            'can_read', p.can_read,
+                            'can_write', p.can_write,
+                            'can_delete', p.can_delete
+                        )
+                    ) FILTER (WHERE p.module_name IS NOT NULL),
+                    '[]'
+                ) AS permissions
+            FROM app_users u
+            LEFT JOIN app_roles r ON u.role_id = r.id
+            LEFT JOIN role_permissions p ON r.id = p.role_id
+            LEFT JOIN employees e ON u.id = e.app_user_id
+            WHERE u.id = $1
+            GROUP BY u.id, u.username, u.full_name, u.email, u.is_active, u.role_id, u.created_at, r.role_name, r.role_level, r.dashboard_access
+        `, [authUser.id]);
+
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = userRes.rows[0];
+
+        // Fetch enrolled biometrics
+        const biometricsRes = await pool.query(`
+            SELECT id, credential_type, device_name, created_at
+            FROM user_webauthn_credentials
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+        `, [authUser.id]);
+
+        // Student details if applicable
+        let studentDetails = null;
+        try {
+            const stuRes = await pool.query(`
+                SELECT s.student_id, s.admission_no, s.roll_no, s.first_name, s.last_name, s.family_id,
+                       c.class_name, sec.section_name
+                FROM students s
+                LEFT JOIN classes c ON s.class_id = c.class_id
+                LEFT JOIN sections sec ON s.section_id = sec.section_id
+                WHERE s.user_id = $1
+                LIMIT 1
+            `, [authUser.id]);
+            if (stuRes.rows.length > 0) studentDetails = stuRes.rows[0];
+        } catch (e) {}
+
+        if (user.incharge_class && typeof user.incharge_class === 'string') {
+            try {
+                user.incharge_class = JSON.parse(user.incharge_class);
+            } catch (e) {}
+        }
+
+        res.json({
+            ...user,
+            student_details: studentDetails,
+            biometrics: biometricsRes.rows
+        });
+    } catch (err) {
+        console.error('Error fetching user profile:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /auth/profile - Update personal profile details
+router.put('/profile', async (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { full_name, email } = req.body;
+        if (!full_name || !full_name.trim()) {
+            return res.status(400).json({ error: 'Full name is required' });
+        }
+
+        await pool.query(`
+            UPDATE app_users 
+            SET full_name = $1, email = $2
+            WHERE id = $3
+        `, [full_name.trim(), email ? email.trim() : null, authUser.id]);
+
+        res.json({ success: true, message: 'Profile updated successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /auth/change-password - Change current user's password
+router.put('/change-password', async (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { current_password, new_password } = req.body;
+        if (!current_password || !new_password) {
+            return res.status(400).json({ error: 'Current and new password are required' });
+        }
+
+        if (new_password.length < 6) {
+            return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+        }
+
+        const userRes = await pool.query(`SELECT password_hash FROM app_users WHERE id = $1`, [authUser.id]);
+        if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        const isMatch = await bcrypt.compare(current_password, userRes.rows[0].password_hash || '');
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Incorrect current password' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(new_password, salt);
+
+        await pool.query(`
+            UPDATE app_users 
+            SET password_hash = $1, plain_password = $2 
+            WHERE id = $3
+        `, [hashedPassword, new_password, authUser.id]);
+
+        res.json({ success: true, message: 'Password changed successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// =========================================================================
+// 5. WEBAUTHN BIOMETRIC & RETINA AUTHENTICATION
+// =========================================================================
+
+// GET /auth/webauthn/register-options - Options for registering new biometric/retina passkey
+router.get('/webauthn/register-options', async (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const userRes = await pool.query(`SELECT id, username, full_name FROM app_users WHERE id = $1`, [authUser.id]);
+        if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const user = userRes.rows[0];
+
+        // Clean expired challenges
+        await pool.query(`DELETE FROM webauthn_challenges WHERE expires_at < CURRENT_TIMESTAMP`);
+
+        const challenge = crypto.randomBytes(32).toString('base64url');
+        const challengeId = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+
+        await pool.query(`
+            INSERT INTO webauthn_challenges (challenge_id, user_id, challenge, type, expires_at)
+            VALUES ($1, $2, $3, 'registration', $4)
+        `, [challengeId, user.id, challenge, expiresAt]);
+
+        const rawHostname = req.hostname || 'localhost';
+        const rpId = rawHostname.includes(':') ? rawHostname.split(':')[0] : rawHostname;
+
+        res.json({
+            challengeId,
+            options: {
+                challenge,
+                rp: {
+                    name: 'Demo Private School',
+                    id: rpId
+                },
+                user: {
+                    id: Buffer.from(user.id.toString()).toString('base64url'),
+                    name: user.username,
+                    displayName: user.full_name || user.username
+                },
+                pubKeyCredParams: [
+                    { alg: -7, type: 'public-key' },  // ES256
+                    { alg: -257, type: 'public-key' } // RS256
+                ],
+                authenticatorSelection: {
+                    authenticatorAttachment: 'platform', // Fingerprint, Windows Hello, Face/Retina ID
+                    userVerification: 'preferred',
+                    requireResidentKey: false
+                },
+                timeout: 60000,
+                attestation: 'none'
+            }
+        });
+    } catch (err) {
+        console.error('WebAuthn register options error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /auth/webauthn/register-verify - Save enrolled biometric credential
+router.post('/webauthn/register-verify', async (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { challengeId, credential, credential_type, device_name } = req.body;
+        if (!challengeId || !credential || !credential.id) {
+            return res.status(400).json({ error: 'Invalid registration payload' });
+        }
+
+        // Verify challenge
+        const chRes = await pool.query(`
+            SELECT * FROM webauthn_challenges 
+            WHERE challenge_id = $1 AND user_id = $2 AND type = 'registration' AND expires_at > CURRENT_TIMESTAMP
+        `, [challengeId, authUser.id]);
+
+        if (chRes.rows.length === 0) {
+            return res.status(400).json({ error: 'Registration session expired or invalid. Please try again.' });
+        }
+
+        const credentialId = credential.id;
+        const publicKey = credential.response?.publicKey || credential.response?.attestationObject || credentialId;
+        const transports = credential.response?.transports || ['internal'];
+        const type = credential_type || 'fingerprint';
+        const devName = device_name || (type === 'retina_face' ? 'Eye Retina / Face ID Scanner' : 'Biometric Fingerprint Scanner');
+
+        await pool.query(`
+            INSERT INTO user_webauthn_credentials (user_id, credential_id, public_key, credential_type, device_name, transports)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (credential_id) DO UPDATE 
+            SET credential_type = $4, device_name = $5, transports = $6, created_at = CURRENT_TIMESTAMP
+        `, [authUser.id, credentialId, publicKey, type, devName, transports]);
+
+        // Consume challenge
+        await pool.query(`DELETE FROM webauthn_challenges WHERE challenge_id = $1`, [challengeId]);
+
+        res.json({ success: true, message: `${devName} enrolled successfully!` });
+    } catch (err) {
+        console.error('WebAuthn register verify error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /auth/webauthn/login-options - Generate challenge for biometric login
+router.post('/webauthn/login-options', async (req, res) => {
+    try {
+        const { username } = req.body;
+        await pool.query(`DELETE FROM webauthn_challenges WHERE expires_at < CURRENT_TIMESTAMP`);
+
+        const challenge = crypto.randomBytes(32).toString('base64url');
+        const challengeId = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        let allowCredentials = [];
+        let userId = null;
+
+        if (username && username.trim()) {
+            const userRes = await pool.query(`SELECT id FROM app_users WHERE LOWER(username) = LOWER($1)`, [username.trim()]);
+            if (userRes.rows.length > 0) {
+                userId = userRes.rows[0].id;
+                const creds = await pool.query(`SELECT credential_id, transports FROM user_webauthn_credentials WHERE user_id = $1`, [userId]);
+                allowCredentials = creds.rows.map(c => ({
+                    id: c.credential_id,
+                    type: 'public-key',
+                    transports: c.transports || ['internal']
+                }));
+            }
+        }
+
+        await pool.query(`
+            INSERT INTO webauthn_challenges (challenge_id, user_id, challenge, type, expires_at)
+            VALUES ($1, $2, $3, 'authentication', $4)
+        `, [challengeId, userId, challenge, expiresAt]);
+
+        const rawHostname = req.hostname || 'localhost';
+        const rpId = rawHostname.includes(':') ? rawHostname.split(':')[0] : rawHostname;
+
+        res.json({
+            challengeId,
+            options: {
+                challenge,
+                timeout: 60000,
+                rpId,
+                userVerification: 'preferred',
+                allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined
+            }
+        });
+    } catch (err) {
+        console.error('WebAuthn login options error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /auth/webauthn/login-verify - Authenticate user via Biometric / Retina
+router.post('/webauthn/login-verify', async (req, res) => {
+    try {
+        const { challengeId, credential } = req.body;
+        if (!challengeId || !credential || !credential.id) {
+            return res.status(400).json({ error: 'Invalid biometric authentication data' });
+        }
+
+        // Verify challenge
+        const chRes = await pool.query(`
+            SELECT * FROM webauthn_challenges 
+            WHERE challenge_id = $1 AND type = 'authentication' AND expires_at > CURRENT_TIMESTAMP
+        `, [challengeId]);
+
+        if (chRes.rows.length === 0) {
+            return res.status(400).json({ error: 'Authentication session expired. Please retry.' });
+        }
+
+        // Find credential owner
+        const credRes = await pool.query(`
+            SELECT c.*, u.id as u_id, u.username, u.full_name, u.email, u.is_active, u.role_id,
+                   r.role_name, r.role_level, r.dashboard_access
+            FROM user_webauthn_credentials c
+            JOIN app_users u ON c.user_id = u.id
+            LEFT JOIN app_roles r ON u.role_id = r.id
+            WHERE c.credential_id = $1
+        `, [credential.id]);
+
+        if (credRes.rows.length === 0) {
+            return res.status(401).json({ error: 'Biometric credential not recognized on this account.' });
+        }
+
+        const user = credRes.rows[0];
+
+        if (user.is_active === false) {
+            return res.status(403).json({ message: 'Your account is disabled. Please contact the administrator.' });
+        }
+
+        // Fetch permissions & incharge info
+        const permRes = await pool.query(`
+            SELECT 
+                MAX(e.employee_id) as employee_id,
+                MAX(
+                    (SELECT json_build_object('class_id', tca.class_id, 'section_id', tca.section_id)
+                     FROM teacher_class_assignment tca
+                     WHERE tca.employee_id = e.employee_id AND tca.is_class_teacher = true
+                     LIMIT 1)::text
+                ) AS incharge_class,
+                COALESCE(
+                    json_agg(
+                        DISTINCT jsonb_build_object(
+                            'module_name', p.module_name,
+                            'can_read', p.can_read,
+                            'can_write', p.can_write,
+                            'can_delete', p.can_delete
+                        )
+                    ) FILTER (WHERE p.module_name IS NOT NULL),
+                    '[]'
+                ) AS permissions
+            FROM app_users u
+            LEFT JOIN app_roles r ON u.role_id = r.id
+            LEFT JOIN role_permissions p ON r.id = p.role_id
+            LEFT JOIN employees e ON u.id = e.app_user_id
+            WHERE u.id = $1
+            GROUP BY u.id
+        `, [user.u_id]);
+
+        const extras = permRes.rows[0] || { permissions: [], incharge_class: null, employee_id: null };
+
+        // Sign JWT Token
+        const tokenDurationHours = 24;
+        const expiresAt = new Date(Date.now() + tokenDurationHours * 60 * 60 * 1000);
+        const tokenPayload = {
+            id: user.u_id,
+            username: user.username,
+            role_id: user.role_id,
+            role_name: user.role_name
+        };
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: `${tokenDurationHours}h` });
+
+        // Update counter & clean challenge
+        await pool.query(`UPDATE user_webauthn_credentials SET counter = counter + 1 WHERE id = $1`, [user.id]);
+        await pool.query(`DELETE FROM webauthn_challenges WHERE challenge_id = $1`, [challengeId]);
+
+        let inchargeClass = extras.incharge_class;
+        if (inchargeClass && typeof inchargeClass === 'string') {
+            try { inchargeClass = JSON.parse(inchargeClass); } catch (e) {}
+        }
+
+        res.json({
+            id: user.u_id,
+            username: user.username,
+            full_name: user.full_name,
+            email: user.email,
+            role_id: user.role_id,
+            role_name: user.role_name,
+            role_level: user.role_level,
+            dashboard_access: user.dashboard_access,
+            employee_id: extras.employee_id,
+            incharge_class: inchargeClass,
+            permissions: extras.permissions,
+            token,
+            remember_me: true,
+            expires_at: expiresAt.toISOString(),
+            biometric_login: true
+        });
+    } catch (err) {
+        console.error('WebAuthn login verify error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /auth/webauthn/credentials/:id - Revoke enrolled biometric credential
+router.delete('/webauthn/credentials/:id', async (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser || !authUser.id) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const credId = parseInt(req.params.id, 10);
+        await pool.query(`DELETE FROM user_webauthn_credentials WHERE id = $1 AND user_id = $2`, [credId, authUser.id]);
+        res.json({ success: true, message: 'Biometric credential removed successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

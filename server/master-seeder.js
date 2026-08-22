@@ -110,6 +110,29 @@ async function runMasterSeeder() {
                     ip_address VARCHAR(50),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+
+                CREATE TABLE IF NOT EXISTS user_webauthn_credentials (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                    credential_id TEXT UNIQUE NOT NULL,
+                    public_key TEXT NOT NULL,
+                    counter BIGINT DEFAULT 0,
+                    credential_type VARCHAR(50) DEFAULT 'fingerprint',
+                    device_name TEXT,
+                    transports TEXT[],
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_webauthn_user ON user_webauthn_credentials(user_id);
+                CREATE INDEX IF NOT EXISTS idx_webauthn_cred ON user_webauthn_credentials(credential_id);
+
+                CREATE TABLE IF NOT EXISTS webauthn_challenges (
+                    challenge_id TEXT PRIMARY KEY,
+                    user_id INTEGER,
+                    challenge TEXT NOT NULL,
+                    type VARCHAR(30) NOT NULL,
+                    expires_at TIMESTAMP NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_webauthn_ch_exp ON webauthn_challenges(expires_at);
             `);
 
             // Seed Role Levels

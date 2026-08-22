@@ -33,6 +33,7 @@ interface AuthContextType {
     isLoggedIn: boolean;
     isLoading: boolean;
     login: (username: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
+    loginWithUserData: (data: any) => void;
     logout: () => void;
     hasPermission: (module: string, action?: 'read' | 'write' | 'delete') => boolean;
 }
@@ -68,6 +69,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const loginWithUserData = useCallback((data: any) => {
+        setUser(data);
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+        localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(data));
+        if (data.remember_me !== false) {
+            localStorage.setItem(REMEMBER_KEY, JSON.stringify(data));
+        }
+    }, []);
+
     const login = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
         try {
             const res = await fetch(`${API_URL}/auth/login`, {
@@ -82,9 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 return { success: false, message: data.message || 'Login failed' };
             }
 
-            setUser(data);
-            sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
-            localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify(data));
+            loginWithUserData(data);
 
             if (rememberMe) {
                 localStorage.setItem(REMEMBER_KEY, JSON.stringify(data));
@@ -99,14 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (cached) {
                 const parsed = JSON.parse(cached);
                 if (parsed.username && parsed.username.toLowerCase() === username.toLowerCase()) {
-                    setUser(parsed);
-                    sessionStorage.setItem(SESSION_KEY, JSON.stringify(parsed));
+                    loginWithUserData(parsed);
                     return { success: true, message: 'Logged in using offline cached credentials.' };
                 }
             }
             return { success: false, message: 'Cannot connect to server. Please check your internet connection.' };
         }
-    }, []);
+    }, [loginWithUserData]);
 
     const logout = useCallback(async () => {
         try {
@@ -187,8 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [user]);
 
     const ctxValue = useMemo(
-        () => ({ user, isLoggedIn: !!user, isLoading, login, logout, hasPermission }),
-        [user, isLoading, login, logout, hasPermission]
+        () => ({ user, isLoggedIn: !!user, isLoading, login, loginWithUserData, logout, hasPermission }),
+        [user, isLoading, login, loginWithUserData, logout, hasPermission]
     );
 
     return (

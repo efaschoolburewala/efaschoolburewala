@@ -131,7 +131,30 @@ async function runEssentialMigrations() {
             CREATE INDEX IF NOT EXISTS idx_sli_arrears ON slip_line_items(arrears_head_id, is_carried_forward);
 
             ALTER TABLE fee_plan_heads ADD COLUMN IF NOT EXISTS fine_after_day INTEGER DEFAULT NULL;
-        `).catch((err) => { console.error("Error migrating fee_heads/slip_line_items:", err.message); });
+
+            CREATE TABLE IF NOT EXISTS user_webauthn_credentials (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+                credential_id TEXT UNIQUE NOT NULL,
+                public_key TEXT NOT NULL,
+                counter BIGINT DEFAULT 0,
+                credential_type VARCHAR(50) DEFAULT 'fingerprint',
+                device_name TEXT,
+                transports TEXT[],
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_webauthn_user ON user_webauthn_credentials(user_id);
+            CREATE INDEX IF NOT EXISTS idx_webauthn_cred ON user_webauthn_credentials(credential_id);
+
+            CREATE TABLE IF NOT EXISTS webauthn_challenges (
+                challenge_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                challenge TEXT NOT NULL,
+                type VARCHAR(30) NOT NULL,
+                expires_at TIMESTAMP NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_webauthn_ch_exp ON webauthn_challenges(expires_at);
+        `).catch((err) => { console.error("Error migrating fee_heads/slip_line_items/webauthn:", err.message); });
 
 
 

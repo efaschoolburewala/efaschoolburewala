@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AnimatedBackground from '@/components/AnimatedBackground';
 
 export default function LoginPage() {
-    const { login, isLoggedIn, isLoading } = useAuth();
+    const { login, loginWithUserData, isLoggedIn, isLoading } = useAuth();
     const router = useRouter();
 
     const [username, setUsername] = useState('');
@@ -15,6 +15,91 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [bioLoggingIn, setBioLoggingIn] = useState(false);
+
+    // Helper functions for WebAuthn Base64URL encoding/decoding
+    function base64UrlToBuffer(base64url: string): ArrayBuffer {
+        const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        const padLen = (4 - (base64.length % 4)) % 4;
+        const padded = base64 + '='.repeat(padLen);
+        const binary = atob(padded);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function bufferToBase64Url(buffer: ArrayBuffer): string {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    const handleBiometricLogin = async () => {
+        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+            setError('Biometric / WebAuthn authentication is not supported on this browser/device.');
+            return;
+        }
+        setBioLoggingIn(true);
+        setError('');
+        try {
+            const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username.trim() || undefined })
+            });
+            const optData = await optRes.json();
+            if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric login');
+
+            const { challengeId, options } = optData;
+            const getOptions: PublicKeyCredentialRequestOptions = {
+                challenge: base64UrlToBuffer(options.challenge),
+                timeout: options.timeout || 60000,
+                rpId: options.rpId,
+                userVerification: 'preferred',
+                allowCredentials: options.allowCredentials ? options.allowCredentials.map((c: any) => ({
+                    id: base64UrlToBuffer(c.id),
+                    type: 'public-key',
+                    transports: c.transports
+                })) : undefined
+            };
+
+            const assertion = await navigator.credentials.get({ publicKey: getOptions }) as any;
+            if (!assertion) throw new Error('Biometric verification cancelled.');
+
+            const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    challengeId,
+                    credential: {
+                        id: assertion.id,
+                        rawId: bufferToBase64Url(assertion.rawId),
+                        response: {
+                            clientDataJSON: bufferToBase64Url(assertion.response.clientDataJSON),
+                            authenticatorData: bufferToBase64Url(assertion.response.authenticatorData),
+                            signature: bufferToBase64Url(assertion.response.signature),
+                            userHandle: assertion.response.userHandle ? bufferToBase64Url(assertion.response.userHandle) : null
+                        }
+                    }
+                })
+            });
+
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Biometric authentication failed');
+
+            loginWithUserData(verifyData);
+            router.replace('/');
+        } catch (err: any) {
+            setError(err.message || 'Biometric authentication failed');
+        } finally {
+            setBioLoggingIn(false);
+        }
+    };
 
     // Splash Screen State
     const [showSplash, setShowSplash] = useState(true);
@@ -427,13 +512,44 @@ export default function LoginPage() {
                                 </div>
                             </div>
 
-                            <button type="submit" className="btn-submit" disabled={submitting}>
+                            <button type="submit" className="btn-submit" disabled={submitting || bioLoggingIn}>
                                 {submitting ? (
                                     <span className="submit-spinner" />
                                 ) : (
                                     <>
                                         <span>Sign In to Portal</span>
                                         <i className="bi bi-arrow-right-short btn-arrow" />
+                                    </>
+                                )}
+                            </button>
+
+                            <div className="d-flex align-items-center my-3">
+                                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
+                                <span className="px-2 text-white-50 small fw-bold" style={{ fontSize: '0.75rem' }}>OR WEBAUTHN</span>
+                                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="btn w-100 fw-bold d-flex align-items-center justify-content-center gap-2 py-2.5 rounded-3"
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.08)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    color: '#fff',
+                                    backdropFilter: 'blur(10px)',
+                                    transition: 'all 0.2s ease',
+                                    fontSize: '0.9rem'
+                                }}
+                                onClick={handleBiometricLogin}
+                                disabled={submitting || bioLoggingIn}
+                            >
+                                {bioLoggingIn ? (
+                                    <><span className="spinner-border spinner-border-sm text-teal" />Verifying Biometric / Eye Retina...</>
+                                ) : (
+                                    <>
+                                        <i className="bi bi-fingerprint text-teal fs-5" style={{ color: '#14b8a6' }}></i>
+                                        <i className="bi bi-eye-fill text-info fs-5"></i>
+                                        <span>Login with Biometrics / Eye Retina</span>
                                     </>
                                 )}
                             </button>
