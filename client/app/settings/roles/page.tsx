@@ -141,6 +141,7 @@ const PAGE_TREE: Record<string, ModuleDef> = {
             { key: 'attendance.staff', label: 'Staff Attendance', icon: 'bi-person-badge-fill', desc: 'Mark daily staff attendance' },
             { key: 'attendance.students.history', label: 'Student History', icon: 'bi-calendar-range', desc: 'View past student attendance records' },
             { key: 'attendance.staff.history', label: 'Staff History', icon: 'bi-calendar2-range', desc: 'View past staff attendance records' },
+            { key: 'attendance.settings', label: 'Attendance Settings', icon: 'bi-gear-fill', desc: 'Configure staff timings, biometric modes, holidays & coordinator assignments' },
         ],
     },
     reports: {

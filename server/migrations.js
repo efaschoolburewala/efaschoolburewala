@@ -358,6 +358,65 @@ async function runEssentialMigrations() {
             CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
         `);
 
+        // 9. Attendance Settings, Holidays & Coordinator Assignments Migration
+        console.log("   → Checking attendance_settings, holidays & coordinator assignments...");
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS attendance_settings (
+                id SERIAL PRIMARY KEY,
+                staff_in_time TIME DEFAULT '08:00',
+                staff_out_time TIME DEFAULT '14:00',
+                staff_grace_minutes INTEGER DEFAULT 15,
+                staff_biometric_mode VARCHAR(50) DEFAULT 'both',
+                staff_auto_absent_enabled BOOLEAN DEFAULT TRUE,
+                staff_notify_in_out BOOLEAN DEFAULT TRUE,
+                staff_notify_holidays BOOLEAN DEFAULT TRUE,
+                student_notify_parents BOOLEAN DEFAULT TRUE,
+                student_notify_holidays BOOLEAN DEFAULT TRUE,
+                student_auto_absent_enabled BOOLEAN DEFAULT TRUE,
+                family_notify_each_child BOOLEAN DEFAULT TRUE,
+                consecutive_absent_alert_days INTEGER DEFAULT 3,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            INSERT INTO attendance_settings (id, staff_in_time, staff_out_time, staff_grace_minutes, staff_biometric_mode)
+            VALUES (1, '08:00', '14:00', 15, 'both')
+            ON CONFLICT (id) DO NOTHING;
+
+            CREATE TABLE IF NOT EXISTS attendance_holidays (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(150) NOT NULL,
+                holiday_type VARCHAR(50) DEFAULT 'staff_and_students',
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                is_recurring_weekly BOOLEAN DEFAULT FALSE,
+                recurring_day_of_week INTEGER DEFAULT 0,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_att_holidays_dates ON attendance_holidays(start_date, end_date);
+
+            CREATE TABLE IF NOT EXISTS attendance_coordinator_assignments (
+                id SERIAL PRIMARY KEY,
+                employee_id INTEGER NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
+                class_id INTEGER NOT NULL REFERENCES classes(class_id) ON DELETE CASCADE,
+                section_id INTEGER NOT NULL REFERENCES sections(section_id) ON DELETE CASCADE,
+                assigned_by INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(employee_id, class_id, section_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_att_coord_emp ON attendance_coordinator_assignments(employee_id);
+            CREATE INDEX IF NOT EXISTS idx_att_coord_class_sec ON attendance_coordinator_assignments(class_id, section_id);
+
+            -- Ensure permission 'attendance.settings' exists for super admins and admins
+            INSERT INTO role_permissions (role_id, module_name, can_read, can_write, can_delete)
+            SELECT id, 'attendance.settings', TRUE, TRUE, TRUE
+            FROM app_roles
+            WHERE role_level >= 80 OR LOWER(role_name) LIKE '%admin%' OR LOWER(role_name) LIKE '%principal%'
+            ON CONFLICT (role_id, module_name) DO NOTHING;
+        `);
+
         const { syncAllSequences } = require('./utils/sequenceSync');
         await syncAllSequences(client);
 

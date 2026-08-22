@@ -49,14 +49,24 @@ export default function StudentAttendancePage() {
       if (!user?.id) return;
 
       try {
-
-        const res = await fetch(`${API}/exams/context/class-teacher?user_id=${user.id}`);
+        const res = await fetch(`${API}/attendance/my-classes?user_id=${user.id}`);
         const data = await res.json();
 
-        if (Array.isArray(data.classes)) setClasses(data.classes);
+        if (Array.isArray(data.classes)) {
+          setClasses(data.classes);
+          if (data.classes.length > 0 && !classId) {
+            setClassId(String(data.classes[0].class_id));
+          }
+        }
         if (Array.isArray(data.sections)) setSections(data.sections);
       } catch {
-        // keep existing empty state if loading fails
+        // fallback
+        try {
+          const res = await fetch(`${API}/exams/context/class-teacher?user_id=${user.id}`);
+          const data = await res.json();
+          if (Array.isArray(data.classes)) setClasses(data.classes);
+          if (Array.isArray(data.sections)) setSections(data.sections);
+        } catch {}
       }
     };
 

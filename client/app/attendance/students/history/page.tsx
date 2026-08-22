@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ClassItem { class_id: number; class_name: string; }
 interface StudentHistory {
@@ -25,6 +26,7 @@ function AttBadge({ status }: { status: string }) {
 }
 
 export default function StudentAttendanceHistoryPage() {
+    const { user } = useAuth();
     const now = new Date();
     const [classes, setClasses] = useState<ClassItem[]>([]);
     const [classId, setClassId] = useState('');
@@ -40,8 +42,19 @@ export default function StudentAttendanceHistoryPage() {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
     useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`).then(r => r.json()).then(setClasses).catch(() => { });
-    }, []);
+        const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+        const endpoint = user?.id ? `${API}/attendance/my-classes?user_id=${user.id}` : `${API}/academic`;
+        fetch(endpoint)
+            .then(r => r.json())
+            .then(d => {
+                const list = Array.isArray(d) ? d : (Array.isArray(d.classes) ? d.classes : []);
+                setClasses(list);
+                if (list.length > 0 && !classId) {
+                    setClassId(String(list[0].class_id));
+                }
+            })
+            .catch(() => { });
+    }, [user?.id]);
 
     const showToast = (type: 'success' | 'danger', msg: string) => {
         setToast({ type, msg }); setTimeout(() => setToast(null), 4000);
