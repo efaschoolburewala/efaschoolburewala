@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
@@ -34,8 +35,13 @@ export default function StaffAttendanceSettingsPage() {
     const { user } = useAuth();
     const token = user?.token;
 
+    const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [savingSettings, setSavingSettings] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const [settings, setSettings] = useState<AttendanceSettings>({
         id: 1,
@@ -424,103 +430,107 @@ export default function StaffAttendanceSettingsPage() {
             </div>
 
             {/* Add Holiday Modal */}
-            {showHolidayModal && (
-                <>
+            {showHolidayModal && mounted && createPortal(
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99990, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div
-                        className="modal-backdrop fade show"
-                        style={{ zIndex: 2040, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)' }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.65)',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 99991
+                        }}
                         onClick={() => setShowHolidayModal(false)}
                     />
-                    <div className="modal show d-block" tabIndex={-1} style={{ zIndex: 2050 }}>
-                        <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
-                            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                                <div className="modal-header border-0 py-3 px-4" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
-                                    <h5 className="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
-                                        <i className="bi bi-calendar-plus text-warning" />
-                                        Add Staff Holiday / Off-Day
-                                    </h5>
-                                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowHolidayModal(false)} />
-                                </div>
+                    <div className="modal-dialog modal-dialog-centered" style={{ position: 'relative', zIndex: 99995, maxWidth: 480, width: '90vw', margin: 'auto' }}>
+                        <div className="modal-content border-0 shadow-2xl rounded-4 overflow-hidden bg-white">
+                            <div className="modal-header border-0 py-3 px-4 text-white" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                                <h5 className="modal-title fw-bold text-white mb-0 d-flex align-items-center gap-2">
+                                    <i className="bi bi-calendar-plus text-warning" />
+                                    Add Staff Holiday / Off-Day
+                                </h5>
+                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowHolidayModal(false)} />
+                            </div>
 
-                                <form onSubmit={handleAddHoliday}>
-                                    <div className="modal-body p-4">
-                                        <div className="mb-3">
-                                            <label className="form-label fw-bold small text-secondary">Holiday Title <span className="text-danger">*</span></label>
+                            <form onSubmit={handleAddHoliday}>
+                                <div className="modal-body p-4">
+                                    <div className="mb-3">
+                                        <label className="form-label fw-bold small text-secondary">Holiday Title <span className="text-danger">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="form-control fw-bold"
+                                            placeholder="e.g. Staff Development Day, Independence Day"
+                                            value={holidayTitle}
+                                            onChange={e => setHolidayTitle(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="row g-2 mb-3">
+                                        <div className="col-6">
+                                            <label className="form-label fw-bold small text-secondary">Start Date <span className="text-danger">*</span></label>
                                             <input
-                                                type="text"
+                                                type="date"
                                                 className="form-control fw-bold"
-                                                placeholder="e.g. Staff Development Day, Independence Day"
-                                                value={holidayTitle}
-                                                onChange={e => setHolidayTitle(e.target.value)}
+                                                value={holidayStartDate}
+                                                onChange={e => setHolidayStartDate(e.target.value)}
                                                 required
                                             />
                                         </div>
-
-                                        <div className="row g-2 mb-3">
-                                            <div className="col-6">
-                                                <label className="form-label fw-bold small text-secondary">Start Date <span className="text-danger">*</span></label>
-                                                <input
-                                                    type="date"
-                                                    className="form-control fw-bold"
-                                                    value={holidayStartDate}
-                                                    onChange={e => setHolidayStartDate(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="col-6">
-                                                <label className="form-label fw-bold small text-secondary">End Date (Optional)</label>
-                                                <input
-                                                    type="date"
-                                                    className="form-control fw-bold"
-                                                    value={holidayEndDate}
-                                                    onChange={e => setHolidayEndDate(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="mb-3">
-                                            <label className="form-label fw-bold small text-secondary">Description / Notice</label>
-                                            <textarea
-                                                className="form-control"
-                                                rows={2}
-                                                placeholder="Optional notice for staff"
-                                                value={holidayDesc}
-                                                onChange={e => setHolidayDesc(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="form-check form-switch mb-2">
+                                        <div className="col-6">
+                                            <label className="form-label fw-bold small text-secondary">End Date (Optional)</label>
                                             <input
-                                                className="form-check-input"
-                                                type="checkbox"
-                                                id="staffHolidayBroadcastCheck"
-                                                checked={holidayBroadcast}
-                                                onChange={e => setHolidayBroadcast(e.target.checked)}
+                                                type="date"
+                                                className="form-control fw-bold"
+                                                value={holidayEndDate}
+                                                onChange={e => setHolidayEndDate(e.target.value)}
                                             />
-                                            <label className="form-check-label fw-semibold text-dark small" htmlFor="staffHolidayBroadcastCheck">
-                                                Send broadcast alert to staff portal &amp; mobile app
-                                            </label>
                                         </div>
                                     </div>
 
-                                    <div className="modal-footer border-top bg-light py-2.5 px-4">
-                                        <button type="button" className="btn btn-secondary px-3 py-2 fw-bold rounded-3" onClick={() => setShowHolidayModal(false)}>
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="btn text-white px-4 py-2 fw-bold rounded-3 shadow-sm"
-                                            style={{ background: 'var(--accent-orange)', border: 'none' }}
-                                            disabled={savingHoliday}
-                                        >
-                                            {savingHoliday ? 'Saving...' : 'Create Holiday'}
-                                        </button>
+                                    <div className="mb-3">
+                                        <label className="form-label fw-bold small text-secondary">Description / Notice</label>
+                                        <textarea
+                                            className="form-control"
+                                            rows={2}
+                                            placeholder="Optional notice for staff"
+                                            value={holidayDesc}
+                                            onChange={e => setHolidayDesc(e.target.value)}
+                                        />
                                     </div>
-                                </form>
-                            </div>
+
+                                    <div className="form-check form-switch mb-2">
+                                        <input
+                                            className="form-check-input cursor-pointer"
+                                            type="checkbox"
+                                            id="staffHolidayBroadcastCheck"
+                                            checked={holidayBroadcast}
+                                            onChange={e => setHolidayBroadcast(e.target.checked)}
+                                        />
+                                        <label className="form-check-label fw-semibold text-dark small cursor-pointer ms-1" htmlFor="staffHolidayBroadcastCheck">
+                                            Send broadcast alert to staff portal &amp; mobile app
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="modal-footer border-top bg-light py-2.5 px-4">
+                                    <button type="button" className="btn btn-secondary px-3 py-2 fw-bold rounded-3" onClick={() => setShowHolidayModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn text-white px-4 py-2 fw-bold rounded-3 shadow-sm"
+                                        style={{ background: 'var(--accent-orange)', border: 'none' }}
+                                        disabled={savingHoliday}
+                                    >
+                                        {savingHoliday ? 'Saving...' : 'Create Holiday'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                </>
+                </div>,
+                document.body
             )}
 
             <style jsx>{`
