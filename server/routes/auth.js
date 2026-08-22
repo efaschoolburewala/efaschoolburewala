@@ -526,19 +526,35 @@ router.get('/webauthn/register-options', async (req, res) => {
     }
 });
 
-// Cosine similarity between two feature vectors
+// High-Assurance Zero-Mean Pearson Correlation Biometric Similarity
 function computeBiometricSimilarity(v1, v2) {
     if (!v1 || !v2 || !Array.isArray(v1) || !Array.isArray(v2) || v1.length === 0 || v1.length !== v2.length) return 0;
-    let dot = 0;
-    let norm1 = 0;
-    let norm2 = 0;
-    for (let i = 0; i < v1.length; i++) {
-        dot += v1[i] * v2[i];
-        norm1 += v1[i] * v1[i];
-        norm2 += v2[i] * v2[i];
+    
+    const n = v1.length;
+    let sum1 = 0, sum2 = 0;
+    for (let i = 0; i < n; i++) {
+        sum1 += v1[i];
+        sum2 += v2[i];
     }
-    const denom = Math.sqrt(norm1) * Math.sqrt(norm2);
-    return denom ? (dot / denom) : 0;
+    const mean1 = sum1 / n;
+    const mean2 = sum2 / n;
+
+    let numerator = 0;
+    let var1 = 0;
+    let var2 = 0;
+    for (let i = 0; i < n; i++) {
+        const diff1 = v1[i] - mean1;
+        const diff2 = v2[i] - mean2;
+        numerator += diff1 * diff2;
+        var1 += diff1 * diff1;
+        var2 += diff2 * diff2;
+    }
+
+    const denom = Math.sqrt(var1) * Math.sqrt(var2);
+    if (!denom || denom === 0) return 0;
+
+    const correlation = numerator / denom;
+    return Math.max(0, correlation);
 }
 
 // POST /auth/webauthn/register-verify - Save enrolled biometric credential
@@ -713,10 +729,10 @@ router.post('/webauthn/login-verify', async (req, res) => {
             const similarity = computeBiometricSimilarity(credential.face_descriptor, storedDescriptor);
             console.log(`[Biometric Auth] Face matching score for @${user.username}: ${(similarity * 100).toFixed(2)}%`);
 
-            // Threshold: 0.82 (82% biometric similarity required)
-            if (similarity < 0.82) {
+            // Strict Pearson Correlation Threshold: 0.70 (70.0% correlation on 256-D LBP-HOG vector)
+            if (similarity < 0.70) {
                 return res.status(401).json({ 
-                    error: `Facial / Eye Retina scan does not match the registered user profile (Match Score: ${(similarity * 100).toFixed(1)}%). Access denied.` 
+                    error: `Facial / Eye Retina scan does not match the registered user profile (Biometric Match: ${(similarity * 100).toFixed(1)}%, Minimum 70.0% Required). Access denied.` 
                 });
             }
         }

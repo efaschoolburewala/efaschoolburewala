@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AnimatedBackground from '@/components/AnimatedBackground';
 
+import { 
+    extractFaceDescriptor, 
+    captureMultiFrameDescriptor, 
+    getCurrentHost, 
+    base64UrlToBuffer, 
+    bufferToBase64Url 
+} from '@/utils/biometrics';
+
 export default function LoginPage() {
     const { login, loginWithUserData, isLoggedIn, isLoading } = useAuth();
     const router = useRouter();
@@ -20,78 +28,6 @@ export default function LoginPage() {
     const [loginCameraStream, setLoginCameraStream] = useState<MediaStream | null>(null);
     const [cameraScanning, setCameraScanning] = useState(false);
     const loginVideoRef = useRef<HTMLVideoElement | null>(null);
-
-    // Helper functions for WebAuthn Base64URL encoding/decoding
-    function base64UrlToBuffer(base64url: string): ArrayBuffer {
-        const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-        const padLen = (4 - (base64.length % 4)) % 4;
-        const padded = base64 + '='.repeat(padLen);
-        const binary = atob(padded);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        return bytes.buffer;
-    }
-
-    function bufferToBase64Url(buffer: ArrayBuffer): string {
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    const getCurrentHost = () => {
-        if (typeof window !== 'undefined' && window.location.hostname) {
-            const host = window.location.hostname.toLowerCase();
-            if (host !== '' && host !== 'null') {
-                return host;
-            }
-        }
-        return 'localhost';
-    };
-
-    // Helper function to extract 64-dimensional facial/retina feature vector from video feed
-    function extractBiometricVector(video: HTMLVideoElement | null): number[] {
-        if (!video) return [];
-        try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return [];
-            const vw = video.videoWidth || 640;
-            const vh = video.videoHeight || 480;
-            const cropSize = Math.min(vw, vh) * 0.7;
-            const sx = (vw - cropSize) / 2;
-            const sy = (vh - cropSize) / 2;
-            ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 64, 64);
-            const imgData = ctx.getImageData(0, 0, 64, 64);
-            const data = imgData.data;
-            const features: number[] = [];
-            for (let by = 0; by < 8; by++) {
-                for (let bx = 0; bx < 8; bx++) {
-                    let sum = 0;
-                    let count = 0;
-                    for (let y = by * 8; y < (by + 1) * 8; y++) {
-                        for (let x = bx * 8; x < (bx + 1) * 8; x++) {
-                            const idx = (y * 64 + x) * 4;
-                            const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                            sum += lum;
-                            count++;
-                        }
-                    }
-                    features.push(sum / count);
-                }
-            }
-            const norm = Math.sqrt(features.reduce((acc, val) => acc + val * val, 0)) || 1;
-            return features.map(v => v / norm);
-        } catch (e) {
-            return [];
-        }
-    }
 
     const handleStartCameraRetinaLogin = async () => {
         setShowLoginCameraModal(true);
@@ -138,10 +74,10 @@ export default function LoginPage() {
 
             const { challengeId, options } = optData;
 
-            // Extract Live Face/Retina Descriptor from camera stream
-            const liveVector = extractBiometricVector(loginVideoRef.current);
+            // Extract multi-frame 256-D LBP-HOG descriptor from live camera stream
+            const liveVector = await captureMultiFrameDescriptor(loginVideoRef.current, 3);
             if (!liveVector || liveVector.length === 0) {
-                throw new Error('Please ensure your face is clearly visible inside the camera frame.');
+                throw new Error('Please ensure your face is clearly centered inside the circular scanner frame.');
             }
 
             const clientDataJsonBase64 = btoa(unescape(encodeURIComponent(JSON.stringify({ type: 'webauthn.get', challenge: options.challenge }))));

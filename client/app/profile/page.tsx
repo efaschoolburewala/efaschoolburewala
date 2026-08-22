@@ -7,27 +7,13 @@ import { toast } from 'react-toastify';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// WebAuthn encoding helpers
-function base64UrlToBuffer(base64url: string): ArrayBuffer {
-    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-    const padLen = (4 - (base64.length % 4)) % 4;
-    const padded = base64 + '='.repeat(padLen);
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
-function bufferToBase64Url(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+import { 
+    extractFaceDescriptor, 
+    captureMultiFrameDescriptor, 
+    getCurrentHost, 
+    base64UrlToBuffer, 
+    bufferToBase64Url 
+} from '@/utils/biometrics';
 
 interface BiometricItem {
     id: number;
@@ -191,17 +177,6 @@ export default function ProfilePage() {
         }
     };
 
-    // Dynamic Hostname getter for standard WebAuthn compliance
-    const getCurrentHost = () => {
-        if (typeof window !== 'undefined' && window.location.hostname) {
-            const host = window.location.hostname.toLowerCase();
-            if (host !== '' && host !== 'null') {
-                return host;
-            }
-        }
-        return 'localhost';
-    };
-
     // Register Fingerprint / WebAuthn Biometric
     const handleRegisterFingerprint = async () => {
         if (typeof window === 'undefined') return;
@@ -277,45 +252,6 @@ export default function ProfilePage() {
         }
     };
 
-    function extractBiometricVector(video: HTMLVideoElement | null): number[] {
-        if (!video) return [];
-        try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return [];
-            const vw = video.videoWidth || 640;
-            const vh = video.videoHeight || 480;
-            const cropSize = Math.min(vw, vh) * 0.7;
-            const sx = (vw - cropSize) / 2;
-            const sy = (vh - cropSize) / 2;
-            ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 64, 64);
-            const imgData = ctx.getImageData(0, 0, 64, 64);
-            const data = imgData.data;
-            const features: number[] = [];
-            for (let by = 0; by < 8; by++) {
-                for (let bx = 0; bx < 8; bx++) {
-                    let sum = 0;
-                    let count = 0;
-                    for (let y = by * 8; y < (by + 1) * 8; y++) {
-                        for (let x = bx * 8; x < (bx + 1) * 8; x++) {
-                            const idx = (y * 64 + x) * 4;
-                            const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                            sum += lum;
-                            count++;
-                        }
-                    }
-                    features.push(sum / count);
-                }
-            }
-            const norm = Math.sqrt(features.reduce((acc, val) => acc + val * val, 0)) || 1;
-            return features.map(v => v / norm);
-        } catch (e) {
-            return [];
-        }
-    }
-
     // Open Camera & Enroll Eye Retina / Face ID Biometric
     const handleStartRetinaScan = async () => {
         if (typeof window === 'undefined') return;
@@ -350,9 +286,11 @@ export default function ProfilePage() {
             if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
 
             const { challengeId, options } = data;
-            const faceVector = extractBiometricVector(videoRef.current);
+            
+            // Capture multi-frame 256-D LBP-HOG descriptor vector
+            const faceVector = await captureMultiFrameDescriptor(videoRef.current, 5);
             if (!faceVector || faceVector.length === 0) {
-                throw new Error('Could not capture facial landmarks. Please ensure your camera is on and face is visible.');
+                throw new Error('Could not detect face landmarks. Please align your face directly inside the circular camera frame.');
             }
 
             const clientDataJsonBase64 = btoa(unescape(encodeURIComponent(JSON.stringify({ type: 'webauthn.create', challenge: options.challenge }))));
