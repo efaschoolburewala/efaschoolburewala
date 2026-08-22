@@ -111,6 +111,24 @@ async function runEssentialMigrations() {
               AND (SELECT id FROM app_roles WHERE LOWER(role_name) = 'student' LIMIT 1) IS NOT NULL;
         `).catch(() => { });
 
+        // 4.4 Fee Heads Arrears & Line Items Migration
+        console.log("   → Checking fee_heads and slip_line_items columns...");
+        await client.query(`
+            ALTER TABLE fee_heads ADD COLUMN IF NOT EXISTS track_arrears BOOLEAN NOT NULL DEFAULT TRUE;
+            UPDATE fee_heads 
+            SET track_arrears = FALSE 
+            WHERE head_type = 'prev_balance' 
+               OR LOWER(head_name) LIKE '%tuition%' 
+               OR LOWER(head_name) LIKE '%family%';
+
+            ALTER TABLE slip_line_items 
+                ADD COLUMN IF NOT EXISTS is_carried_forward BOOLEAN NOT NULL DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS arrears_head_id INTEGER REFERENCES fee_heads(head_id) ON DELETE SET NULL,
+                ADD COLUMN IF NOT EXISTS source_slip_id INTEGER REFERENCES monthly_fee_slips(slip_id) ON DELETE SET NULL;
+
+            CREATE INDEX IF NOT EXISTS idx_sli_arrears ON slip_line_items(arrears_head_id, is_carried_forward);
+        `).catch((err) => { console.error("Error migrating fee_heads/slip_line_items:", err.message); });
+
 
 
         // 5. Student Academic Records (Promotion History Table)

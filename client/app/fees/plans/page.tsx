@@ -119,8 +119,14 @@ export default function FeePlansPage() {
         }
     };
 
-    const updateHeadAmount = (head_id: number, amount: string) => {
-        setForm(p => ({ ...p, heads: p.heads.map(h => h.head_id === head_id ? { ...h, amount } : h) }));
+    const updateHeadAmount = (head_id: number, val: string) => {
+        // Strict numeric validation (only positive digits and at most one decimal point)
+        let cleanVal = val.replace(/[^0-9.]/g, '');
+        const parts = cleanVal.split('.');
+        if (parts.length > 2) {
+            cleanVal = `${parts[0]}.${parts.slice(1).join('')}`;
+        }
+        setForm(p => ({ ...p, heads: p.heads.map(h => h.head_id === head_id ? { ...h, amount: cleanVal } : h) }));
     };
 
     const isTuitionHead = (name: string) => name.toLowerCase().includes('tuition');
@@ -410,11 +416,20 @@ export default function FeePlansPage() {
                                                                             </div>
                                                                         ) : (
                                                                             <div className="input-group input-group-sm">
-                                                                                <span className="input-group-text bg-light">PKR</span>
-                                                                                <input type="number" className="form-control" value={sel.amount} min="0"
-                                                                                    onKeyDown={e => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
+                                                                                <span className="input-group-text bg-light fw-bold small text-muted">PKR</span>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    className="form-control text-end fw-bold no-spinner"
+                                                                                    value={sel.amount}
+                                                                                    min="0"
+                                                                                    step="any"
+                                                                                    onKeyDown={e => ['e', 'E', '+', '-', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
+                                                                                    onWheel={e => (e.target as HTMLElement).blur()}
                                                                                     onChange={e => updateHeadAmount(head.head_id, e.target.value)}
-                                                                                    placeholder="0.00" onClick={e => e.stopPropagation()} />
+                                                                                    placeholder="0"
+                                                                                    onClick={e => e.stopPropagation()}
+                                                                                    style={{ fontSize: '0.9rem' }}
+                                                                                />
                                                                             </div>
                                                                         )
                                                                     )}
@@ -459,6 +474,17 @@ export default function FeePlansPage() {
                     </div>
                 </>
             )}
+
+            <style jsx>{`
+                .no-spinner::-webkit-outer-spin-button,
+                .no-spinner::-webkit-inner-spin-button {
+                    -webkit-appearance: none !important;
+                    margin: 0 !important;
+                }
+                .no-spinner[type=number] {
+                    -moz-appearance: textfield !important;
+                }
+            `}</style>
         </div>
     );
 }
