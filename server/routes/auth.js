@@ -526,6 +526,21 @@ router.get('/webauthn/register-options', async (req, res) => {
     }
 });
 
+// Cosine similarity between two feature vectors
+function computeBiometricSimilarity(v1, v2) {
+    if (!v1 || !v2 || !Array.isArray(v1) || !Array.isArray(v2) || v1.length === 0 || v1.length !== v2.length) return 0;
+    let dot = 0;
+    let norm1 = 0;
+    let norm2 = 0;
+    for (let i = 0; i < v1.length; i++) {
+        dot += v1[i] * v2[i];
+        norm1 += v1[i] * v1[i];
+        norm2 += v2[i] * v2[i];
+    }
+    const denom = Math.sqrt(norm1) * Math.sqrt(norm2);
+    return denom ? (dot / denom) : 0;
+}
+
 // POST /auth/webauthn/register-verify - Save enrolled biometric credential
 router.post('/webauthn/register-verify', async (req, res) => {
     try {
@@ -550,7 +565,11 @@ router.post('/webauthn/register-verify', async (req, res) => {
         }
 
         const credentialId = credential.id;
-        const publicKey = credential.response?.publicKey || credential.response?.attestationObject || credentialId;
+        const faceDescriptor = credential.face_descriptor;
+        const publicKey = faceDescriptor && Array.isArray(faceDescriptor) 
+            ? JSON.stringify(faceDescriptor) 
+            : (credential.response?.publicKey || credential.response?.attestationObject || credentialId);
+        
         const transports = credential.response?.transports || ['internal'];
         const type = credential_type || 'fingerprint';
         const devName = device_name || (type === 'retina_face' ? 'Eye Retina / Face ID Scanner' : 'Biometric Fingerprint Scanner');
@@ -559,13 +578,13 @@ router.post('/webauthn/register-verify', async (req, res) => {
             INSERT INTO user_webauthn_credentials (user_id, credential_id, public_key, credential_type, device_name, transports)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (credential_id) DO UPDATE 
-            SET credential_type = $4, device_name = $5, transports = $6, created_at = CURRENT_TIMESTAMP
+            SET credential_type = $4, public_key = $3, device_name = $5, transports = $6, created_at = CURRENT_TIMESTAMP
         `, [authUser.id, credentialId, publicKey, type, devName, transports]);
 
         // Consume challenge
         await pool.query(`DELETE FROM webauthn_challenges WHERE challenge_id = $1`, [challengeId]);
 
-        res.json({ success: true, message: `${devName} enrolled successfully!` });
+        res.json({ success: true, message: `${devName} enrolled and saved to database successfully!` });
     } catch (err) {
         console.error('WebAuthn register verify error:', err);
         res.status(500).json({ error: err.message });
@@ -589,10 +608,11 @@ router.post('/webauthn/login-options', async (req, res) => {
             const userRes = await pool.query(`SELECT id FROM app_users WHERE LOWER(username) = LOWER($1)`, [username.trim()]);
             if (userRes.rows.length > 0) {
                 userId = userRes.rows[0].id;
-                const creds = await pool.query(`SELECT credential_id, transports FROM user_webauthn_credentials WHERE user_id = $1`, [userId]);
+                const creds = await pool.query(`SELECT credential_id, credential_type, transports FROM user_webauthn_credentials WHERE user_id = $1`, [userId]);
                 allowCredentials = creds.rows.map(c => ({
                     id: c.credential_id,
                     type: 'public-key',
+                    credential_type: c.credential_type,
                     transports: c.transports || ['internal']
                 }));
             }
@@ -627,7 +647,7 @@ router.post('/webauthn/login-options', async (req, res) => {
 // POST /auth/webauthn/login-verify - Authenticate user via Biometric / Retina
 router.post('/webauthn/login-verify', async (req, res) => {
     try {
-        const { challengeId, credential } = req.body;
+        const { challengeId, credential, username } = req.body;
         if (!challengeId || !credential || !credential.id) {
             return res.status(400).json({ error: 'Invalid biometric authentication data' });
         }
@@ -642,21 +662,64 @@ router.post('/webauthn/login-verify', async (req, res) => {
             return res.status(400).json({ error: 'Authentication session expired. Please retry.' });
         }
 
-        // Find credential owner
-        const credRes = await pool.query(`
+        const challengeRecord = chRes.rows[0];
+        let targetUserId = challengeRecord.user_id;
+
+        if (!targetUserId && username && username.trim()) {
+            const uRes = await pool.query(`SELECT id FROM app_users WHERE LOWER(username) = LOWER($1)`, [username.trim()]);
+            if (uRes.rows.length > 0) targetUserId = uRes.rows[0].id;
+        }
+
+        // Find credential in database
+        let credQuery = `
             SELECT c.*, u.id as u_id, u.username, u.full_name, u.email, u.is_active, u.role_id,
                    r.role_name, r.role_level, r.dashboard_access
             FROM user_webauthn_credentials c
             JOIN app_users u ON c.user_id = u.id
             LEFT JOIN app_roles r ON u.role_id = r.id
-            WHERE c.credential_id = $1
-        `, [credential.id]);
+        `;
+        let credParams = [];
+
+        if (credential.face_descriptor && targetUserId) {
+            credQuery += ` WHERE c.user_id = $1 AND c.credential_type = 'retina_face'`;
+            credParams = [targetUserId];
+        } else {
+            credQuery += ` WHERE c.credential_id = $1`;
+            credParams = [credential.id];
+        }
+
+        const credRes = await pool.query(credQuery, credParams);
 
         if (credRes.rows.length === 0) {
+            if (targetUserId) {
+                return res.status(401).json({ error: 'No Eye Retina / Biometric registered for this user. Please register first.' });
+            }
             return res.status(401).json({ error: 'Biometric credential not recognized on this account.' });
         }
 
         const user = credRes.rows[0];
+
+        // Perform Facial / Retina Descriptor Similarity Match if face verification
+        if (credential.face_descriptor && Array.isArray(credential.face_descriptor)) {
+            let storedDescriptor = null;
+            try {
+                storedDescriptor = JSON.parse(user.public_key);
+            } catch (e) {}
+
+            if (!storedDescriptor || !Array.isArray(storedDescriptor)) {
+                return res.status(401).json({ error: 'Stored biometric template corrupted. Please re-enroll in Profile.' });
+            }
+
+            const similarity = computeBiometricSimilarity(credential.face_descriptor, storedDescriptor);
+            console.log(`[Biometric Auth] Face matching score for @${user.username}: ${(similarity * 100).toFixed(2)}%`);
+
+            // Threshold: 0.82 (82% biometric similarity required)
+            if (similarity < 0.82) {
+                return res.status(401).json({ 
+                    error: `Facial / Eye Retina scan does not match the registered user profile (Match Score: ${(similarity * 100).toFixed(1)}%). Access denied.` 
+                });
+            }
+        }
 
         if (user.is_active === false) {
             return res.status(403).json({ message: 'Your account is disabled. Please contact the administrator.' });

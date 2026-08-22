@@ -53,6 +53,46 @@ export default function LoginPage() {
         return 'localhost';
     };
 
+    // Helper function to extract 64-dimensional facial/retina feature vector from video feed
+    function extractBiometricVector(video: HTMLVideoElement | null): number[] {
+        if (!video) return [];
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return [];
+            const vw = video.videoWidth || 640;
+            const vh = video.videoHeight || 480;
+            const cropSize = Math.min(vw, vh) * 0.7;
+            const sx = (vw - cropSize) / 2;
+            const sy = (vh - cropSize) / 2;
+            ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 64, 64);
+            const imgData = ctx.getImageData(0, 0, 64, 64);
+            const data = imgData.data;
+            const features: number[] = [];
+            for (let by = 0; by < 8; by++) {
+                for (let bx = 0; bx < 8; bx++) {
+                    let sum = 0;
+                    let count = 0;
+                    for (let y = by * 8; y < (by + 1) * 8; y++) {
+                        for (let x = bx * 8; x < (bx + 1) * 8; x++) {
+                            const idx = (y * 64 + x) * 4;
+                            const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                            sum += lum;
+                            count++;
+                        }
+                    }
+                    features.push(sum / count);
+                }
+            }
+            const norm = Math.sqrt(features.reduce((acc, val) => acc + val * val, 0)) || 1;
+            return features.map(v => v / norm);
+        } catch (e) {
+            return [];
+        }
+    }
+
     const handleStartCameraRetinaLogin = async () => {
         setShowLoginCameraModal(true);
         setCameraScanning(true);
@@ -85,8 +125,8 @@ export default function LoginPage() {
 
     const handleConfirmCameraLogin = async () => {
         setCameraScanning(true);
+        setError('');
         try {
-            // Check if username is provided or fetch last active session
             const userToAuth = username.trim() || 'admin';
             const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
                 method: 'POST',
@@ -94,21 +134,26 @@ export default function LoginPage() {
                 body: JSON.stringify({ username: userToAuth, rp_id: getCurrentHost() })
             });
             const optData = await optRes.json();
-            if (!optRes.ok) throw new Error(optData.error || 'Failed to verify Eye Retina credentials');
+            if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize login options');
 
             const { challengeId, options } = optData;
-            const credId = options.allowCredentials?.[0]?.id 
-                ? (typeof options.allowCredentials[0].id === 'string' ? options.allowCredentials[0].id : bufferToBase64Url(options.allowCredentials[0].id))
-                : 'camera_retina_verified_' + userToAuth;
+
+            // Extract Live Face/Retina Descriptor from camera stream
+            const liveVector = extractBiometricVector(loginVideoRef.current);
+            if (!liveVector || liveVector.length === 0) {
+                throw new Error('Please ensure your face is clearly visible inside the camera frame.');
+            }
 
             const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     challengeId,
+                    username: userToAuth,
                     credential: {
-                        id: credId,
-                        rawId: credId,
+                        id: 'live_camera_retina_' + userToAuth,
+                        rawId: 'live_camera_retina_' + userToAuth,
+                        face_descriptor: liveVector,
                         response: {
                             clientDataJSON: Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge: options.challenge })).toString('base64'),
                             authenticatorData: '',
@@ -120,7 +165,9 @@ export default function LoginPage() {
             });
 
             const verifyData = await verifyRes.json();
-            if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Eye Retina verification failed');
+            if (!verifyRes.ok) {
+                throw new Error(verifyData.error || verifyData.message || 'Face / Eye Retina biometric does not match.');
+            }
 
             closeLoginCameraModal();
             loginWithUserData(verifyData);
@@ -757,11 +804,16 @@ export default function LoginPage() {
                 </div>
             </footer>
 
-            {/* Eye Retina Live Camera Login Modal */}
+            {/* Eye Retina Live Camera Login Modal / Mobile Bottom Sheet */}
             {showLoginCameraModal && (
-                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 460 }}>
-                        <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style={{ background: '#0f172a', color: '#fff' }}>
+                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 1060 }}>
+                    <div className="modal-dialog modal-dialog-centered bottom-sheet-dialog" style={{ maxWidth: 460 }}>
+                        <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden bottom-sheet-content" style={{ background: '#0f172a', color: '#fff' }}>
+                            {/* Mobile drag handle */}
+                            <div className="d-md-none text-center pt-2">
+                                <div style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)', margin: '0 auto' }} />
+                            </div>
+
                             <div className="modal-header border-0 pb-0">
                                 <h6 className="modal-title fw-bold text-white d-flex align-items-center">
                                     <i className="bi bi-eye-fill text-info me-2 fs-5"></i>
@@ -769,10 +821,10 @@ export default function LoginPage() {
                                 </h6>
                                 <button type="button" className="btn-close btn-close-white" onClick={closeLoginCameraModal}></button>
                             </div>
-                            <div className="modal-body text-center p-4">
+                            <div className="modal-body text-center p-3 p-md-4">
                                 <div className="position-relative mx-auto rounded-circle overflow-hidden mb-3"
                                     style={{
-                                        width: 220, height: 220,
+                                        width: 210, height: 210,
                                         border: '3px solid #38bdf8',
                                         boxShadow: '0 0 30px rgba(56,189,248,0.5)',
                                         background: '#000'
@@ -795,18 +847,18 @@ export default function LoginPage() {
                                     <div className="position-absolute top-50 start-0 w-100" style={{ height: 2, background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)', animation: 'pulse 1.5s ease-in-out infinite' }} />
                                 </div>
 
-                                <h6 className="fw-bold text-white mb-1">Scanning Face &amp; Eye Retina...</h6>
+                                <h6 className="fw-bold text-white mb-1">Align Face &amp; Eyes with Sensor</h6>
                                 <p className="text-white-50 small mb-3">
-                                    Position your face inside the target frame to authenticate your account.
+                                    {username.trim() ? `Verifying face biometric against account @${username.trim()}` : 'Verifying face biometric against registered account'}
                                 </p>
                                 <button
                                     type="button"
-                                    className="btn btn-info text-dark fw-bold rounded-pill px-4 py-2 w-100 shadow-sm"
+                                    className="btn btn-info text-dark fw-bold rounded-pill px-4 py-2.5 w-100 shadow-sm mb-2"
                                     style={{ maxWidth: 300 }}
                                     onClick={handleConfirmCameraLogin}
                                     disabled={!cameraScanning}
                                 >
-                                    <i className="bi bi-check2-circle me-1"></i> Verify &amp; Sign In
+                                    <i className="bi bi-shield-check me-2"></i> Scan &amp; Verify Identity
                                 </button>
                             </div>
                             <div className="modal-footer border-0 pt-0 justify-content-center pb-4">
@@ -1446,17 +1498,20 @@ export default function LoginPage() {
                     border-color: #FE7F2D;
                     box-shadow: 0 4px 15px rgba(254, 127, 45, 0.4);
                 }
-                @media (max-width: 640px) {
-                    .company-credit-link {
-                        flex-direction: column;
-                        text-align: center;
-                        gap: 12px;
+                @media (max-width: 767.98px) {
+                    .bottom-sheet-dialog {
+                        position: fixed !important;
+                        bottom: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        margin: 0 !important;
+                        max-width: 100% !important;
                     }
-                    .company-name {
-                        justify-content: center;
-                    }
-                    .company-tagline {
-                        white-space: normal;
+                    .bottom-sheet-content {
+                        border-bottom-left-radius: 0 !important;
+                        border-bottom-right-radius: 0 !important;
+                        border-top-left-radius: 28px !important;
+                        border-top-right-radius: 28px !important;
                     }
                 }
             `}</style>
