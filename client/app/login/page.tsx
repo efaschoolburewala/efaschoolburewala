@@ -47,10 +47,11 @@ export default function LoginPage() {
         setBioLoggingIn(true);
         setError('');
         try {
+            const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
             const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: username.trim() || undefined })
+                body: JSON.stringify({ username: username.trim() || undefined, rp_id: currentHost })
             });
             const optData = await optRes.json();
             if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric login');
@@ -59,7 +60,7 @@ export default function LoginPage() {
             const getOptions: PublicKeyCredentialRequestOptions = {
                 challenge: base64UrlToBuffer(options.challenge),
                 timeout: options.timeout || 60000,
-                rpId: options.rpId,
+                rpId: currentHost,
                 userVerification: 'preferred',
                 allowCredentials: options.allowCredentials ? options.allowCredentials.map((c: any) => ({
                     id: base64UrlToBuffer(c.id),

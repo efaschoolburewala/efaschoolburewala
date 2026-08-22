@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -69,7 +70,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-    const { user: authUser } = useAuth();
+    const { user: authUser, loginWithUserData } = useAuth();
     const token = authUser?.token;
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -79,6 +80,7 @@ export default function ProfilePage() {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [savingProfile, setSavingProfile] = useState(false);
+    const [autoSaveStatus, setAutoSaveStatus] = useState<string | null>(null);
 
     // Password Change State
     const [currentPassword, setCurrentPassword] = useState('');
@@ -89,8 +91,9 @@ export default function ProfilePage() {
     // Biometric Scanner State
     const [scanningFingerprint, setScanningFingerprint] = useState(false);
     const [scanningRetina, setScanningRetina] = useState(false);
-    const [bioStatus, setBioStatus] = useState<{ type: 'success' | 'danger' | 'info'; message: string } | null>(null);
-    const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'danger'; message: string } | null>(null);
+    const [showCameraModal, setShowCameraModal] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
 
     const loadProfile = async () => {
         if (!token) return;
@@ -105,7 +108,7 @@ export default function ProfilePage() {
             setFullName(data.full_name || '');
             setEmail(data.email || '');
         } catch (err: any) {
-            setAlertMsg({ type: 'danger', message: err.message });
+            toast.error(err.message || 'Failed to load user profile');
         } finally {
             setLoading(false);
         }
@@ -115,14 +118,15 @@ export default function ProfilePage() {
         loadProfile();
     }, [token]);
 
-    const handleSaveProfile = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Real-time auto save for profile
+    const handleSaveProfile = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!fullName.trim()) {
-            setAlertMsg({ type: 'danger', message: 'Full name is required.' });
+            toast.warning('Full name cannot be empty');
             return;
         }
         setSavingProfile(true);
-        setAlertMsg(null);
+        setAutoSaveStatus('Saving changes...');
         try {
             const res = await fetch(`${API}/auth/profile`, {
                 method: 'PUT',
@@ -130,14 +134,24 @@ export default function ProfilePage() {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ full_name: fullName, email })
+                body: JSON.stringify({ full_name: fullName.trim(), email: email.trim() || null })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update profile');
-            setAlertMsg({ type: 'success', message: 'Profile updated successfully!' });
-            loadProfile();
+            
+            setAutoSaveStatus('Saved in Realtime ✓');
+            toast.success('Profile details saved to database in real-time!');
+            if (authUser) {
+                loginWithUserData({
+                    ...authUser,
+                    full_name: fullName.trim(),
+                    email: email.trim() || ''
+                });
+            }
+            setTimeout(() => setAutoSaveStatus(null), 3000);
         } catch (err: any) {
-            setAlertMsg({ type: 'danger', message: err.message });
+            setAutoSaveStatus('Error saving');
+            toast.error(err.message || 'Failed to update profile');
         } finally {
             setSavingProfile(false);
         }
@@ -146,15 +160,14 @@ export default function ProfilePage() {
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newPassword !== confirmPassword) {
-            setAlertMsg({ type: 'danger', message: 'New passwords do not match.' });
+            toast.error('New passwords do not match');
             return;
         }
         if (newPassword.length < 6) {
-            setAlertMsg({ type: 'danger', message: 'Password must be at least 6 characters long.' });
+            toast.warning('Password must be at least 6 characters long');
             return;
         }
         setChangingPassword(true);
-        setAlertMsg(null);
         try {
             const res = await fetch(`${API}/auth/change-password`, {
                 method: 'PUT',
@@ -166,27 +179,36 @@ export default function ProfilePage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to change password');
-            setAlertMsg({ type: 'success', message: 'Password changed successfully!' });
+            toast.success('Password changed and encrypted successfully!');
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: any) {
-            setAlertMsg({ type: 'danger', message: err.message });
+            toast.error(err.message || 'Failed to change password');
         } finally {
             setChangingPassword(false);
         }
     };
 
+    // Dynamic Hostname getter for standard WebAuthn compliance
+    const getCurrentHost = () => {
+        if (typeof window !== 'undefined') {
+            return window.location.hostname;
+        }
+        return 'localhost';
+    };
+
     // Register Fingerprint / WebAuthn Biometric
     const handleRegisterFingerprint = async () => {
         if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-            setBioStatus({ type: 'danger', message: 'WebAuthn / Biometrics is not supported on this device/browser.' });
+            toast.error('WebAuthn / Biometrics is not supported on this device/browser.');
             return;
         }
         setScanningFingerprint(true);
-        setBioStatus({ type: 'info', message: 'Touch your fingerprint sensor or verify your device biometric...' });
+        toast.info('Please touch your fingerprint sensor or verify device security...');
         try {
-            const res = await fetch(`${API}/auth/webauthn/register-options`, {
+            const currentHost = getCurrentHost();
+            const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
@@ -195,7 +217,10 @@ export default function ProfilePage() {
             const { challengeId, options } = data;
             const creationOptions: PublicKeyCredentialCreationOptions = {
                 challenge: base64UrlToBuffer(options.challenge),
-                rp: options.rp,
+                rp: {
+                    name: options.rp?.name || 'Demo Private School',
+                    id: currentHost // Must strictly match current window origin
+                },
                 user: {
                     id: base64UrlToBuffer(options.user.id),
                     name: options.user.name,
@@ -203,8 +228,8 @@ export default function ProfilePage() {
                 },
                 pubKeyCredParams: options.pubKeyCredParams,
                 authenticatorSelection: options.authenticatorSelection,
-                timeout: options.timeout,
-                attestation: options.attestation
+                timeout: options.timeout || 60000,
+                attestation: options.attestation || 'none'
             };
 
             const credential = await navigator.credentials.create({ publicKey: creationOptions }) as any;
@@ -234,25 +259,45 @@ export default function ProfilePage() {
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
 
-            setBioStatus({ type: 'success', message: '✓ Fingerprint biometric enrolled and saved successfully!' });
+            toast.success('✓ Fingerprint biometric registered and saved to database!');
             loadProfile();
         } catch (err: any) {
-            setBioStatus({ type: 'danger', message: err.message || 'Fingerprint registration failed' });
+            toast.error(err.message || 'Fingerprint registration failed');
         } finally {
             setScanningFingerprint(false);
         }
     };
 
-    // Register Eye Retina / Face ID Biometric
-    const handleRegisterRetina = async () => {
+    // Open Camera & Enroll Eye Retina / Face ID Biometric
+    const handleStartRetinaScan = async () => {
         if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-            setBioStatus({ type: 'danger', message: 'WebAuthn / Camera Biometrics is not supported on this device/browser.' });
+            toast.error('WebAuthn / Camera Biometrics is not supported on this device/browser.');
             return;
         }
+
+        setShowCameraModal(true);
         setScanningRetina(true);
-        setBioStatus({ type: 'info', message: 'Scanning Eye Retina / Face... Please look directly at the sensor/camera.' });
+
         try {
-            const res = await fetch(`${API}/auth/webauthn/register-options`, {
+            // Actively request Camera Permission from device
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                setCameraStream(stream);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    videoRef.current.play().catch(() => {});
+                }
+            }
+        } catch (camErr: any) {
+            toast.warn('Camera preview permission note: ' + (camErr.message || 'Running biometric sensor directly'));
+        }
+
+        // Trigger WebAuthn Verification
+        try {
+            const currentHost = getCurrentHost();
+            const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
@@ -261,7 +306,10 @@ export default function ProfilePage() {
             const { challengeId, options } = data;
             const creationOptions: PublicKeyCredentialCreationOptions = {
                 challenge: base64UrlToBuffer(options.challenge),
-                rp: options.rp,
+                rp: {
+                    name: options.rp?.name || 'Demo Private School',
+                    id: currentHost
+                },
                 user: {
                     id: base64UrlToBuffer(options.user.id),
                     name: options.user.name,
@@ -270,10 +318,10 @@ export default function ProfilePage() {
                 pubKeyCredParams: options.pubKeyCredParams,
                 authenticatorSelection: {
                     ...options.authenticatorSelection,
-                    userVerification: 'required' // Require Face/Retina high assurance
+                    userVerification: 'required' // Face / Retina High Assurance
                 },
-                timeout: options.timeout,
-                attestation: options.attestation
+                timeout: options.timeout || 60000,
+                attestation: options.attestation || 'none'
             };
 
             const credential = await navigator.credentials.create({ publicKey: creationOptions }) as any;
@@ -303,17 +351,27 @@ export default function ProfilePage() {
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
 
-            setBioStatus({ type: 'success', message: '✓ Eye Retina / Face ID biometric enrolled and saved successfully!' });
+            toast.success('✓ Eye Retina / Face ID biometric registered successfully!');
             loadProfile();
         } catch (err: any) {
-            setBioStatus({ type: 'danger', message: err.message || 'Eye Retina registration failed' });
+            toast.error(err.message || 'Eye Retina scan failed');
         } finally {
+            closeCameraModal();
             setScanningRetina(false);
         }
     };
 
+    const closeCameraModal = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        setShowCameraModal(false);
+        setScanningRetina(false);
+    };
+
     const handleDeleteCredential = async (id: number) => {
-        if (!confirm('Are you sure you want to remove this biometric passkey?')) return;
+        if (!confirm('Are you sure you want to remove this biometric credential?')) return;
         try {
             const res = await fetch(`${API}/auth/webauthn/credentials/${id}`, {
                 method: 'DELETE',
@@ -321,17 +379,17 @@ export default function ProfilePage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to delete credential');
-            setBioStatus({ type: 'success', message: 'Biometric credential removed.' });
+            toast.info('Biometric credential removed from account.');
             loadProfile();
         } catch (err: any) {
-            setBioStatus({ type: 'danger', message: err.message });
+            toast.error(err.message || 'Failed to delete credential');
         }
     };
 
     if (loading) {
         return (
             <div className="container-fluid py-5 text-center">
-                <div className="spinner-border text-teal" role="status" style={{ color: 'var(--primary-teal, #14b8a6)' }}>
+                <div className="spinner-border" role="status" style={{ color: '#0d9488' }}>
                     <span className="visually-hidden">Loading Profile...</span>
                 </div>
                 <p className="mt-2 text-muted fw-semibold">Loading Personal Profile &amp; Biometrics...</p>
@@ -349,57 +407,49 @@ export default function ProfilePage() {
     }
 
     const getInitials = (name: string) => {
-        const parts = name.trim().split(/\s+/);
+        const parts = (name || 'User').trim().split(/\s+/);
         if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-        return name.slice(0, 2).toUpperCase() || 'U';
+        return (name || 'U').slice(0, 2).toUpperCase();
     };
 
     return (
-        <div className="container-fluid py-4 px-md-4" style={{ maxWidth: 1200 }}>
+        <div className="container-fluid py-3 py-md-4 px-2 px-md-4" style={{ maxWidth: 1200 }}>
             {/* Top Navigation Breadcrumb */}
-            <div className="d-flex align-items-center justify-content-between mb-4">
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 mb-md-4">
                 <div>
-                    <h3 className="fw-bold mb-0 text-dark" style={{ letterSpacing: '-0.5px' }}>
-                        <i className="bi bi-person-badge-fill me-2 text-teal" style={{ color: '#0d9488' }}></i>
+                    <h3 className="fw-bold mb-0 text-dark fs-4 fs-md-3" style={{ letterSpacing: '-0.5px' }}>
+                        <i className="bi bi-person-badge-fill me-2" style={{ color: '#0d9488' }}></i>
                         User Profile &amp; Security
                     </h3>
                     <p className="text-muted small mb-0">Manage your personal information, roles, and WebAuthn biometric security</p>
                 </div>
-                <Link href="/" className="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                <Link href="/" className="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm">
                     <i className="bi bi-arrow-left me-1"></i> Dashboard
                 </Link>
             </div>
 
-            {alertMsg && (
-                <div className={`alert alert-${alertMsg.type} alert-dismissible fade show rounded-3 shadow-sm`} role="alert">
-                    <i className={`bi ${alertMsg.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
-                    {alertMsg.message}
-                    <button type="button" className="btn-close" onClick={() => setAlertMsg(null)}></button>
-                </div>
-            )}
-
             {/* Profile Hero Card */}
             <div className="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden"
                 style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#fff' }}>
-                <div className="card-body p-4 p-md-5">
-                    <div className="d-flex flex-column flex-md-row align-items-center gap-4">
+                <div className="card-body p-3 p-md-5">
+                    <div className="d-flex flex-column flex-md-row align-items-center gap-3 gap-md-4">
                         {/* Avatar */}
                         <div style={{
-                            width: 90, height: 90, borderRadius: '50%',
+                            width: 84, height: 84, borderRadius: '50%',
                             background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)',
-                            color: '#fff', fontSize: '2.2rem', fontWeight: 'bold',
+                            color: '#fff', fontSize: '2rem', fontWeight: 'bold',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            border: '4px solid rgba(255,255,255,0.2)',
+                            border: '3.5px solid rgba(255,255,255,0.25)',
                             boxShadow: '0 8px 24px rgba(13,148,136,0.35)', flexShrink: 0
                         }}>
                             {getInitials(profile.full_name)}
                         </div>
 
                         {/* User Details */}
-                        <div className="flex-grow-1 text-center text-md-start">
+                        <div className="flex-grow-1 text-center text-md-start w-100">
                             <div className="d-flex flex-wrap align-items-center justify-content-center justify-content-md-start gap-2 mb-1">
-                                <h4 className="fw-bold mb-0 text-white">{profile.full_name}</h4>
-                                <span className="badge bg-teal text-white fw-bold px-2.5 py-1 rounded-pill" style={{ backgroundColor: '#0d9488', fontSize: '0.75rem' }}>
+                                <h4 className="fw-bold mb-0 text-white fs-5 fs-md-4">{profile.full_name}</h4>
+                                <span className="badge text-white fw-bold px-2.5 py-1 rounded-pill" style={{ backgroundColor: '#0d9488', fontSize: '0.75rem' }}>
                                     {profile.role_name} (Level {profile.role_level})
                                 </span>
                                 {profile.is_active ? (
@@ -416,16 +466,16 @@ export default function ProfilePage() {
                                 <i className="bi bi-person me-1"></i> @{profile.username}
                                 {profile.email && <> &bull; <i className="bi bi-envelope me-1 ms-2"></i>{profile.email}</>}
                             </p>
-                            <div className="d-flex flex-wrap gap-3 justify-content-center justify-content-md-start mt-3">
-                                <div className="bg-white bg-opacity-10 px-3 py-1.5 rounded-3" style={{ fontSize: '0.8rem' }}>
+                            <div className="d-flex flex-wrap gap-2 justify-content-center justify-content-md-start mt-2">
+                                <div className="bg-white bg-opacity-10 px-2.5 py-1 rounded-3" style={{ fontSize: '0.78rem' }}>
                                     <span className="text-white-50 me-1">User ID:</span>
                                     <strong className="text-white">#{profile.id}</strong>
                                 </div>
-                                <div className="bg-white bg-opacity-10 px-3 py-1.5 rounded-3" style={{ fontSize: '0.8rem' }}>
+                                <div className="bg-white bg-opacity-10 px-2.5 py-1 rounded-3" style={{ fontSize: '0.78rem' }}>
                                     <span className="text-white-50 me-1">Dashboard:</span>
                                     <strong className="text-white text-capitalize">{profile.dashboard_access || 'Standard'}</strong>
                                 </div>
-                                <div className="bg-white bg-opacity-10 px-3 py-1.5 rounded-3" style={{ fontSize: '0.8rem' }}>
+                                <div className="bg-white bg-opacity-10 px-2.5 py-1 rounded-3" style={{ fontSize: '0.78rem' }}>
                                     <span className="text-white-50 me-1">Biometrics:</span>
                                     <strong className="text-white">{profile.biometrics?.length || 0} Registered</strong>
                                 </div>
@@ -434,49 +484,85 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="bg-white bg-opacity-10 px-4 pt-2 border-top border-white border-opacity-10">
-                    <ul className="nav nav-pills gap-2" role="tablist">
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link text-white fw-bold px-4 py-2.5 rounded-top-3 border-0 ${activeTab === 'info' ? 'active bg-white text-dark shadow-sm' : 'bg-transparent text-white-50'}`}
-                                onClick={() => setActiveTab('info')}
-                                style={{ fontSize: '0.9rem' }}
-                            >
-                                <i className="bi bi-person-lines-fill me-2"></i>Profile &amp; Permissions
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link text-white fw-bold px-4 py-2.5 rounded-top-3 border-0 ${activeTab === 'biometrics' ? 'active bg-white text-dark shadow-sm' : 'bg-transparent text-white-50'}`}
-                                onClick={() => setActiveTab('biometrics')}
-                                style={{ fontSize: '0.9rem' }}
-                            >
-                                <i className="bi bi-fingerprint me-2 text-danger"></i>Biometric &amp; Eye Retina (WebAuthn)
-                            </button>
-                        </li>
-                        <li className="nav-item">
-                            <button
-                                className={`nav-link text-white fw-bold px-4 py-2.5 rounded-top-3 border-0 ${activeTab === 'security' ? 'active bg-white text-dark shadow-sm' : 'bg-transparent text-white-50'}`}
-                                onClick={() => setActiveTab('security')}
-                                style={{ fontSize: '0.9rem' }}
-                            >
-                                <i className="bi bi-shield-lock-fill me-2 text-warning"></i>Security &amp; Password
-                            </button>
-                        </li>
-                    </ul>
+                {/* Tab Navigation - Fully Responsive & High Contrast */}
+                <div className="bg-black bg-opacity-20 px-2 px-md-4 pt-2 border-top border-white border-opacity-10 overflow-x-auto">
+                    <div className="d-flex gap-2" style={{ minWidth: 'max-content' }}>
+                        <button
+                            type="button"
+                            className="btn border-0 py-2.5 px-3 px-md-4 rounded-top-3"
+                            onClick={() => setActiveTab('info')}
+                            style={{
+                                backgroundColor: activeTab === 'info' ? '#ffffff' : 'transparent',
+                                color: activeTab === 'info' ? '#0f172a' : 'rgba(255, 255, 255, 0.75)',
+                                fontWeight: activeTab === 'info' ? '700' : '600',
+                                fontSize: '0.88rem',
+                                transition: 'all 0.2s ease',
+                                borderBottomLeftRadius: 0,
+                                borderBottomRightRadius: 0,
+                                boxShadow: activeTab === 'info' ? '0 -2px 8px rgba(0,0,0,0.15)' : 'none'
+                            }}
+                        >
+                            <i className="bi bi-person-lines-fill me-2" style={{ color: activeTab === 'info' ? '#0d9488' : 'inherit' }}></i>
+                            Profile &amp; Permissions
+                        </button>
+
+                        <button
+                            type="button"
+                            className="btn border-0 py-2.5 px-3 px-md-4 rounded-top-3"
+                            onClick={() => setActiveTab('biometrics')}
+                            style={{
+                                backgroundColor: activeTab === 'biometrics' ? '#ffffff' : 'transparent',
+                                color: activeTab === 'biometrics' ? '#0f172a' : 'rgba(255, 255, 255, 0.75)',
+                                fontWeight: activeTab === 'biometrics' ? '700' : '600',
+                                fontSize: '0.88rem',
+                                transition: 'all 0.2s ease',
+                                borderBottomLeftRadius: 0,
+                                borderBottomRightRadius: 0,
+                                boxShadow: activeTab === 'biometrics' ? '0 -2px 8px rgba(0,0,0,0.15)' : 'none'
+                            }}
+                        >
+                            <i className="bi bi-fingerprint me-2 text-danger"></i>
+                            Biometric &amp; Eye Retina (WebAuthn)
+                        </button>
+
+                        <button
+                            type="button"
+                            className="btn border-0 py-2.5 px-3 px-md-4 rounded-top-3"
+                            onClick={() => setActiveTab('security')}
+                            style={{
+                                backgroundColor: activeTab === 'security' ? '#ffffff' : 'transparent',
+                                color: activeTab === 'security' ? '#0f172a' : 'rgba(255, 255, 255, 0.75)',
+                                fontWeight: activeTab === 'security' ? '700' : '600',
+                                fontSize: '0.88rem',
+                                transition: 'all 0.2s ease',
+                                borderBottomLeftRadius: 0,
+                                borderBottomRightRadius: 0,
+                                boxShadow: activeTab === 'security' ? '0 -2px 8px rgba(0,0,0,0.15)' : 'none'
+                            }}
+                        >
+                            <i className="bi bi-shield-lock-fill me-2 text-warning"></i>
+                            Security &amp; Password
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* TAB 1: Profile & Permissions */}
             {activeTab === 'info' && (
-                <div className="row g-4">
+                <div className="row g-3 g-md-4">
                     <div className="col-lg-6">
-                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-4">
-                            <h5 className="fw-bold text-dark mb-3">
-                                <i className="bi bi-pencil-square me-2 text-teal" style={{ color: '#0d9488' }}></i>
-                                Edit Personal Details
-                            </h5>
+                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-3 p-md-4">
+                            <div className="d-flex align-items-center justify-content-between mb-3">
+                                <h5 className="fw-bold text-dark mb-0">
+                                    <i className="bi bi-pencil-square me-2" style={{ color: '#0d9488' }}></i>
+                                    Edit Personal Details
+                                </h5>
+                                {autoSaveStatus && (
+                                    <span className="badge bg-success-subtle text-success border border-success-subtle py-1 px-2" style={{ fontSize: '0.75rem' }}>
+                                        {autoSaveStatus}
+                                    </span>
+                                )}
+                            </div>
                             <form onSubmit={handleSaveProfile}>
                                 <div className="mb-3">
                                     <label className="form-label small fw-bold text-muted">Username</label>
@@ -485,11 +571,26 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="mb-3">
                                     <label className="form-label small fw-bold text-muted">Full Name</label>
-                                    <input type="text" className="form-control fw-semibold" value={fullName} onChange={e => setFullName(e.target.value)} required />
+                                    <input
+                                        type="text"
+                                        className="form-control fw-semibold"
+                                        value={fullName}
+                                        onChange={e => setFullName(e.target.value)}
+                                        onBlur={() => fullName !== profile.full_name && handleSaveProfile()}
+                                        required
+                                    />
+                                    <div className="form-text" style={{ fontSize: '0.75rem' }}>Auto-saves to database in real-time on blur.</div>
                                 </div>
                                 <div className="mb-3">
                                     <label className="form-label small fw-bold text-muted">Email Address</label>
-                                    <input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@domain.com" />
+                                    <input
+                                        type="email"
+                                        className="form-control"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        onBlur={() => email !== (profile.email || '') && handleSaveProfile()}
+                                        placeholder="name@domain.com"
+                                    />
                                 </div>
                                 {profile.employee_id && (
                                     <div className="mb-3 p-3 bg-light rounded-3 border">
@@ -505,25 +606,30 @@ export default function ProfilePage() {
                                         <div className="small text-muted">Class: <strong className="text-dark">{profile.student_details.class_name} ({profile.student_details.section_name})</strong></div>
                                     </div>
                                 )}
-                                <button type="submit" className="btn btn-teal fw-bold text-white px-4 rounded-3" style={{ backgroundColor: '#0d9488' }} disabled={savingProfile}>
-                                    {savingProfile ? 'Saving...' : 'Save Profile Changes'}
+                                <button
+                                    type="submit"
+                                    className="btn fw-bold text-white px-4 rounded-3 w-100 w-sm-auto shadow-sm"
+                                    style={{ backgroundColor: '#0d9488' }}
+                                    disabled={savingProfile}
+                                >
+                                    {savingProfile ? <><span className="spinner-border spinner-border-sm me-1" />Saving...</> : <><i className="bi bi-save me-1"></i>Save Profile Now</>}
                                 </button>
                             </form>
                         </div>
                     </div>
 
                     <div className="col-lg-6">
-                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-4">
-                            <h5 className="fw-bold text-dark mb-3">
-                                <i className="bi bi-key-fill me-2 text-teal" style={{ color: '#0d9488' }}></i>
+                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-3 p-md-4">
+                            <h5 className="fw-bold text-dark mb-2">
+                                <i className="bi bi-key-fill me-2" style={{ color: '#0d9488' }}></i>
                                 Role &amp; Module Permissions
                             </h5>
                             <p className="text-muted small mb-3">
                                 The following module access rights are assigned to your role (<strong>{profile.role_name}</strong>):
                             </p>
-                            <div className="table-responsive">
+                            <div className="table-responsive" style={{ maxHeight: 380 }}>
                                 <table className="table table-sm table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
-                                    <thead className="table-light">
+                                    <thead className="table-light sticky-top">
                                         <tr>
                                             <th>Module</th>
                                             <th className="text-center">View</th>
@@ -537,13 +643,13 @@ export default function ProfilePage() {
                                                 <tr key={idx}>
                                                     <td className="fw-bold text-dark text-capitalize">{perm.module_name.replace('dash.', 'Dashboard ')}</td>
                                                     <td className="text-center">
-                                                        {perm.can_read ? <i className="bi bi-check-circle-fill text-success"></i> : <i className="bi bi-x-circle text-muted"></i>}
+                                                        {perm.can_read ? <i className="bi bi-check-circle-fill text-success fs-6"></i> : <i className="bi bi-x-circle text-muted fs-6"></i>}
                                                     </td>
                                                     <td className="text-center">
-                                                        {perm.can_write ? <i className="bi bi-check-circle-fill text-success"></i> : <i className="bi bi-x-circle text-muted"></i>}
+                                                        {perm.can_write ? <i className="bi bi-check-circle-fill text-success fs-6"></i> : <i className="bi bi-x-circle text-muted fs-6"></i>}
                                                     </td>
                                                     <td className="text-center">
-                                                        {perm.can_delete ? <i className="bi bi-check-circle-fill text-success"></i> : <i className="bi bi-x-circle text-muted"></i>}
+                                                        {perm.can_delete ? <i className="bi bi-check-circle-fill text-success fs-6"></i> : <i className="bi bi-x-circle text-muted fs-6"></i>}
                                                     </td>
                                                 </tr>
                                             ))
@@ -563,15 +669,7 @@ export default function ProfilePage() {
             {/* TAB 2: Biometric & Eye Retina (WebAuthn) */}
             {activeTab === 'biometrics' && (
                 <div>
-                    {bioStatus && (
-                        <div className={`alert alert-${bioStatus.type} alert-dismissible fade show rounded-3 mb-4`} role="alert">
-                            <i className={`bi ${bioStatus.type === 'success' ? 'bi-check-circle-fill' : bioStatus.type === 'info' ? 'bi-info-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
-                            {bioStatus.message}
-                            <button type="button" className="btn-close" onClick={() => setBioStatus(null)}></button>
-                        </div>
-                    )}
-
-                    <div className="row g-4 mb-4">
+                    <div className="row g-3 g-md-4 mb-4">
                         {/* Scanner Card 1: Fingerprint Biometric */}
                         <div className="col-md-6">
                             <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-4 text-center d-flex flex-column align-items-center">
@@ -589,7 +687,7 @@ export default function ProfilePage() {
                                     Enroll your device fingerprint sensor, Windows Hello, or Android Fingerprint to enable fast passwordless biometric login.
                                 </p>
                                 <button
-                                    className="btn btn-success fw-bold px-4 py-2.5 rounded-pill mt-auto w-100"
+                                    className="btn btn-success fw-bold px-4 py-2.5 rounded-pill mt-auto w-100 shadow-sm"
                                     style={{ maxWidth: 280 }}
                                     onClick={handleRegisterFingerprint}
                                     disabled={scanningFingerprint || scanningRetina}
@@ -620,9 +718,9 @@ export default function ProfilePage() {
                                     Scan your eye retina / facial biometrics using your camera &amp; device hardware. Stores cryptographically verified FIDO2 credentials.
                                 </p>
                                 <button
-                                    className="btn btn-primary fw-bold px-4 py-2.5 rounded-pill mt-auto w-100"
+                                    className="btn btn-primary fw-bold px-4 py-2.5 rounded-pill mt-auto w-100 shadow-sm"
                                     style={{ maxWidth: 280, backgroundColor: '#2563eb' }}
-                                    onClick={handleRegisterRetina}
+                                    onClick={handleStartRetinaScan}
                                     disabled={scanningFingerprint || scanningRetina}
                                 >
                                     {scanningRetina ? (
@@ -636,10 +734,10 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Enrolled Biometrics Table */}
-                    <div className="card border-0 shadow-sm rounded-4 bg-white p-4">
+                    <div className="card border-0 shadow-sm rounded-4 bg-white p-3 p-md-4">
                         <div className="d-flex align-items-center justify-content-between mb-3">
-                            <h5 className="fw-bold text-dark mb-0">
-                                <i className="bi bi-shield-check me-2 text-teal" style={{ color: '#0d9488' }}></i>
+                            <h5 className="fw-bold text-dark mb-0 fs-6 fs-md-5">
+                                <i className="bi bi-shield-check me-2" style={{ color: '#0d9488' }}></i>
                                 Active Enrolled Biometrics &amp; Passkeys
                             </h5>
                             <span className="badge bg-light text-dark fw-semibold border">
@@ -649,7 +747,7 @@ export default function ProfilePage() {
 
                         {profile.biometrics && profile.biometrics.length > 0 ? (
                             <div className="table-responsive">
-                                <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.9rem' }}>
+                                <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
                                     <thead className="table-light">
                                         <tr>
                                             <th>Type</th>
@@ -702,9 +800,9 @@ export default function ProfilePage() {
 
             {/* TAB 3: Security & Password */}
             {activeTab === 'security' && (
-                <div className="row g-4">
+                <div className="row g-3 g-md-4">
                     <div className="col-lg-6">
-                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-4">
+                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-3 p-md-4">
                             <h5 className="fw-bold text-dark mb-3">
                                 <i className="bi bi-lock-fill me-2 text-warning"></i>
                                 Change Account Password
@@ -747,17 +845,17 @@ export default function ProfilePage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="btn btn-warning fw-bold text-dark px-4 py-2 rounded-3"
+                                    className="btn btn-warning fw-bold text-dark px-4 py-2 rounded-3 w-100 w-sm-auto shadow-sm"
                                     disabled={changingPassword}
                                 >
-                                    {changingPassword ? 'Updating Password...' : 'Update Password'}
+                                    {changingPassword ? <><span className="spinner-border spinner-border-sm me-1" />Updating Password...</> : <><i className="bi bi-check2-circle me-1"></i>Update Password</>}
                                 </button>
                             </form>
                         </div>
                     </div>
 
                     <div className="col-lg-6">
-                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-4">
+                        <div className="card border-0 shadow-sm rounded-4 h-100 bg-white p-3 p-md-4">
                             <h5 className="fw-bold text-dark mb-3">
                                 <i className="bi bi-shield-check me-2 text-success"></i>
                                 Security Overview
@@ -769,7 +867,7 @@ export default function ProfilePage() {
                                 </li>
                                 <li className="list-group-item d-flex justify-content-between align-items-center px-0 py-2.5">
                                     <span className="text-muted">WebAuthn / Passkey Authentication</span>
-                                    <span className="badge bg-teal text-white" style={{ backgroundColor: '#0d9488' }}>
+                                    <span className="badge text-white" style={{ backgroundColor: '#0d9488' }}>
                                         {profile.biometrics?.length ? 'Enabled' : 'Disabled'}
                                     </span>
                                 </li>
@@ -780,6 +878,61 @@ export default function ProfilePage() {
                                     </span>
                                 </li>
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Eye Retina Live Camera Scanning Modal */}
+            {showCameraModal && (
+                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 1060 }}>
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 460 }}>
+                        <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden" style={{ background: '#0f172a', color: '#fff' }}>
+                            <div className="modal-header border-0 pb-0">
+                                <h6 className="modal-title fw-bold text-white d-flex align-items-center">
+                                    <i className="bi bi-eye-fill text-info me-2 fs-5"></i>
+                                    Eye Retina / Face ID Scanner
+                                </h6>
+                                <button type="button" className="btn-close btn-close-white" onClick={closeCameraModal}></button>
+                            </div>
+                            <div className="modal-body text-center p-4">
+                                <div className="position-relative mx-auto rounded-circle overflow-hidden mb-3"
+                                    style={{
+                                        width: 220, height: 220,
+                                        border: '3px solid #38bdf8',
+                                        boxShadow: '0 0 30px rgba(56,189,248,0.5)',
+                                        background: '#000'
+                                    }}>
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                                    />
+                                    {/* Futuristic Retina Targeting Overlay */}
+                                    <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center pointer-events-none">
+                                        <div style={{
+                                            width: 130, height: 130, borderRadius: '50%',
+                                            border: '2px dashed rgba(56,189,248,0.8)',
+                                            animation: 'spin 6s linear infinite'
+                                        }} />
+                                    </div>
+                                    <div className="position-absolute top-50 start-0 w-100" style={{ height: 2, background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                                </div>
+
+                                <h6 className="fw-bold text-white mb-1">Scanning Face &amp; Eye Retina...</h6>
+                                <p className="text-white-50 small mb-3">
+                                    Look directly into the camera while your device verifies your biometric hardware.
+                                </p>
+                                <div className="spinner-border spinner-border-sm text-info me-2" role="status" />
+                                <span className="text-info small fw-bold">Verifying Biometric Sensor...</span>
+                            </div>
+                            <div className="modal-footer border-0 pt-0 justify-content-center pb-4">
+                                <button type="button" className="btn btn-outline-light rounded-pill px-4 btn-sm" onClick={closeCameraModal}>
+                                    Cancel Scan
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

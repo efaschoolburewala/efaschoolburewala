@@ -489,8 +489,10 @@ router.get('/webauthn/register-options', async (req, res) => {
             VALUES ($1, $2, $3, 'registration', $4)
         `, [challengeId, user.id, challenge, expiresAt]);
 
+        const clientRpId = req.query.rp_id ? req.query.rp_id.trim() : null;
         const rawHostname = req.hostname || 'localhost';
-        const rpId = rawHostname.includes(':') ? rawHostname.split(':')[0] : rawHostname;
+        const serverRpId = rawHostname.includes(':') ? rawHostname.split(':')[0] : rawHostname;
+        const rpId = clientRpId || serverRpId;
 
         res.json({
             challengeId,
@@ -573,7 +575,7 @@ router.post('/webauthn/register-verify', async (req, res) => {
 // POST /auth/webauthn/login-options - Generate challenge for biometric login
 router.post('/webauthn/login-options', async (req, res) => {
     try {
-        const { username } = req.body;
+        const { username, rp_id } = req.body;
         await pool.query(`DELETE FROM webauthn_challenges WHERE expires_at < CURRENT_TIMESTAMP`);
 
         const challenge = crypto.randomBytes(32).toString('base64url');
@@ -601,15 +603,17 @@ router.post('/webauthn/login-options', async (req, res) => {
             VALUES ($1, $2, $3, 'authentication', $4)
         `, [challengeId, userId, challenge, expiresAt]);
 
+        const clientRpId = rp_id ? rp_id.trim() : null;
         const rawHostname = req.hostname || 'localhost';
-        const rpId = rawHostname.includes(':') ? rawHostname.split(':')[0] : rawHostname;
+        const serverRpId = rawHostname.includes(':') ? rawHostname.split(':')[0] : rawHostname;
+        const finalRpId = clientRpId || serverRpId;
 
         res.json({
             challengeId,
             options: {
                 challenge,
                 timeout: 60000,
-                rpId,
+                rpId: finalRpId,
                 userVerification: 'preferred',
                 allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined
             }
