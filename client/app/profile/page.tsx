@@ -200,10 +200,18 @@ export default function ProfilePage() {
 
     // Register Fingerprint / WebAuthn Biometric
     const handleRegisterFingerprint = async () => {
-        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-            toast.error('WebAuthn / Biometrics is not supported on this device/browser.');
+        if (typeof window === 'undefined') return;
+
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            toast.error('Biometrics require a secure HTTPS connection. Please access via HTTPS (e.g. https://demo-private-school.vercel.app) or use the Android Mobile App.');
             return;
         }
+
+        if (!window.PublicKeyCredential) {
+            toast.error('WebAuthn / Biometrics is not accessible in this browser. Please use Chrome/Safari on HTTPS or the Mobile App.');
+            return;
+        }
+
         setScanningFingerprint(true);
         toast.info('Please touch your fingerprint sensor or verify device security...');
         try {
@@ -270,8 +278,15 @@ export default function ProfilePage() {
 
     // Open Camera & Enroll Eye Retina / Face ID Biometric
     const handleStartRetinaScan = async () => {
-        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-            toast.error('WebAuthn / Camera Biometrics is not supported on this device/browser.');
+        if (typeof window === 'undefined') return;
+
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            toast.error('Biometrics require a secure HTTPS connection. Please access via HTTPS or use the Android Mobile App.');
+            return;
+        }
+
+        if (!window.PublicKeyCredential) {
+            toast.error('WebAuthn / Camera Biometrics is not accessible in this browser.');
             return;
         }
 

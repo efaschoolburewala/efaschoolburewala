@@ -50,10 +50,19 @@ export default function LoginPage() {
     };
 
     const handleBiometricLogin = async () => {
-        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-            setError('Biometric / WebAuthn authentication is not supported on this browser/device.');
+        if (typeof window === 'undefined') return;
+
+        // Check Secure Context (HTTPS or localhost required for WebAuthn)
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            setError('Biometrics require a secure HTTPS connection. Please access the portal via HTTPS (e.g. https://demo-private-school.vercel.app) or use the installed Mobile App.');
             return;
         }
+
+        if (!window.PublicKeyCredential) {
+            setError('WebAuthn / Biometric hardware is not accessible in this browser. Please use Chrome/Safari on HTTPS or the Android Mobile App.');
+            return;
+        }
+
         setBioLoggingIn(true);
         setError('');
         try {
