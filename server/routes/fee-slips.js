@@ -196,7 +196,6 @@ router.post('/generate', async (req, res) => {
         }
 
         // ─── Group students by family_id to identify multi-member families ───
-        // Only use family_fee for families with 2+ active members (across all classes)
         const familyGroups = {}; // family_id → [students]
         const soloStudents = [];
         for (const student of studentsResult.rows) {
@@ -214,62 +213,96 @@ router.post('/generate', async (req, res) => {
         // ─── Find Previous Balance plan head (if any) ─────────────────────────
         const pbPlanHead = planHeads.rows.find(h => h.head_type === 'prev_balance');
 
-        // ─── Preload Previous Balance per family (OPB + pending old slip fees) ──
-        // Formula: OPB_remaining + SUM(outstanding from previous unpaid slips)
-        // Exclusions: prev_balance line items in old slips (avoid double count), admission fees
-        let familyPBMap = {}; // family_id → total previous balance amount
-        if (pbPlanHead) {
-            const allFamilyIds = [
-                ...Object.keys(familyGroups),
-                ...soloStudents.filter(s => s.family_id).map(s => s.family_id)
-            ].filter(Boolean); // keep as strings family_id is 'FAM-2026-XXXX' not integer
-            const uniqueFamilyIds = [...new Set(allFamilyIds)];
-            if (uniqueFamilyIds.length > 0) {
-                // 1. OPB remaining from families table
-                const opbRes = await client.query(
-                    `SELECT family_id,
-                            GREATEST(0, COALESCE(opening_balance,0) - COALESCE(opening_balance_paid,0)) AS opb_remaining
-                     FROM families WHERE family_id = ANY($1)`,
-                    [uniqueFamilyIds]
-                );
-                const opbMap = {};
-                for (const r of opbRes.rows) opbMap[r.family_id] = parseFloat(r.opb_remaining) || 0;
+        // ─── Preload Head-Wise Arrears per family / student ───────────────────
+        // 1. Pure Tuition Arrears + OPB -> familyPBMap
+        // 2. Cumulative Tracked Heads (Annual Fee, Exam Fee, Lab Fee, etc.) -> familyCumulativeMap
+        const allFamilyIds = [
+            ...Object.keys(familyGroups),
+            ...soloStudents.filter(s => s.family_id).map(s => s.family_id)
+        ].filter(Boolean);
+        const uniqueFamilyIds = [...new Set(allFamilyIds)];
 
-                // 2. Outstanding fees from all previous unpaid/partial slips
-                //    Strip prev_balance + admission fee line items to avoid double-counting
-                const pendingRes = await client.query(
-                    `SELECT mfs.family_id,
-                            COALESCE(SUM(GREATEST(0,
-                                mfs.total_amount
-                                - COALESCE(excl.excl_sum, 0)
-                                - mfs.paid_amount
-                            )), 0) AS pending_fees
-                     FROM monthly_fee_slips mfs
-                     LEFT JOIN (
-                         SELECT sli.slip_id, SUM(sli.amount) AS excl_sum
-                         FROM slip_line_items sli
-                         LEFT JOIN fee_heads fh ON fh.head_id = sli.head_id
-                         WHERE fh.head_type = 'prev_balance'
-                            OR sli.head_name ILIKE '%previous balance%'
-                            OR sli.head_name ILIKE '%opening balance%'
-                            OR fh.head_name  ILIKE '%admission%'
-                            OR sli.head_name ILIKE '%admission%'
-                         GROUP BY sli.slip_id
-                     ) excl ON excl.slip_id = mfs.slip_id
-                     WHERE mfs.family_id = ANY($1)
-                       AND mfs.status != 'paid'
-                       AND (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
-                     GROUP BY mfs.family_id`,
-                    [uniqueFamilyIds, year, month]
-                );
-                const pendingMap = {};
-                for (const r of pendingRes.rows) pendingMap[r.family_id] = parseFloat(r.pending_fees) || 0;
+        let familyPBMap = {}; // family_id → total pure tuition arrears + OPB
+        let familyCumulativeMap = {}; // family_id → [ { head_id, head_name, pending_amount } ]
 
-                // 3. Combine OPB + pending into familyPBMap
-                for (const fid of uniqueFamilyIds) {
-                    const total = (opbMap[fid] || 0) + (pendingMap[fid] || 0);
-                    if (total > 0) familyPBMap[fid] = total;
-                }
+        if (uniqueFamilyIds.length > 0) {
+            // 1. OPB remaining from families table
+            const opbRes = await client.query(
+                `SELECT family_id,
+                        GREATEST(0, COALESCE(opening_balance,0) - COALESCE(opening_balance_paid,0)) AS opb_remaining
+                 FROM families WHERE family_id = ANY($1)`,
+                [uniqueFamilyIds]
+            );
+            const opbMap = {};
+            for (const r of opbRes.rows) opbMap[r.family_id] = parseFloat(r.opb_remaining) || 0;
+
+            // 2. Pure Tuition Arrears from previous unpaid/partial slips within session
+            // Only look at lines that are tuition/family monthly fee or non-tracked regular lines
+            const tuitionPendingRes = await client.query(
+                `SELECT mfs.family_id,
+                        COALESCE(SUM(GREATEST(0,
+                            sli.amount - COALESCE(sli.paid_amount, 0)
+                        )), 0) AS pending_tuition
+                 FROM slip_line_items sli
+                 JOIN monthly_fee_slips mfs ON mfs.slip_id = sli.slip_id
+                 LEFT JOIN fee_heads fh ON fh.head_id = sli.head_id
+                 WHERE mfs.family_id = ANY($1)
+                   AND mfs.status != 'paid'
+                   AND (fh.head_type = 'regular' OR fh.head_type IS NULL)
+                   AND (
+                       fh.track_arrears = FALSE 
+                       OR sli.head_name ILIKE '%tuition%' 
+                       OR sli.head_name ILIKE '%family%'
+                       OR sli.head_id IS NULL
+                   )
+                   AND sli.head_name NOT ILIKE '%previous balance%'
+                   AND sli.head_name NOT ILIKE '%opening balance%'
+                   AND (
+                       ($4::int IS NOT NULL AND mfs.academic_year_id = $4::int)
+                       OR (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
+                   )
+                 GROUP BY mfs.family_id`,
+                [uniqueFamilyIds, actualYear, month, targetYearId]
+            );
+            const tuitionMap = {};
+            for (const r of tuitionPendingRes.rows) tuitionMap[r.family_id] = parseFloat(r.pending_tuition) || 0;
+
+            for (const fid of uniqueFamilyIds) {
+                const totalPB = (opbMap[fid] || 0) + (tuitionMap[fid] || 0);
+                if (totalPB > 0) familyPBMap[fid] = totalPB;
+            }
+
+            // 3. Cumulative Tracked Heads Arrears (Annual Fee, Exam Fee, Lab Fee, Sports Fee, etc.)
+            // Only sum original (non-carried-forward) charges so we never double count
+            const cumulativeRes = await client.query(
+                `SELECT mfs.family_id, sli.head_id, sli.head_name,
+                        SUM(GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0))) AS pending_amount
+                 FROM slip_line_items sli
+                 JOIN monthly_fee_slips mfs ON mfs.slip_id = sli.slip_id
+                 JOIN fee_heads fh ON fh.head_id = sli.head_id
+                 WHERE mfs.family_id = ANY($1)
+                   AND mfs.status != 'paid'
+                   AND fh.track_arrears = TRUE
+                   AND fh.head_type != 'prev_balance'
+                   AND sli.is_carried_forward = FALSE
+                   AND sli.head_name NOT ILIKE '%tuition%'
+                   AND sli.head_name NOT ILIKE '%family%'
+                   AND (
+                       ($4::int IS NOT NULL AND mfs.academic_year_id = $4::int)
+                       OR (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
+                   )
+                 GROUP BY mfs.family_id, sli.head_id, sli.head_name
+                 HAVING SUM(GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0))) > 0`,
+                [uniqueFamilyIds, actualYear, month, targetYearId]
+            );
+
+            for (const r of cumulativeRes.rows) {
+                if (!familyCumulativeMap[r.family_id]) familyCumulativeMap[r.family_id] = [];
+                familyCumulativeMap[r.family_id].push({
+                    head_id: r.head_id,
+                    head_name: r.head_name,
+                    pending_amount: parseFloat(r.pending_amount) || 0
+                });
             }
         }
 
@@ -290,7 +323,8 @@ router.post('/generate', async (req, res) => {
                     return {
                         head_id: head.head_id,
                         head_name: headName,
-                        amount: finalAmount
+                        amount: finalAmount,
+                        is_carried_forward: false
                     };
                 });
         };
@@ -308,14 +342,16 @@ router.post('/generate', async (req, res) => {
             const slipId = slip.rows[0].slip_id;
             for (const item of lineItems)
                 await client.query(
-                    `INSERT INTO slip_line_items (slip_id, head_id, head_name, amount) VALUES ($1, $2, $3, $4)`,
-                    [slipId, item.head_id, item.head_name, item.amount]
+                    `INSERT INTO slip_line_items (slip_id, head_id, head_name, amount, is_carried_forward, arrears_head_id, note)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [slipId, item.head_id || null, item.head_name, item.amount, !!item.is_carried_forward, item.arrears_head_id || null, item.note || null]
                 );
             if (extra_heads && extra_heads.length > 0)
                 for (const extra of extra_heads)
                     if (extra.amount && parseFloat(extra.amount) > 0)
                         await client.query(
-                            `INSERT INTO slip_line_items (slip_id, head_id, head_name, amount, note) VALUES ($1,$2,$3,$4,$5)`,
+                            `INSERT INTO slip_line_items (slip_id, head_id, head_name, amount, is_carried_forward, arrears_head_id, note)
+                             VALUES ($1, $2, $3, $4, FALSE, NULL, $5)`,
                             [slipId, extra.head_id || null, extra.head_name, extra.amount, extra.note || null]
                         );
             return slipId;
@@ -323,7 +359,6 @@ router.post('/generate', async (req, res) => {
 
         // ─── FAMILY SLIPS: One slip per family (using family_fee) ─────────────
         for (const [fid, members] of Object.entries(familyGroups)) {
-            // Check if ANY member already has a slip for ANY of the selected months
             const existing = await client.query(
                 `SELECT slip_id FROM monthly_fee_slips
                  WHERE family_id = $1 AND (year = $2 OR (academic_year_id = $4 AND $4 IS NOT NULL))
@@ -332,7 +367,6 @@ router.post('/generate', async (req, res) => {
             );
             if (existing.rows.length > 0) { skippedCount++; continue; }
 
-            // Primary = member in highest class (most senior sibling across all classes)
             const famPrimaryRes = await client.query(
                 `SELECT s.*, COALESCE(f.family_fee, 0) AS family_fee,
                         (SELECT COUNT(*) FROM students s2 WHERE s2.family_id = s.family_id AND s2.status = 'Active') AS total_family_size,
@@ -348,29 +382,44 @@ router.post('/generate', async (req, res) => {
             const familyFee = parseFloat(primary.family_fee) || 0;
             const familySize = parseInt(primary.total_family_size) || 1;
 
-            // Build line items including extra heads from the fee plan
             const lineItems = buildLineItems(familyFee, familySize);
 
-            // Rename the tuition head to Family Monthly Fee on the voucher
             lineItems.forEach(h => {
                 if (h.head_name.toLowerCase().includes('tuition')) {
                     h.head_name = monthsCount > 1 ? `Family Monthly Fee (${monthLabel})` : 'Family Monthly Fee';
                 }
             });
 
-            // Check if tuition was inexplicably missing from plan but family fee exists
             if (!lineItems.some(h => h.head_name.includes('Family Monthly Fee')) && familyFee > 0) {
-                lineItems.unshift({ head_id: null, head_name: monthsCount > 1 ? `Family Monthly Fee (${monthLabel})` : 'Family Monthly Fee', amount: familyFee * monthsCount });
+                lineItems.unshift({ head_id: null, head_name: monthsCount > 1 ? `Family Monthly Fee (${monthLabel})` : 'Family Monthly Fee', amount: familyFee * monthsCount, is_carried_forward: false });
+            }
+
+            // ── 1. Add Pure Previous Balance (Tuition Arrears + OPB) ───────────
+            const famPB = pbPlanHead && fid && familyPBMap[fid] ? familyPBMap[fid] : 0;
+            if (famPB > 0) {
+                lineItems.push({ head_id: pbPlanHead.head_id, head_name: 'Previous Balance', amount: famPB, is_carried_forward: false });
+            }
+
+            // ── 2. Add / Stack Cumulative Tracked Heads (Annual Fee, Exam Fee...) ─
+            const cumHeads = familyCumulativeMap[fid] || [];
+            for (const ch of cumHeads) {
+                const existingPlanHead = lineItems.find(li => li.head_id && li.head_id === ch.head_id && !li.is_carried_forward);
+                if (existingPlanHead) {
+                    existingPlanHead.amount += ch.pending_amount;
+                    existingPlanHead.note = (existingPlanHead.note ? existingPlanHead.note + '; ' : '') + `Includes PKR ${ch.pending_amount} past arrears`;
+                } else {
+                    lineItems.push({
+                        head_id: ch.head_id,
+                        head_name: ch.head_name,
+                        amount: ch.pending_amount,
+                        is_carried_forward: true,
+                        arrears_head_id: ch.head_id,
+                        note: 'Carried forward arrears'
+                    });
+                }
             }
 
             let totalAmount = lineItems.reduce((s, h) => s + h.amount, 0);
-
-            // ── Add Previous Balance for this family if plan has PB head ───────
-            const famPB = pbPlanHead && fid && familyPBMap[fid] ? familyPBMap[fid] : 0;
-            if (famPB > 0) {
-                lineItems.push({ head_id: pbPlanHead.head_id, head_name: 'Previous Balance', amount: famPB });
-                totalAmount += famPB;
-            }
 
             if (extra_heads && extra_heads.length > 0)
                 totalAmount += extra_heads.filter(h => h.amount && parseFloat(h.amount) > 0)
@@ -380,7 +429,7 @@ router.post('/generate', async (req, res) => {
             generatedCount++;
         }
 
-        // ─── INDIVIDUAL SLIPS: Solo students (no family or single-member family) ──
+        // ─── INDIVIDUAL SLIPS: Solo students ──
         for (const student of soloStudents) {
             const existing = await client.query(
                 `SELECT slip_id FROM monthly_fee_slips 
@@ -392,15 +441,34 @@ router.post('/generate', async (req, res) => {
 
             const personalFee = parseFloat(student.personal_monthly_fee) || 0;
             const lineItems = buildLineItems(personalFee);
-            let totalAmount = lineItems.reduce((s, h) => s + h.amount, 0);
 
-            // ── Add Previous Balance for this student's family if plan has PB head ─
+            // ── 1. Add Pure Previous Balance (Tuition Arrears + OPB) ───────────
             const indivPB = pbPlanHead && student.family_id && familyPBMap[student.family_id]
                 ? familyPBMap[student.family_id] : 0;
             if (indivPB > 0) {
-                lineItems.push({ head_id: pbPlanHead.head_id, head_name: 'Previous Balance', amount: indivPB });
-                totalAmount += indivPB;
+                lineItems.push({ head_id: pbPlanHead.head_id, head_name: 'Previous Balance', amount: indivPB, is_carried_forward: false });
             }
+
+            // ── 2. Add / Stack Cumulative Tracked Heads (Annual Fee, Exam Fee...) ─
+            const cumHeads = (student.family_id && familyCumulativeMap[student.family_id]) ? familyCumulativeMap[student.family_id] : [];
+            for (const ch of cumHeads) {
+                const existingPlanHead = lineItems.find(li => li.head_id && li.head_id === ch.head_id && !li.is_carried_forward);
+                if (existingPlanHead) {
+                    existingPlanHead.amount += ch.pending_amount;
+                    existingPlanHead.note = (existingPlanHead.note ? existingPlanHead.note + '; ' : '') + `Includes PKR ${ch.pending_amount} past arrears`;
+                } else {
+                    lineItems.push({
+                        head_id: ch.head_id,
+                        head_name: ch.head_name,
+                        amount: ch.pending_amount,
+                        is_carried_forward: true,
+                        arrears_head_id: ch.head_id,
+                        note: 'Carried forward arrears'
+                    });
+                }
+            }
+
+            let totalAmount = lineItems.reduce((s, h) => s + h.amount, 0);
 
             if (extra_heads && extra_heads.length > 0)
                 totalAmount += extra_heads.filter(h => h.amount && parseFloat(h.amount) > 0)
@@ -1134,6 +1202,7 @@ router.post('/:id/pay', async (req, res) => {
             console.error("Notification dispatch error:", notifErr.message);
         }
 
+        // ── Auto-allocate Line Items on Current Slip if head_breakdown not supplied ─
         if (head_breakdown && typeof head_breakdown === 'object') {
             for (const [itemId, amount] of Object.entries(head_breakdown)) {
                 if (parseFloat(amount) > 0) {
@@ -1141,6 +1210,36 @@ router.post('/:id/pay', async (req, res) => {
                         'UPDATE slip_line_items SET paid_amount = paid_amount + $1 WHERE item_id = $2 AND slip_id = $3',
                         [parseFloat(amount), itemId, id]
                     );
+                }
+            }
+        } else {
+            // Auto sequential allocation: PB -> Carried Forward Heads -> Plan Heads
+            const currentLineItems = await client.query(
+                `SELECT sli.*, fh.head_type, fh.track_arrears
+                 FROM slip_line_items sli
+                 LEFT JOIN fee_heads fh ON fh.head_id = sli.head_id
+                 WHERE sli.slip_id = $1
+                 ORDER BY 
+                    CASE 
+                        WHEN fh.head_type = 'prev_balance' OR sli.head_name ILIKE '%previous balance%' THEN 1
+                        WHEN sli.is_carried_forward = TRUE THEN 2
+                        ELSE 3
+                    END, sli.item_id ASC`,
+                [id]
+            );
+            let unalloc = paidNow;
+            for (const item of currentLineItems.rows) {
+                if (unalloc <= 0) break;
+                const iAmt = parseFloat(item.amount);
+                const iPaid = parseFloat(item.paid_amount);
+                const iRem = Math.max(0, iAmt - iPaid);
+                if (iRem > 0) {
+                    const thisAlloc = parseFloat(Math.min(unalloc, iRem).toFixed(2));
+                    await client.query(
+                        'UPDATE slip_line_items SET paid_amount = paid_amount + $1 WHERE item_id = $2 AND slip_id = $3',
+                        [thisAlloc, item.item_id, id]
+                    );
+                    unalloc = parseFloat((unalloc - thisAlloc).toFixed(2));
                 }
             }
         }

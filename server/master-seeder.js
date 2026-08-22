@@ -845,10 +845,12 @@ async function runMasterSeeder() {
                     head_name VARCHAR(100) UNIQUE NOT NULL,
                     head_type VARCHAR(30) NOT NULL DEFAULT 'regular',
                     frequency VARCHAR(20) NOT NULL DEFAULT 'monthly',
+                    track_arrears BOOLEAN NOT NULL DEFAULT TRUE,
                     description TEXT,
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
+                ALTER TABLE fee_heads ADD COLUMN IF NOT EXISTS track_arrears BOOLEAN NOT NULL DEFAULT TRUE;
             `);
 
             // Cleanup duplicate fee_heads if table existed with duplicates
@@ -864,24 +866,33 @@ async function runMasterSeeder() {
 
             // Seed default fee heads idempotently
             const defaultFeeHeads = [
-                ['Tuition Fee', 'regular', 'monthly', 'Monthly tuition charges'],
-                ['Transport Fee', 'regular', 'monthly', 'School bus / transport service'],
-                ['Exam Fee', 'extra', 'once', 'Examination charges per term'],
-                ['Annual Fund', 'extra', 'yearly', 'Annual school development fund'],
-                ['Sports Fee', 'regular', 'monthly', 'Sports activities & PE charges'],
-                ['Lab Charges', 'regular', 'monthly', 'Science/Computer lab usage'],
-                ['Library Fee', 'regular', 'monthly', 'Library access & maintenance'],
-                ['Late Fine', 'extra', 'once', 'Fine for late fee payment'],
-                ['Previous Balance', 'prev_balance', 'monthly', 'Previous dues carried forward']
+                ['Tuition Fee', 'regular', 'monthly', false, 'Monthly tuition charges'],
+                ['Transport Fee', 'regular', 'monthly', true, 'School bus / transport service'],
+                ['Exam Fee', 'extra', 'once', true, 'Examination charges per term'],
+                ['Annual Fund', 'extra', 'yearly', true, 'Annual school development fund'],
+                ['Sports Fee', 'regular', 'monthly', true, 'Sports activities & PE charges'],
+                ['Lab Charges', 'regular', 'monthly', true, 'Science/Computer lab usage'],
+                ['Library Fee', 'regular', 'monthly', true, 'Library access & maintenance'],
+                ['Late Fine', 'extra', 'once', true, 'Fine for late fee payment'],
+                ['Previous Balance', 'prev_balance', 'monthly', false, 'Previous dues carried forward']
             ];
 
-            for (const [hName, hType, hFreq, hDesc] of defaultFeeHeads) {
+            for (const [hName, hType, hFreq, hTrack, hDesc] of defaultFeeHeads) {
                 await pool.query(`
-                    INSERT INTO fee_heads (head_name, head_type, frequency, description)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (head_name) DO UPDATE SET head_type = $2, frequency = $3, description = $4
-                `, [hName, hType, hFreq, hDesc]);
+                    INSERT INTO fee_heads (head_name, head_type, frequency, track_arrears, description)
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT (head_name) DO UPDATE SET head_type = $2, frequency = $3, track_arrears = $4, description = $5
+                `, [hName, hType, hFreq, hTrack, hDesc]);
             }
+
+            // Ensure tuition heads have track_arrears = false and non-tuition have true by default
+            await pool.query(`
+                UPDATE fee_heads 
+                SET track_arrears = FALSE 
+                WHERE head_type = 'prev_balance' 
+                   OR LOWER(head_name) LIKE '%tuition%' 
+                   OR LOWER(head_name) LIKE '%family%';
+            `);
 
             // 8.2 fee_plans Table
             await pool.query(`
@@ -975,10 +986,17 @@ async function runMasterSeeder() {
                     head_name VARCHAR(100) NOT NULL,
                     amount NUMERIC(10,2) NOT NULL DEFAULT 0,
                     paid_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+                    is_carried_forward BOOLEAN NOT NULL DEFAULT FALSE,
+                    arrears_head_id INTEGER REFERENCES fee_heads(head_id) ON DELETE SET NULL,
+                    source_slip_id INTEGER REFERENCES monthly_fee_slips(slip_id) ON DELETE SET NULL,
                     note TEXT
                 );
+                ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS is_carried_forward BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS arrears_head_id INTEGER REFERENCES fee_heads(head_id) ON DELETE SET NULL;
+                ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS source_slip_id INTEGER REFERENCES monthly_fee_slips(slip_id) ON DELETE SET NULL;
                 CREATE INDEX IF NOT EXISTS idx_sli_slip_id ON slip_line_items(slip_id);
                 CREATE INDEX IF NOT EXISTS idx_sli_head_id ON slip_line_items(head_id);
+                CREATE INDEX IF NOT EXISTS idx_sli_arrears ON slip_line_items(arrears_head_id, is_carried_forward);
             `);
 
             // 8.7 fee_payments Table

@@ -166,31 +166,44 @@ router.put('/years/activate/:id', async (req, res) => {
         if (prevYear) {
             const familyDues = await client.query(`
                 SELECT f.family_id,
-                       COALESCE((f.opening_balance - f.opb_paid_amount), 0) AS prev_opb_rem,
+                       COALESCE((f.opening_balance - f.opening_balance_paid), 0) AS prev_opb_rem,
                        COALESCE((
                            SELECT SUM(mfs.total_amount - mfs.paid_amount)
                            FROM monthly_fee_slips mfs
                            WHERE mfs.family_id = f.family_id AND mfs.status IN ('unpaid', 'partial')
+                             AND (mfs.academic_year_id = $1 OR mfs.academic_year_id IS NULL)
                        ), 0) AS unpaid_slips,
                        COALESCE((
                            SELECT SUM(afl.total_amount - afl.paid_amount - COALESCE(afl.discount_amount, 0))
                            FROM admission_fee_ledger afl
                            JOIN students s ON s.student_id = afl.student_id
                            WHERE s.family_id = f.family_id AND afl.status IN ('unpaid', 'partial')
+                             AND (afl.academic_year_id = $1 OR afl.academic_year_id IS NULL)
                        ), 0) AS unpaid_adm
                 FROM families f
-            `);
+            `, [prevYear.id]);
 
             for (const row of familyDues.rows) {
-                const totalRem = parseFloat(row.prev_opb_rem) + parseFloat(row.unpaid_slips) + parseFloat(row.unpaid_adm);
+                const prevOpb = parseFloat(row.prev_opb_rem) || 0;
+                const unpaidSlips = parseFloat(row.unpaid_slips) || 0;
+                const unpaidAdm = parseFloat(row.unpaid_adm) || 0;
+                const totalRem = prevOpb + unpaidSlips + unpaidAdm;
+
                 if (totalRem > 0) {
+                    const breakdownParts = [];
+                    if (unpaidSlips > 0) breakdownParts.push(`Unpaid Slips: PKR ${unpaidSlips.toLocaleString('en-PK')}`);
+                    if (unpaidAdm > 0) breakdownParts.push(`Unpaid Admission: PKR ${unpaidAdm.toLocaleString('en-PK')}`);
+                    if (prevOpb > 0) breakdownParts.push(`Prior Dues: PKR ${prevOpb.toLocaleString('en-PK')}`);
+                    
+                    const detailedNote = `Carried forward from closed session ${prevYear.year_name} (${breakdownParts.join(', ')})`;
+
                     await client.query(`
                         UPDATE families 
                         SET opening_balance = $1,
-                            opb_paid_amount = 0,
+                            opening_balance_paid = 0,
                             opb_notes = $2
                         WHERE family_id = $3
-                    `, [totalRem, `Carried forward from closed session ${prevYear.year_name}`, row.family_id]);
+                    `, [totalRem, detailedNote, row.family_id]);
                 }
             }
         }

@@ -46,8 +46,12 @@ function OldVoucherSlip({ v, serial, month, year, school, filterClassId }: { v: 
     const feeRows: { sr: number; desc: string; amount: number }[] = [];
     let sr = 1;
     for (const item of (v.primary.line_items || [])) {
-        const displayName = item.head_name.replace('Family Monthly Fee', 'Monthly Fee');
-        feeRows.push({ sr: sr++, desc: `${displayName} (${monthName})`, amount: parseFloat(item.amount as any) });
+        let displayName = item.head_name.replace('Family Monthly Fee', 'Monthly Fee');
+        const isPb = displayName.toLowerCase().includes('previous balance') || displayName.toLowerCase().includes('opening balance');
+        const rowDesc = isPb 
+            ? displayName 
+            : (displayName.includes('(') ? displayName : `${displayName} (${monthName})`);
+        feeRows.push({ sr: sr++, desc: rowDesc, amount: parseFloat(item.amount as any) });
     }
     const totalPaid = parseFloat(v.total_paid as any) || 0;
     if (totalPaid > 0) feeRows.push({ sr: sr++, desc: 'Amount Already Paid', amount: -totalPaid });

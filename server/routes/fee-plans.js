@@ -23,6 +23,7 @@ router.get('/', async (req, res) => {
                                 'head_name', fh.head_name,
                                 'head_type', fh.head_type,
                                 'frequency', fh.frequency,
+                                'track_arrears', fh.track_arrears,
                                 'amount', fph.amount
                             ) ORDER BY fh.head_name
                         ),
@@ -60,7 +61,7 @@ router.get('/:id', async (req, res) => {
         if (plan.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
         const heads = await pool.query(`
-            SELECT fph.*, fh.head_name, fh.head_type, fh.frequency
+            SELECT fph.*, fh.head_name, fh.head_type, fh.frequency, fh.track_arrears
             FROM fee_plan_heads fph
             JOIN fee_heads fh ON fph.head_id = fh.head_id
             WHERE fph.plan_id = $1
