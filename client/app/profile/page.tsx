@@ -91,6 +91,7 @@ export default function ProfilePage() {
     // Biometric Scanner State
     const [scanningFingerprint, setScanningFingerprint] = useState(false);
     const [scanningRetina, setScanningRetina] = useState(false);
+    const [enrollingFace, setEnrollingFace] = useState(false);
     const [showCameraModal, setShowCameraModal] = useState(false);
     const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -192,8 +193,11 @@ export default function ProfilePage() {
 
     // Dynamic Hostname getter for standard WebAuthn compliance
     const getCurrentHost = () => {
-        if (typeof window !== 'undefined') {
-            return window.location.hostname;
+        if (typeof window !== 'undefined' && window.location.hostname) {
+            const host = window.location.hostname.toLowerCase();
+            if (host !== '' && host !== 'null') {
+                return host;
+            }
         }
         return 'localhost';
     };
@@ -202,13 +206,10 @@ export default function ProfilePage() {
     const handleRegisterFingerprint = async () => {
         if (typeof window === 'undefined') return;
 
-        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            toast.error('Biometrics require a secure HTTPS connection. Please access via HTTPS (e.g. https://demo-private-school.vercel.app) or use the Android Mobile App.');
-            return;
-        }
-
-        if (!window.PublicKeyCredential) {
-            toast.error('WebAuthn / Biometrics is not accessible in this browser. Please use Chrome/Safari on HTTPS or the Mobile App.');
+        // If WebAuthn is not supported in this browser (like Android WebView)
+        if (!window.PublicKeyCredential || !navigator.credentials) {
+            toast.info('Direct Fingerprint FIDO2 is not supported in this WebView. Launching Camera Face & Eye Retina Scanner...');
+            handleStartRetinaScan();
             return;
         }
 
@@ -276,51 +277,51 @@ export default function ProfilePage() {
         }
     };
 
-function extractBiometricVector(video: HTMLVideoElement | null): number[] {
-    if (!video) return [];
-    try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return [];
-        const vw = video.videoWidth || 640;
-        const vh = video.videoHeight || 480;
-        const cropSize = Math.min(vw, vh) * 0.7;
-        const sx = (vw - cropSize) / 2;
-        const sy = (vh - cropSize) / 2;
-        ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 64, 64);
-        const imgData = ctx.getImageData(0, 0, 64, 64);
-        const data = imgData.data;
-        const features: number[] = [];
-        for (let by = 0; by < 8; by++) {
-            for (let bx = 0; bx < 8; bx++) {
-                let sum = 0;
-                let count = 0;
-                for (let y = by * 8; y < (by + 1) * 8; y++) {
-                    for (let x = bx * 8; x < (bx + 1) * 8; x++) {
-                        const idx = (y * 64 + x) * 4;
-                        const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                        sum += lum;
-                        count++;
+    function extractBiometricVector(video: HTMLVideoElement | null): number[] {
+        if (!video) return [];
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return [];
+            const vw = video.videoWidth || 640;
+            const vh = video.videoHeight || 480;
+            const cropSize = Math.min(vw, vh) * 0.7;
+            const sx = (vw - cropSize) / 2;
+            const sy = (vh - cropSize) / 2;
+            ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 64, 64);
+            const imgData = ctx.getImageData(0, 0, 64, 64);
+            const data = imgData.data;
+            const features: number[] = [];
+            for (let by = 0; by < 8; by++) {
+                for (let bx = 0; bx < 8; bx++) {
+                    let sum = 0;
+                    let count = 0;
+                    for (let y = by * 8; y < (by + 1) * 8; y++) {
+                        for (let x = bx * 8; x < (bx + 1) * 8; x++) {
+                            const idx = (y * 64 + x) * 4;
+                            const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                            sum += lum;
+                            count++;
+                        }
                     }
+                    features.push(sum / count);
                 }
-                features.push(sum / count);
             }
+            const norm = Math.sqrt(features.reduce((acc, val) => acc + val * val, 0)) || 1;
+            return features.map(v => v / norm);
+        } catch (e) {
+            return [];
         }
-        const norm = Math.sqrt(features.reduce((acc, val) => acc + val * val, 0)) || 1;
-        return features.map(v => v / norm);
-    } catch (e) {
-        return [];
     }
-}
 
     // Open Camera & Enroll Eye Retina / Face ID Biometric
     const handleStartRetinaScan = async () => {
         if (typeof window === 'undefined') return;
 
         setShowCameraModal(true);
-        setScanningRetina(true);
+        setEnrollingFace(false);
 
         try {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -339,7 +340,7 @@ function extractBiometricVector(video: HTMLVideoElement | null): number[] {
     };
 
     const handleConfirmEnrollFace = async () => {
-        setScanningRetina(true);
+        setEnrollingFace(true);
         try {
             const currentHost = getCurrentHost();
             const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
@@ -354,49 +355,17 @@ function extractBiometricVector(video: HTMLVideoElement | null): number[] {
                 throw new Error('Could not capture facial landmarks. Please ensure your camera is on and face is visible.');
             }
 
+            const clientDataJsonBase64 = btoa(unescape(encodeURIComponent(JSON.stringify({ type: 'webauthn.create', challenge: options.challenge }))));
+
             let credentialPayload: any = {
                 id: 'face_retina_' + (profile?.id || 'usr') + '_' + Date.now(),
                 face_descriptor: faceVector,
                 response: {
-                    clientDataJSON: Buffer.from(JSON.stringify({ type: 'webauthn.create', challenge: options.challenge })).toString('base64'),
+                    clientDataJSON: clientDataJsonBase64,
                     attestationObject: '',
                     transports: ['internal']
                 }
             };
-
-            // Try WebAuthn hardware registration if supported
-            if (window.PublicKeyCredential && navigator.credentials) {
-                try {
-                    const creationOptions: PublicKeyCredentialCreationOptions = {
-                        challenge: base64UrlToBuffer(options.challenge),
-                        rp: { name: options.rp?.name || 'Demo Private School', id: currentHost },
-                        user: {
-                            id: base64UrlToBuffer(options.user.id),
-                            name: options.user.name,
-                            displayName: options.user.displayName,
-                        },
-                        pubKeyCredParams: options.pubKeyCredParams,
-                        authenticatorSelection: { ...options.authenticatorSelection, userVerification: 'required' },
-                        timeout: options.timeout || 60000,
-                        attestation: options.attestation || 'none'
-                    };
-                    const cred = await navigator.credentials.create({ publicKey: creationOptions }) as any;
-                    if (cred) {
-                        credentialPayload = {
-                            id: cred.id,
-                            rawId: bufferToBase64Url(cred.rawId),
-                            face_descriptor: faceVector,
-                            response: {
-                                clientDataJSON: bufferToBase64Url(cred.response.clientDataJSON),
-                                attestationObject: bufferToBase64Url(cred.response.attestationObject),
-                                transports: cred.response.getTransports ? cred.response.getTransports() : ['internal']
-                            }
-                        };
-                    }
-                } catch (webauthnErr) {
-                    console.warn('WebAuthn hardware fallback to camera template:', webauthnErr);
-                }
-            }
 
             const verifyRes = await fetch(`${API}/auth/webauthn/register-verify`, {
                 method: 'POST',
@@ -420,7 +389,7 @@ function extractBiometricVector(video: HTMLVideoElement | null): number[] {
         } catch (err: any) {
             toast.error(err.message || 'Eye Retina registration failed');
         } finally {
-            setScanningRetina(false);
+            setEnrollingFace(false);
         }
     };
 
@@ -999,9 +968,9 @@ function extractBiometricVector(video: HTMLVideoElement | null): number[] {
                                     className="btn btn-info text-dark fw-bold rounded-pill px-4 py-2.5 w-100 shadow-sm mb-2"
                                     style={{ maxWidth: 300 }}
                                     onClick={handleConfirmEnrollFace}
-                                    disabled={scanningRetina}
+                                    disabled={enrollingFace}
                                 >
-                                    {scanningRetina ? (
+                                    {enrollingFace ? (
                                         <><span className="spinner-border spinner-border-sm me-2" />Recording Biometric Template...</>
                                     ) : (
                                         <><i className="bi bi-camera-fill me-2"></i>Capture &amp; Enroll Biometrics</>

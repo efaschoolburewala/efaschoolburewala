@@ -144,6 +144,8 @@ export default function LoginPage() {
                 throw new Error('Please ensure your face is clearly visible inside the camera frame.');
             }
 
+            const clientDataJsonBase64 = btoa(unescape(encodeURIComponent(JSON.stringify({ type: 'webauthn.get', challenge: options.challenge }))));
+
             const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -155,7 +157,7 @@ export default function LoginPage() {
                         rawId: 'live_camera_retina_' + userToAuth,
                         face_descriptor: liveVector,
                         response: {
-                            clientDataJSON: Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge: options.challenge })).toString('base64'),
+                            clientDataJSON: clientDataJsonBase64,
                             authenticatorData: '',
                             signature: '',
                             userHandle: null
@@ -216,6 +218,7 @@ export default function LoginPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         challengeId,
+                        username: username.trim() || undefined,
                         credential: {
                             id: assertion.id,
                             rawId: bufferToBase64Url(assertion.rawId),
@@ -236,7 +239,7 @@ export default function LoginPage() {
                 router.replace('/');
                 return;
             } catch (err: any) {
-                // If WebAuthn was cancelled or failed, fall back to Eye Retina Camera
+                // If WebAuthn was cancelled or not supported in WebView, fall back to Camera Scanner
                 console.warn('WebAuthn platform fallback to camera:', err.message);
             } finally {
                 setBioLoggingIn(false);
@@ -1499,6 +1502,32 @@ export default function LoginPage() {
                     box-shadow: 0 4px 15px rgba(254, 127, 45, 0.4);
                 }
                 @media (max-width: 767.98px) {
+                    .login-page {
+                        padding: 16px 12px 20px;
+                    }
+                    .company-credit-card {
+                        padding: 12px 14px;
+                        margin: 16px auto 0;
+                        width: 100%;
+                        max-width: 100%;
+                    }
+                    .company-credit-link {
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 10px;
+                    }
+                    .company-tagline {
+                        white-space: normal;
+                        word-break: break-word;
+                        font-size: 0.75rem;
+                    }
+                    .company-action {
+                        width: 100%;
+                    }
+                    .btn-visit-company {
+                        width: 100%;
+                        justify-content: center;
+                    }
                     .bottom-sheet-dialog {
                         position: fixed !important;
                         bottom: 0 !important;
@@ -1506,12 +1535,22 @@ export default function LoginPage() {
                         right: 0 !important;
                         margin: 0 !important;
                         max-width: 100% !important;
+                        width: 100% !important;
+                        display: flex !important;
+                        align-items: flex-end !important;
+                        min-height: 100vh !important;
+                        pointer-events: none !important;
                     }
                     .bottom-sheet-content {
+                        pointer-events: auto !important;
                         border-bottom-left-radius: 0 !important;
                         border-bottom-right-radius: 0 !important;
                         border-top-left-radius: 28px !important;
                         border-top-right-radius: 28px !important;
+                        width: 100% !important;
+                        max-height: 88vh !important;
+                        overflow-y: auto !important;
+                        box-shadow: 0 -10px 40px rgba(0,0,0,0.7) !important;
                     }
                 }
             `}</style>
