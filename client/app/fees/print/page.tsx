@@ -366,7 +366,7 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
 
                 {pendingMonths >= 2 && (
                     <div className="defaulter-warning-box">
-                        <strong>⚠️ تنبیہ:</strong> محترم والدین! آپ کی فیس پچھلے <strong>{pendingMonths} ماہ</strong> سے واجب الادا ہے۔ برائے مہربانی اسے فوری جمع کروائیں، بصورت دیگر سکول پالیسی کے مطابق سٹرک آف (Struck-off) نوٹس جاری کیا جا سکتا ہے۔
+                        <strong> تنبیہ:⚠️</strong> محترم والدین! آپ کی فیس پچھلے <strong>{pendingMonths} ماہ</strong> سے واجب الادا ہے۔ برائے مہربانی اسے فوری جمع کروائیں، بصورت دیگر سکول پالیسی کے مطابق سٹرک آف  نوٹس جاری کیا جا سکتا ہے۔
                     </div>
                 )}
 

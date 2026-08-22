@@ -996,6 +996,8 @@ async function runMasterSeeder() {
                 ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS is_carried_forward BOOLEAN NOT NULL DEFAULT FALSE;
                 ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS arrears_head_id INTEGER REFERENCES fee_heads(head_id) ON DELETE SET NULL;
                 ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS source_slip_id INTEGER REFERENCES monthly_fee_slips(slip_id) ON DELETE SET NULL;
+                ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS is_waived BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE slip_line_items ADD COLUMN IF NOT EXISTS waived_at TIMESTAMP;
                 CREATE INDEX IF NOT EXISTS idx_sli_slip_id ON slip_line_items(slip_id);
                 CREATE INDEX IF NOT EXISTS idx_sli_head_id ON slip_line_items(head_id);
                 CREATE INDEX IF NOT EXISTS idx_sli_arrears ON slip_line_items(arrears_head_id, is_carried_forward);

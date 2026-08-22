@@ -1164,7 +1164,7 @@ router.post('/:id/pay', async (req, res) => {
     const client = await pool.connect();
     try {
         const { id } = req.params;
-        const { amount_paid, payment_method, received_by, reference_no, notes, payment_date, head_breakdown, is_printed } = req.body;
+        const { amount_paid, payment_method, received_by, reference_no, notes, payment_date, head_breakdown, is_printed, waived_item_ids } = req.body;
         await client.query('BEGIN');
         const slip = await client.query(`
             SELECT mfs.*, ay.year_name, ay.is_active AS is_year_active 
@@ -1185,21 +1185,50 @@ router.post('/:id/pay', async (req, res) => {
             });
         }
 
+        // Process any waived line items (e.g. Late Fine Wave-off)
+        let totalWaivedAmount = 0;
+        if (waived_item_ids && Array.isArray(waived_item_ids) && waived_item_ids.length > 0) {
+            for (const wId of waived_item_ids) {
+                const wRes = await client.query(
+                    `SELECT item_id, amount, paid_amount FROM slip_line_items WHERE item_id = $1 AND slip_id = $2 FOR UPDATE`,
+                    [wId, id]
+                );
+                if (wRes.rows.length > 0) {
+                    const row = wRes.rows[0];
+                    const remaining = Math.max(0, parseFloat(row.amount) - parseFloat(row.paid_amount));
+                    if (remaining > 0) {
+                        totalWaivedAmount += remaining;
+                        await client.query(
+                            `UPDATE slip_line_items 
+                             SET is_waived = TRUE, 
+                                 waived_at = NOW(),
+                                 amount = paid_amount,
+                                 note = CASE WHEN note IS NULL OR note = '' THEN 'Waived off' ELSE note || ' (Waived off)' END
+                             WHERE item_id = $1 AND slip_id = $2`,
+                            [wId, id]
+                        );
+                    }
+                }
+            }
+        }
+
         const prevPaid = parseFloat(cur.paid_amount);
-        const paidNow = parseFloat(amount_paid);
+        const paidNow = parseFloat(amount_paid || 0);
         const newPaid = prevPaid + paidNow;
-        const total = parseFloat(cur.total_amount);
+        const total = Math.max(0, parseFloat(cur.total_amount) - totalWaivedAmount);
         const newStatus = newPaid >= total ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
 
-        // Record the payment itself with academic_year_id
-        await client.query(
-            `INSERT INTO fee_payments (slip_id,amount_paid,payment_date,payment_method,received_by,reference_no,notes,is_printed,academic_year_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-            [id, paidNow, payment_date || new Date(), payment_method || 'cash', received_by, reference_no, notes, is_printed ? true : false, cur.academic_year_id || null]
-        );
+        // Record the payment itself with academic_year_id if money was paid
+        if (paidNow > 0) {
+            await client.query(
+                `INSERT INTO fee_payments (slip_id,amount_paid,payment_date,payment_method,received_by,reference_no,notes,is_printed,academic_year_id)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [id, paidNow, payment_date || new Date(), payment_method || 'cash', received_by, reference_no, notes, is_printed ? true : false, cur.academic_year_id || null]
+            );
+        }
         const updated = await client.query(
-            `UPDATE monthly_fee_slips SET paid_amount=$1, status=$2 WHERE slip_id=$3 RETURNING *`,
-            [newPaid, newStatus, id]
+            `UPDATE monthly_fee_slips SET total_amount=$1, paid_amount=$2, status=$3 WHERE slip_id=$4 RETURNING *`,
+            [total, newPaid, newStatus, id]
         );
 
         // Dispatch notification to Family Unit

@@ -92,6 +92,7 @@ export default function CollectFeePage() {
     const [slipPickerGroup, setSlipPickerGroup] = useState<{ first_name: string; last_name: string; admission_no?: string; class_name?: string; slips: SlipRow[] } | null>(null);
 
     const [headPayVals, setHeadPayVals] = useState<Record<string, string>>({});
+    const [waivedItemIds, setWaivedItemIds] = useState<number[]>([]);
     const [payMethod, setPayMethod] = useState('cash');
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
     const [receivedBy, setReceivedBy] = useState('');
@@ -212,12 +213,30 @@ export default function CollectFeePage() {
 
     const openPayModal = async (slip: SlipRow) => {
         setActiveSlip(slip);
-        const buildInitialHeads = (targetSlip: SlipRow) => {
+        setWaivedItemIds([]);
+        const pDate = new Date().toISOString().split('T')[0];
+        setPayDate(pDate);
+
+        const buildInitialHeads = (targetSlip: SlipRow, currentPayDate: string) => {
             const initialHeads: Record<string, string> = {};
             if (targetSlip.line_items && targetSlip.line_items.length > 0) {
                 targetSlip.line_items.forEach((item: any) => {
                     const headId = item.item_id ? item.item_id.toString() : item.head_name;
                     const rem = Math.max(0, parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0));
+                    const isLateFine = (item.head_name || '').toLowerCase().includes('late') || (item.head_name || '').toLowerCase().includes('fine');
+                    
+                    if (isLateFine && targetSlip.due_date) {
+                        let cutoff = new Date(targetSlip.due_date);
+                        if (item.fine_after_day && parseInt(item.fine_after_day) > 0) {
+                            cutoff.setDate(parseInt(item.fine_after_day));
+                        }
+                        const payD = new Date(currentPayDate);
+                        if (payD <= cutoff) {
+                            initialHeads[headId] = '';
+                            return;
+                        }
+                    }
+
                     initialHeads[headId] = rem > 0 ? rem.toString() : '';
                 });
             } else {
@@ -227,8 +246,8 @@ export default function CollectFeePage() {
             return initialHeads;
         };
 
-        setHeadPayVals(buildInitialHeads(slip));
-        setPayMethod('cash'); setPayDate(new Date().toISOString().split('T')[0]);
+        setHeadPayVals(buildInitialHeads(slip, pDate));
+        setPayMethod('cash');
         setReceivedBy(''); setRefNo(''); setNotes('');
         setPayModal(true);
         setLoadingHistory(true); setSlipPayments([]);
@@ -239,7 +258,7 @@ export default function CollectFeePage() {
             if (d.slip) {
                 setActiveSlip(d.slip);
                 if (d.slip.line_items && d.slip.line_items.length > 0) {
-                    setHeadPayVals(buildInitialHeads(d.slip));
+                    setHeadPayVals(buildInitialHeads(d.slip, pDate));
                 }
             }
         } catch { setSlipPayments([]); }
@@ -606,8 +625,14 @@ export default function CollectFeePage() {
     };
 
     const handlePay = async (shouldPrint = false) => {
-        const receivingSnap = Object.values(headPayVals).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
-        if (receivingSnap <= 0) { notify.error('Enter a valid amount.'); return; }
+        const activeVals = { ...headPayVals };
+        waivedItemIds.forEach(id => {
+            delete activeVals[id.toString()];
+        });
+
+        const receivingSnap = Object.values(activeVals).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
+        if (receivingSnap <= 0 && waivedItemIds.length === 0) { notify.error('Enter a valid amount or waive fine.'); return; }
+        
         // Snapshot before state changes (needed for receipt after async updates)
         const prevPaidSnap = parseFloat(activeSlip!.paid_amount as any);
         const slipSnap = { ...activeSlip! };
@@ -616,16 +641,26 @@ export default function CollectFeePage() {
         try {
             const r = await fetch(`${API}/fee-slips/${activeSlip!.slip_id}/pay`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount_paid: receivingSnap, head_breakdown: headPayVals, payment_method: payMethod, payment_date: payDateSnap, received_by: receivedBy, reference_no: refNo, notes, is_printed: shouldPrint })
+                body: JSON.stringify({
+                    amount_paid: receivingSnap,
+                    head_breakdown: activeVals,
+                    payment_method: payMethod,
+                    payment_date: payDateSnap,
+                    received_by: receivedBy,
+                    reference_no: refNo,
+                    notes,
+                    is_printed: shouldPrint,
+                    waived_item_ids: waivedItemIds
+                })
             });
             const d = await r.json();
             if (!r.ok) throw new Error(d.error);
-            notify.success('Payment recorded successfully!');
+            notify.success(waivedItemIds.length > 0 ? 'Payment & fine waiver recorded successfully!' : 'Payment recorded successfully!');
             // Refresh history
             const rh = await fetch(`${API}/fee-slips/${activeSlip!.slip_id}`);
             const dh = await rh.json(); setSlipPayments(dh.payments || []);
             // Update slip in list
-            setSlips(prev => prev.map(s => s.slip_id === activeSlip!.slip_id ? { ...s, paid_amount: d.slip.paid_amount, status: d.slip.status } : s));
+            setSlips(prev => prev.map(s => s.slip_id === activeSlip!.slip_id ? { ...s, total_amount: d.slip.total_amount, paid_amount: d.slip.paid_amount, status: d.slip.status } : s));
             setStats(prev => prev ? {
                 ...prev,
                 paid_amount: (prev.paid_amount || 0) + receivingSnap,
@@ -634,10 +669,11 @@ export default function CollectFeePage() {
                 partial_count: d.slip.status === 'partial' ? (activeSlip?.status === 'unpaid' ? prev.partial_count + 1 : prev.partial_count) :
                     ['paid', 'satteled'].includes(d.slip.status) && (activeSlip?.status === 'partial') ? prev.partial_count - 1 : prev.partial_count
             } : null);
-            setActiveSlip(prev => prev ? { ...prev, paid_amount: d.slip.paid_amount, status: d.slip.status } : null);
+            setActiveSlip(prev => prev ? { ...prev, total_amount: d.slip.total_amount, paid_amount: d.slip.paid_amount, status: d.slip.status, line_items: dh.line_items || prev.line_items } : null);
             setHeadPayVals({});
+            setWaivedItemIds([]);
             // Open receipt in new window after successful payment
-            if (shouldPrint) openReceiptWindow(slipSnap, receivingSnap, payDateSnap, prevPaidSnap);
+            if (shouldPrint && receivingSnap > 0) openReceiptWindow(slipSnap, receivingSnap, payDateSnap, prevPaidSnap);
             // Re-fetch all slips silently waterfall may have updated older slips in DB
             silentReload();
         } catch (e: any) { notify.error(e.message); }
@@ -1575,24 +1611,80 @@ export default function CollectFeePage() {
                                                                     const paid = parseFloat(item.paid_amount || 0);
                                                                     const rem = (amtB - paid).toFixed(2);
                                                                     const remNum = Math.max(0, parseFloat(rem) || 0);
+
+                                                                    const isLateFine = (item.head_name || '').toLowerCase().includes('late') || (item.head_name || '').toLowerCase().includes('fine');
+                                                                    const isWaived = item.item_id ? waivedItemIds.includes(item.item_id) : false;
+
+                                                                    let isFineDatePassed = true;
+                                                                    if (isLateFine && activeSlip.due_date) {
+                                                                        let cutoff = new Date(activeSlip.due_date);
+                                                                        if (item.fine_after_day && parseInt(item.fine_after_day) > 0) {
+                                                                            cutoff.setDate(parseInt(item.fine_after_day));
+                                                                        }
+                                                                        const pDate = new Date(payDate || new Date().toISOString().split('T')[0]);
+                                                                        if (pDate <= cutoff) {
+                                                                            isFineDatePassed = false;
+                                                                        }
+                                                                    }
+
+                                                                    const toggleWaive = (itemId: number) => {
+                                                                        if (waivedItemIds.includes(itemId)) {
+                                                                            setWaivedItemIds(waivedItemIds.filter(id => id !== itemId));
+                                                                            setHeadPayVals(prev => ({ ...prev, [itemId.toString()]: remNum > 0 ? remNum.toString() : '' }));
+                                                                        } else {
+                                                                            setWaivedItemIds([...waivedItemIds, itemId]);
+                                                                            setHeadPayVals(prev => ({ ...prev, [itemId.toString()]: '' }));
+                                                                        }
+                                                                    };
+
                                                                     elements.push(
                                                                         <div key={'other-' + (keyIdx++)} className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
                                                                             <div className="d-flex flex-column flex-grow-1 min-w-0 me-2" style={{ maxWidth: '100%' }}>
-                                                                                <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>{item.head_name || 'Previous Balance'}</span>
-                                                                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>Billed: {amtB.toLocaleString('en-PK')} {paid > 0 ? ' • Paid: ' + paid.toLocaleString('en-PK') : ''}</span>
+                                                                                <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>
+                                                                                    {item.head_name || 'Previous Balance'}
+                                                                                </span>
+                                                                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                                                    Billed: {amtB.toLocaleString('en-PK')} {paid > 0 ? ' • Paid: ' + paid.toLocaleString('en-PK') : ''}
+                                                                                    {item.is_waived ? ' • Waived off' : ''}
+                                                                                </span>
                                                                             </div>
                                                                             <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
-                                                                                {amtB > 0 && (
+                                                                                {isLateFine && (
+                                                                                    <>
+                                                                                        {!isFineDatePassed ? (
+                                                                                            <span className="badge bg-success-subtle text-success border border-success-subtle fw-bold py-1.5 px-2" style={{ fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
+                                                                                                Within Due Date (Fine Not Charged)
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                className={`btn btn-sm fw-bold ${isWaived ? 'btn-success' : 'btn-outline-danger'}`}
+                                                                                                style={{ fontSize: '0.75rem', padding: '3px 8px', whiteSpace: 'nowrap', borderRadius: 6 }}
+                                                                                                title={isWaived ? "Click to cancel waiver" : "Click to waive off late fine (Maaf karein)"}
+                                                                                                onClick={() => item.item_id && toggleWaive(item.item_id)}
+                                                                                            >
+                                                                                                {isWaived ? (
+                                                                                                    <><i className="bi bi-check-circle-fill me-1"></i>Waived (معاف)</>
+                                                                                                ) : (
+                                                                                                    <><i className="bi bi-slash-circle me-1"></i>Waive Fine (معاف کریں)</>
+                                                                                                )}
+                                                                                            </button>
+                                                                                        )}
+                                                                                    </>
+                                                                                )}
+
+                                                                                {amtB > 0 && !isWaived && isFineDatePassed && (
                                                                                     <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold py-1.5 px-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
                                                                                         Bal: {rem}
                                                                                     </span>
                                                                                 )}
+
                                                                                 <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
                                                                                     <span className="input-group-text bg-light text-muted small px-2 fw-bold" style={{ fontSize: '0.78rem' }}>PKR</span>
                                                                                     <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
                                                                                         onKeyDown={e => ['e', 'E', '+', '-', '.', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
                                                                                         onWheel={e => (e.target as HTMLElement).blur()}
-                                                                                        value={headPayVals[headId] || ''}
+                                                                                        value={isWaived || (!isFineDatePassed && isLateFine) ? '' : (headPayVals[headId] || '')}
                                                                                         onChange={(e) => {
                                                                                             const vStr = e.target.value;
                                                                                             if (vStr === '') {
@@ -1606,7 +1698,8 @@ export default function CollectFeePage() {
                                                                                             setHeadPayVals({ ...headPayVals, [headId]: val > 0 ? val.toString() : '' });
                                                                                         }}
                                                                                         style={{ fontSize: '0.9rem', fontWeight: 600, padding: '4px 8px' }}
-                                                                                        disabled={remNum <= 0 && paid > 0} min="0" />
+                                                                                        disabled={(remNum <= 0 && paid > 0) || isWaived || (!isFineDatePassed && isLateFine)}
+                                                                                        min="0" />
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -1619,7 +1712,7 @@ export default function CollectFeePage() {
                                                     </div>
                                                     <div className="d-flex justify-content-between fw-bold text-dark mt-2 mb-1 px-1 small">
                                                         <span>Grand Total:</span>
-                                                        <span>PKR {Object.values(headPayVals).reduce((sum, v) => sum + (parseFloat(v) || 0), 0).toLocaleString('en-PK')}</span>
+                                                        <span>PKR {Object.entries(headPayVals).filter(([k]) => !waivedItemIds.map(String).includes(k)).reduce((sum, [, v]) => sum + (parseFloat(v as string) || 0), 0).toLocaleString('en-PK')}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1636,7 +1729,32 @@ export default function CollectFeePage() {
                                                 <div className="col-md-4">
                                                     <label className="form-label small fw-bold text-muted mb-1">Payment Date</label>
                                                     <input type="date" className="form-control form-control-sm"
-                                                        value={payDate} onChange={e => setPayDate(e.target.value)} />
+                                                        value={payDate} onChange={e => {
+                                                            const newDate = e.target.value;
+                                                            setPayDate(newDate);
+                                                            // Re-evaluate fine cutoff for all items
+                                                            if (activeSlip && activeSlip.line_items) {
+                                                                const updatedHeads = { ...headPayVals };
+                                                                activeSlip.line_items.forEach((item: any) => {
+                                                                    const headId = item.item_id ? item.item_id.toString() : item.head_name;
+                                                                    const isLateFine = (item.head_name || '').toLowerCase().includes('late') || (item.head_name || '').toLowerCase().includes('fine');
+                                                                    if (isLateFine && activeSlip.due_date) {
+                                                                        let cutoff = new Date(activeSlip.due_date);
+                                                                        if (item.fine_after_day && parseInt(item.fine_after_day) > 0) {
+                                                                            cutoff.setDate(parseInt(item.fine_after_day));
+                                                                        }
+                                                                        const pDate = new Date(newDate);
+                                                                        const rem = Math.max(0, parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0));
+                                                                        if (pDate <= cutoff) {
+                                                                            updatedHeads[headId] = '';
+                                                                        } else if (!waivedItemIds.includes(item.item_id) && rem > 0) {
+                                                                            updatedHeads[headId] = rem.toString();
+                                                                        }
+                                                                    }
+                                                                });
+                                                                setHeadPayVals(updatedHeads);
+                                                            }
+                                                        }} />
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label small fw-bold text-muted mb-1">Received By</label>
@@ -1658,11 +1776,11 @@ export default function CollectFeePage() {
                                                         {hasPermission('fees', 'write') && (
                                                             <>
                                                                 <button className="btn fw-bold" style={{ flex: 1, backgroundColor: '#e8f5f5', color: 'var(--primary-teal)', border: '1.5px solid var(--primary-teal)', borderRadius: 8 }}
-                                                                    disabled={paying || Object.values(headPayVals).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0) <= 0}
+                                                                    disabled={paying || (Object.entries(headPayVals).filter(([k]) => !waivedItemIds.map(String).includes(k)).reduce((sum, [, v]) => sum + (parseFloat(v as string) || 0), 0) <= 0 && waivedItemIds.length === 0)}
                                                                     onClick={() => handlePay(false)}>
                                                                     {paying ? <><span className="spinner-border spinner-border-sm me-1" />...</> : <><i className="bi bi-check-circle me-1"></i>Confirm</>}
                                                                 </button>
-                                                                <button className="btn fw-bold" onClick={() => handlePay(true)} disabled={paying || Object.values(headPayVals).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0) <= 0}
+                                                                <button className="btn fw-bold" onClick={() => handlePay(true)} disabled={paying || (Object.entries(headPayVals).filter(([k]) => !waivedItemIds.map(String).includes(k)).reduce((sum, [, v]) => sum + (parseFloat(v as string) || 0), 0) <= 0 && waivedItemIds.length === 0)}
                                                                     style={{ flex: 2, backgroundColor: 'var(--accent-orange)', color: '#fff', borderRadius: 8, border: 'none' }}>
                                                                     {paying ? <><span className="spinner-border spinner-border-sm me-2" />Processing...</> : <><i className="bi bi-check-lg me-1" />Confirm &amp; Print</>}
                                                                 </button>
