@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
@@ -60,7 +60,15 @@ export default function ProfilePage() {
     const token = authUser?.token;
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'info' | 'biometrics' | 'security'>('info');
+    const [activeTab, setActiveTab] = useState<'info' | 'biometrics' | 'security' | 'attendance'>('info');
+
+    // Attendance Tab State
+    const now = new Date();
+    const [attMonth, setAttMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
+    const [attYear, setAttYear] = useState(String(now.getFullYear()));
+    const [attRecords, setAttRecords] = useState<any[]>([]);
+    const [attStats, setAttStats] = useState<any>(null);
+    const [loadingAtt, setLoadingAtt] = useState(false);
 
     // Profile Edit State
     const [fullName, setFullName] = useState('');
@@ -104,6 +112,31 @@ export default function ProfilePage() {
     useEffect(() => {
         loadProfile();
     }, [token]);
+
+    const loadMyAttendance = useCallback(async () => {
+        const empId = profile?.employee_id || authUser?.employee_id || profile?.id;
+        if (!empId) return;
+        setLoadingAtt(true);
+        try {
+            const cleanAPI = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
+            const res = await fetch(`${cleanAPI}/attendance/staff/${empId}/history?month=${attMonth}&year=${attYear}`);
+            const data = await res.json();
+            if (Array.isArray(data.records)) {
+                setAttRecords(data.records);
+                setAttStats(data.stats);
+            }
+        } catch (err) {
+            console.error('Failed to load user attendance:', err);
+        } finally {
+            setLoadingAtt(false);
+        }
+    }, [profile?.employee_id, authUser?.employee_id, profile?.id, attMonth, attYear]);
+
+    useEffect(() => {
+        if (activeTab === 'attendance') {
+            loadMyAttendance();
+        }
+    }, [activeTab, loadMyAttendance]);
 
     // Real-time auto save for profile
     const handleSaveProfile = async (e?: React.FormEvent) => {
@@ -513,6 +546,25 @@ export default function ProfilePage() {
                             <i className="bi bi-shield-lock-fill me-2 text-warning"></i>
                             Security &amp; Password
                         </button>
+
+                        <button
+                            type="button"
+                            className="btn border-0 py-2.5 px-3 px-md-4 rounded-top-3"
+                            onClick={() => setActiveTab('attendance')}
+                            style={{
+                                backgroundColor: activeTab === 'attendance' ? '#ffffff' : 'transparent',
+                                color: activeTab === 'attendance' ? '#0f172a' : 'rgba(255, 255, 255, 0.75)',
+                                fontWeight: activeTab === 'attendance' ? '700' : '600',
+                                fontSize: '0.88rem',
+                                transition: 'all 0.2s ease',
+                                borderBottomLeftRadius: 0,
+                                borderBottomRightRadius: 0,
+                                boxShadow: activeTab === 'attendance' ? '0 -2px 8px rgba(0,0,0,0.15)' : 'none'
+                            }}
+                        >
+                            <i className="bi bi-clock-history me-2 text-success"></i>
+                            My Attendance &amp; Timesheets
+                        </button>
                     </div>
                 </div>
             </div>
@@ -848,6 +900,251 @@ export default function ProfilePage() {
                                     </span>
                                 </li>
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* TAB 4: My Attendance & Timesheets */}
+            {activeTab === 'attendance' && (
+                <div className="animate__animated animate__fadeIn">
+                    {/* Header & Filter Card */}
+                    <div className="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 p-md-4">
+                        <div className="row g-3 align-items-end">
+                            <div className="col-12 col-md-5">
+                                <h5 className="fw-bold text-dark mb-1">
+                                    <i className="bi bi-calendar2-check-fill me-2" style={{ color: '#0d9488' }} />
+                                    Personal Attendance Log
+                                </h5>
+                                <p className="text-muted small mb-0">View your daily IN/OUT biometric timestamps and punctuality stats</p>
+                            </div>
+
+                            <div className="col-6 col-md-2">
+                                <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
+                                    Month
+                                </label>
+                                <select 
+                                    className="form-select form-select-sm rounded-3" 
+                                    value={attMonth} 
+                                    onChange={e => setAttMonth(e.target.value)} 
+                                    style={{ height: 38 }}
+                                >
+                                    {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((m, i) => (
+                                        <option key={m} value={m}>
+                                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][i]}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="col-6 col-md-2">
+                                <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
+                                    Year
+                                </label>
+                                <select 
+                                    className="form-select form-select-sm rounded-3" 
+                                    value={attYear} 
+                                    onChange={e => setAttYear(e.target.value)} 
+                                    style={{ height: 38 }}
+                                >
+                                    {[0, 1, 2, 3, 4].map(offset => {
+                                        const y = String(now.getFullYear() - offset);
+                                        return <option key={y} value={y}>{y}</option>;
+                                    })}
+                                </select>
+                            </div>
+
+                            <div className="col-12 col-md-3">
+                                <button 
+                                    type="button"
+                                    className="btn btn-sm w-100 fw-bold rounded-3 text-white shadow-xs" 
+                                    style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6)', height: 38 }}
+                                    onClick={loadMyAttendance} 
+                                    disabled={loadingAtt}
+                                >
+                                    {loadingAtt ? (
+                                        <><span className="spinner-border spinner-border-sm me-1.5" />Loading...</>
+                                    ) : (
+                                        <><i className="bi bi-arrow-repeat me-1.5" />Refresh Timesheet</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stats Summary Cards */}
+                    {attStats && (
+                        <div className="row g-3 mb-4">
+                            <div className="col-6 col-lg-2">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #0d9e6e' }}>
+                                    <div className="text-muted small fw-semibold text-uppercase" style={{ fontSize: '0.66rem' }}>Days Present</div>
+                                    <div className="fs-3 fw-bold text-success mt-1">{attStats.present}</div>
+                                </div>
+                            </div>
+                            <div className="col-6 col-lg-2">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #e6860a' }}>
+                                    <div className="text-muted small fw-semibold text-uppercase" style={{ fontSize: '0.66rem' }}>Late Entries</div>
+                                    <div className="fs-3 fw-bold text-warning mt-1">{attStats.late_in || 0}</div>
+                                </div>
+                            </div>
+                            <div className="col-6 col-lg-2">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #f97316' }}>
+                                    <div className="text-muted small fw-semibold text-uppercase" style={{ fontSize: '0.66rem' }}>Early Exits</div>
+                                    <div className="fs-3 fw-bold mt-1" style={{ color: '#f97316' }}>{attStats.early_out || 0}</div>
+                                </div>
+                            </div>
+                            <div className="col-6 col-lg-2">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #e13232' }}>
+                                    <div className="text-muted small fw-semibold text-uppercase" style={{ fontSize: '0.66rem' }}>Absents</div>
+                                    <div className="fs-3 fw-bold text-danger mt-1">{attStats.absent}</div>
+                                </div>
+                            </div>
+                            <div className="col-6 col-lg-2">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #1a6fd4' }}>
+                                    <div className="text-muted small fw-semibold text-uppercase" style={{ fontSize: '0.66rem' }}>Leaves</div>
+                                    <div className="fs-3 fw-bold text-primary mt-1">{attStats.leave}</div>
+                                </div>
+                            </div>
+                            <div className="col-6 col-lg-2">
+                                <div className="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white" style={{ borderLeft: '4px solid #0d9488' }}>
+                                    <div className="text-muted small fw-semibold text-uppercase" style={{ fontSize: '0.66rem' }}>Total Days</div>
+                                    <div className="fs-3 fw-bold mt-1" style={{ color: '#0d9488' }}>{attStats.total}</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Detailed Timesheet Table */}
+                    <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
+                        <div className="card-header bg-white border-0 px-4 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <h6 className="fw-bold mb-0 text-dark">
+                                Daily Attendance Breakdown
+                            </h6>
+                            <span className="badge rounded-pill px-3 py-1 bg-light text-dark border">
+                                {attRecords.length} records recorded
+                            </span>
+                        </div>
+                        <div className="table-responsive">
+                            <table className="table table-hover align-middle mb-0">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th className="small fw-semibold text-uppercase text-muted ps-4 py-2.5">Date</th>
+                                        <th className="small fw-semibold text-uppercase text-muted py-2.5">Status</th>
+                                        <th className="small fw-semibold text-uppercase text-muted py-2.5">IN Time (Arrival)</th>
+                                        <th className="small fw-semibold text-uppercase text-muted py-2.5">OUT Time (Departure)</th>
+                                        <th className="small fw-semibold text-uppercase text-muted py-2.5">Biometric Mode</th>
+                                        <th className="small fw-semibold text-uppercase text-muted pe-4 py-2.5">Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {attRecords.length > 0 ? (
+                                        attRecords.map((r: any) => {
+                                            const dt = new Date(r.attendance_date + 'T00:00:00');
+                                            const formattedDate = dt.toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+                                            const isLate = r.is_in_late;
+                                            const isEarly = r.is_out_early;
+                                            const s = r.status || 'Present';
+
+                                            const formatT = (tStr: string | null) => {
+                                                if (!tStr) return null;
+                                                try {
+                                                    const [h, m] = tStr.split(':');
+                                                    const hour = parseInt(h, 10);
+                                                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                                                    const displayH = hour % 12 || 12;
+                                                    return `${displayH}:${m} ${ampm}`;
+                                                } catch { return tStr; }
+                                            };
+
+                                            const inDisplay = formatT(r.check_in_time);
+                                            const outDisplay = formatT(r.check_out_time);
+
+                                            return (
+                                                <tr key={r.attendance_id || r.attendance_date}>
+                                                    {/* Date */}
+                                                    <td className="ps-4 py-3 fw-semibold text-dark small">
+                                                        {formattedDate}
+                                                    </td>
+
+                                                    {/* Status Badge */}
+                                                    <td>
+                                                        <span className="badge rounded-pill px-2.5 py-1" style={{
+                                                            background: s === 'Present' ? '#e6f9f3' : s === 'Absent' ? '#fde8e8' : s === 'Late' ? '#fef6e4' : '#e8f0fd',
+                                                            color: s === 'Present' ? '#0d9e6e' : s === 'Absent' ? '#e13232' : s === 'Late' ? '#e6860a' : '#1a6fd4',
+                                                            border: `1px solid ${s === 'Present' ? '#0d9e6e' : s === 'Absent' ? '#e13232' : s === 'Late' ? '#e6860a' : '#1a6fd4'}44`,
+                                                            fontSize: '0.74rem'
+                                                        }}>
+                                                            {s}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* IN Time */}
+                                                    <td>
+                                                        {inDisplay ? (
+                                                            <div>
+                                                                <span className="fw-bold text-dark font-monospace small">
+                                                                    <i className="bi bi-box-arrow-in-right text-success me-1" />
+                                                                    {inDisplay}
+                                                                </span>
+                                                                {isLate && (
+                                                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1.5" style={{ fontSize: '0.64rem' }}>
+                                                                        Late Entry
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted small fst-italic">—</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* OUT Time */}
+                                                    <td>
+                                                        {outDisplay ? (
+                                                            <div>
+                                                                <span className="fw-bold text-dark font-monospace small">
+                                                                    <i className="bi bi-box-arrow-right text-primary me-1" />
+                                                                    {outDisplay}
+                                                                </span>
+                                                                {isEarly && (
+                                                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1.5" style={{ fontSize: '0.64rem' }}>
+                                                                        Early Exit
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted small fst-italic">—</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* Verification Mode */}
+                                                    <td>
+                                                        {r.in_verified || r.out_verified ? (
+                                                            <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '0.72rem' }}>
+                                                                <i className="bi bi-patch-check-fill me-1" />
+                                                                {r.in_verification_mode || r.out_verification_mode || 'Biometric'}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted small">Standard</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* Remarks */}
+                                                    <td className="pe-4 text-muted small">
+                                                        {r.remarks || '—'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={6} className="text-center py-5 text-muted">
+                                                <i className="bi bi-calendar2-x fs-2 d-block mb-2 text-muted" />
+                                                No attendance records found for this month.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

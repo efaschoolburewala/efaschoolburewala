@@ -507,24 +507,39 @@ router.get('/students/:student_id/history', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Helper: Convert "HH:MM" or "HH:MM:SS" to minutes from midnight
+function timeStringToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const parts = String(timeStr).split(':');
+    const hours = parseInt(parts[0], 10) || 0;
+    const minutes = parseInt(parts[1], 10) || 0;
+    return hours * 60 + minutes;
+}
+
 // ═══════════════════════════════════════════════
-//  STAFF ATTENDANCE
+//  STAFF ATTENDANCE (IN / OUT & BIOMETRICS)
 // ═══════════════════════════════════════════════
 
-// GET /attendance/staff/daily?date=&department_id=
+// GET /attendance/staff/daily?date=&department_id=&session_type=
 router.get('/staff/daily', async (req, res) => {
     try {
-        const { date, department_id } = req.query;
+        const { date, department_id, session_type = 'in' } = req.query;
         if (!date) return res.status(400).json({ error: 'date required' });
 
         let whereClause = 'WHERE e.status = $2';
         const params = [date, 'Active'];
-        if (department_id) { params.push(department_id); whereClause += ` AND e.department_id = $${params.length}`; }
+        if (department_id) { 
+            params.push(department_id); 
+            whereClause += ` AND e.department_id = $${params.length}`; 
+        }
 
         const result = await pool.query(
-            `SELECT e.employee_id, e.first_name, e.last_name, e.designation,
-                    d.department_name,
-                    sa.attendance_id, sa.status, sa.check_in_time, sa.check_out_time, sa.remarks, sa.attendance_date
+            `SELECT e.employee_id, e.first_name, e.last_name, e.designation, e.app_user_id,
+                    d.department_name, d.department_id,
+                    sa.attendance_id, sa.status, sa.check_in_time, sa.check_out_time, sa.remarks, sa.attendance_date,
+                    sa.in_verified, sa.out_verified, sa.in_verification_mode, sa.out_verification_mode,
+                    sa.is_in_late, sa.is_out_early,
+                    (SELECT COUNT(*)::int FROM user_webauthn_credentials uwc WHERE uwc.user_id = e.app_user_id) as enrolled_biometrics_count
              FROM employees e
              LEFT JOIN departments d ON e.department_id = d.department_id
              LEFT JOIN staff_attendance sa ON sa.employee_id = e.employee_id AND sa.attendance_date = $1
@@ -533,33 +548,243 @@ router.get('/staff/daily', async (req, res) => {
             params
         );
 
+        // Fetch settings
+        let setRes = await pool.query('SELECT * FROM attendance_settings WHERE id = 1');
+        const settings = setRes.rows[0] || {
+            staff_in_time: '08:00',
+            staff_out_time: '14:00',
+            staff_grace_minutes: 15,
+            staff_biometric_mode: 'both'
+        };
+
         const holidayInfo = await checkHolidayForDate(pool, date, 'staff_only');
 
         res.json({
             records: result.rows,
-            holiday: holidayInfo
+            settings,
+            holiday: holidayInfo,
+            session_type
         });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error('staff/daily error:', err);
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
+// POST /attendance/staff/verify-biometric
+// Real-time single staff member biometric verification (Fingerprint / Retina / Facial scan)
+router.post('/staff/verify-biometric', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { 
+            employee_id, 
+            date, 
+            session_type = 'in', 
+            verification_mode = 'fingerprint', 
+            biometric_data, 
+            user_id,
+            manual_override = false,
+            status_override
+        } = req.body;
+
+        const empId = parseUserId(employee_id);
+        if (!empId) return res.status(400).json({ error: 'Valid employee_id is required' });
+        if (!date) return res.status(400).json({ error: 'date is required' });
+
+        await client.query('BEGIN');
+
+        // 1. Get employee info
+        const empRes = await client.query(
+            `SELECT employee_id, first_name, last_name, app_user_id, email, phone FROM employees WHERE employee_id = $1`,
+            [empId]
+        );
+        if (empRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Employee not found' });
+        }
+        const emp = empRes.rows[0];
+
+        // 2. Fetch settings
+        const setRes = await client.query('SELECT * FROM attendance_settings WHERE id = 1');
+        const settings = setRes.rows[0] || {
+            staff_in_time: '08:00:00',
+            staff_out_time: '14:00:00',
+            staff_grace_minutes: 15,
+            staff_biometric_mode: 'both'
+        };
+
+        // 3. Biometric Verification Check (if retina_face descriptor provided and not manual override)
+        if (verification_mode === 'retina_face' && Array.isArray(biometric_data) && biometric_data.length > 0 && !manual_override) {
+            let userTargetId = emp.app_user_id;
+            if (!userTargetId && emp.email) {
+                const uRes = await client.query(`SELECT id FROM app_users WHERE LOWER(email) = LOWER($1) LIMIT 1`, [emp.email]);
+                userTargetId = uRes.rows[0]?.id;
+            }
+
+            if (userTargetId) {
+                const credRes = await client.query(
+                    `SELECT public_key FROM user_webauthn_credentials WHERE user_id = $1 AND credential_type = 'retina_face' ORDER BY id DESC LIMIT 1`,
+                    [userTargetId]
+                );
+                if (credRes.rows.length > 0) {
+                    try {
+                        const storedDescriptor = JSON.parse(credRes.rows[0].public_key);
+                        const similarity = computeBiometricSimilarity(biometric_data, storedDescriptor);
+                        if (similarity < 0.65) {
+                            await client.query('ROLLBACK');
+                            return res.status(401).json({
+                                success: false,
+                                error: `Facial / Retina scan does not match registered profile (Match score: ${(similarity * 100).toFixed(1)}%). Verification failed.`
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Descriptor parsing warning:', e.message);
+                    }
+                }
+            }
+        }
+
+        // 4. Time calculations
+        const nowObj = new Date();
+        const currentTimeStr = nowObj.toTimeString().split(' ')[0]; // "08:15:30"
+        const currentMins = timeStringToMinutes(currentTimeStr);
+        const inLimitMins = timeStringToMinutes(settings.staff_in_time) + (settings.staff_grace_minutes || 0);
+        const outLimitMins = timeStringToMinutes(settings.staff_out_time);
+
+        const isInLate = session_type === 'in' ? (currentMins > inLimitMins) : false;
+        const isOutEarly = session_type === 'out' ? (currentMins < outLimitMins) : false;
+
+        let finalStatus = status_override || 'Present';
+        if (!status_override && session_type === 'in' && isInLate) {
+            finalStatus = 'Late';
+        }
+
+        let markedById = parseUserId(user_id);
+
+        let savedRecord;
+        if (session_type === 'in') {
+            const insRes = await client.query(
+                `INSERT INTO staff_attendance (
+                    employee_id, attendance_date, status, check_in_time,
+                    in_verified, in_verification_mode, is_in_late, in_marked_by, updated_at
+                ) VALUES ($1, $2, $3, $4, TRUE, $5, $6, $7, CURRENT_TIMESTAMP)
+                ON CONFLICT (employee_id, attendance_date)
+                DO UPDATE SET 
+                    status = CASE 
+                        WHEN staff_attendance.status = 'Absent' THEN $3
+                        WHEN staff_attendance.status = 'Leave' THEN $3
+                        ELSE COALESCE($3, staff_attendance.status)
+                    END,
+                    check_in_time = COALESCE(staff_attendance.check_in_time, $4),
+                    in_verified = TRUE,
+                    in_verification_mode = $5,
+                    is_in_late = $6,
+                    in_marked_by = $7,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *`,
+                [empId, date, finalStatus, currentTimeStr, verification_mode, isInLate, markedById]
+            );
+            savedRecord = insRes.rows[0];
+        } else {
+            const outRes = await client.query(
+                `INSERT INTO staff_attendance (
+                    employee_id, attendance_date, status, check_out_time,
+                    out_verified, out_verification_mode, is_out_early, out_marked_by, updated_at
+                ) VALUES ($1, $2, $3, $4, TRUE, $5, $6, $7, CURRENT_TIMESTAMP)
+                ON CONFLICT (employee_id, attendance_date)
+                DO UPDATE SET 
+                    status = CASE 
+                        WHEN staff_attendance.status = 'Absent' THEN $3
+                        ELSE staff_attendance.status
+                    END,
+                    check_out_time = $4,
+                    out_verified = TRUE,
+                    out_verification_mode = $5,
+                    is_out_early = $6,
+                    out_marked_by = $7,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *`,
+                [empId, date, finalStatus, currentTimeStr, verification_mode, isOutEarly, markedById]
+            );
+            savedRecord = outRes.rows[0];
+        }
+
+        await client.query('COMMIT');
+
+        // Realtime notification dispatch
+        try {
+            const { notifyUser } = require('../utils/notify');
+            if (emp.app_user_id) {
+                notifyUser(emp.app_user_id, {
+                    type: 'staff_attendance',
+                    title: `Staff ${session_type.toUpperCase()} Attendance Verified`,
+                    message: `${emp.first_name} ${emp.last_name || ''}, your ${session_type.toUpperCase()} attendance was recorded at ${currentTimeStr} (${savedRecord.status}${isInLate ? ' - Late Entry' : ''}${isOutEarly ? ' - Early Exit' : ''}).`,
+                    link: '/profile'
+                });
+            }
+        } catch (ne) {
+            console.error('Notification error:', ne.message);
+        }
+
+        res.json({
+            success: true,
+            message: `Staff ${session_type.toUpperCase()} attendance verified & saved successfully`,
+            record: savedRecord,
+            time: currentTimeStr,
+            is_in_late: isInLate,
+            is_out_early: isOutEarly
+        });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('verify-biometric error:', err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
 });
 
 // POST /attendance/staff/daily
-// body: { date, records: [{employee_id, status, check_in_time, check_out_time, remarks}] }
+// body: { date, records: [{employee_id, status, check_in_time, check_out_time, remarks, in_verified, out_verified}], session_type, user_id }
 router.post('/staff/daily', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { date, records } = req.body;
+        const { date, records, session_type = 'in', user_id } = req.body;
         if (!date || !records || !Array.isArray(records) || records.length === 0)
             return res.status(400).json({ error: 'date and records[] required' });
 
+        const markedById = parseUserId(user_id);
         await client.query('BEGIN');
         let saved = 0;
         for (const r of records) {
+            const empId = parseUserId(r.employee_id);
+            if (!empId) continue;
+            
+            const status = r.status || 'Present';
+            const checkIn = r.check_in_time || null;
+            const checkOut = r.check_out_time || null;
+            const remarks = r.remarks || null;
+            const inVerified = r.in_verified === true;
+            const outVerified = r.out_verified === true;
+
             await client.query(
-                `INSERT INTO staff_attendance (employee_id, attendance_date, status, check_in_time, check_out_time, remarks)
-                 VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT (employee_id, attendance_date)
-                 DO UPDATE SET status=$3, check_in_time=$4, check_out_time=$5, remarks=$6`,
-                [r.employee_id, date, r.status, r.check_in_time || null, r.check_out_time || null, r.remarks || null]
+                `INSERT INTO staff_attendance (
+                    employee_id, attendance_date, status, check_in_time, check_out_time, 
+                    remarks, in_verified, out_verified, in_marked_by, updated_at
+                ) VALUES (
+                    $1, $2, $3, $4, $5, 
+                    $6, $7, $8, $9, CURRENT_TIMESTAMP
+                )
+                ON CONFLICT (employee_id, attendance_date)
+                DO UPDATE SET 
+                    status = $3, 
+                    check_in_time = COALESCE($4, staff_attendance.check_in_time), 
+                    check_out_time = COALESCE($5, staff_attendance.check_out_time), 
+                    remarks = COALESCE($6, staff_attendance.remarks),
+                    in_verified = CASE WHEN $7 = TRUE THEN TRUE ELSE staff_attendance.in_verified END,
+                    out_verified = CASE WHEN $8 = TRUE THEN TRUE ELSE staff_attendance.out_verified END,
+                    updated_at = CURRENT_TIMESTAMP`,
+                [empId, date, status, checkIn, checkOut, remarks, inVerified, outVerified, markedById]
             );
             saved++;
         }
@@ -567,6 +792,7 @@ router.post('/staff/daily', async (req, res) => {
         res.json({ message: `${saved} staff attendance record(s) saved`, saved });
     } catch (err) {
         await client.query('ROLLBACK');
+        console.error('staff/daily save error:', err);
         res.status(500).json({ error: err.message });
     } finally { client.release(); }
 });
@@ -583,7 +809,7 @@ router.get('/staff/history', async (req, res) => {
 
         const employees = await pool.query(
             `SELECT e.employee_id, e.first_name, e.last_name, e.designation,
-                    d.department_name
+                    d.department_name, d.department_id
              FROM employees e LEFT JOIN departments d ON e.department_id = d.department_id
              ${empWhere}
              ORDER BY d.department_name NULLS LAST, e.first_name`,
@@ -595,7 +821,9 @@ router.get('/staff/history', async (req, res) => {
         if (department_id) { attParams.push(department_id); attWhere = ` AND e.department_id = $3`; }
 
         const attendance = await pool.query(
-            `SELECT sa.employee_id, sa.attendance_date, sa.status
+            `SELECT sa.employee_id, sa.attendance_date, sa.status,
+                    sa.check_in_time, sa.check_out_time, sa.remarks,
+                    sa.in_verified, sa.out_verified, sa.is_in_late, sa.is_out_early
              FROM staff_attendance sa
              JOIN employees e ON sa.employee_id = e.employee_id
              WHERE EXTRACT(MONTH FROM sa.attendance_date) = $1
@@ -604,6 +832,14 @@ router.get('/staff/history', async (req, res) => {
              ORDER BY sa.attendance_date`,
             attParams
         );
+
+        // Fetch settings for late/early reference
+        const setRes = await pool.query('SELECT * FROM attendance_settings WHERE id = 1');
+        const settings = setRes.rows[0] || {
+            staff_in_time: '08:00',
+            staff_out_time: '14:00',
+            staff_grace_minutes: 15
+        };
 
         // All staff holidays in that month
         const holidaysRes = await pool.query(`
@@ -644,7 +880,16 @@ router.get('/staff/history', async (req, res) => {
             const eid = a.employee_id;
             const d = a.attendance_date.toISOString().split('T')[0];
             if (!attMap[eid]) attMap[eid] = {};
-            attMap[eid][d] = a.status;
+            attMap[eid][d] = {
+                status: a.status,
+                check_in_time: a.check_in_time,
+                check_out_time: a.check_out_time,
+                in_verified: a.in_verified,
+                out_verified: a.out_verified,
+                is_in_late: a.is_in_late,
+                is_out_early: a.is_out_early,
+                remarks: a.remarks
+            };
         }
 
         const rows = employees.rows.map(e => {
@@ -652,20 +897,45 @@ router.get('/staff/history', async (req, res) => {
             // Inject holiday if no attendance or if holiday
             for (const hDate of Object.keys(holidayDateMap)) {
                 if (!rec[hDate]) {
-                    rec[hDate] = 'Holiday';
+                    rec[hDate] = {
+                        status: 'Holiday',
+                        check_in_time: null,
+                        check_out_time: null,
+                        holiday_name: holidayDateMap[hDate]
+                    };
                 }
             }
 
-            const present = Object.values(rec).filter(v => v === 'Present').length;
-            const late = Object.values(rec).filter(v => v === 'Late').length;
-            const absent = Object.values(rec).filter(v => v === 'Absent').length;
-            const leave = Object.values(rec).filter(v => v === 'Leave').length;
-            const holiday = Object.values(rec).filter(v => v === 'Holiday').length;
-            return { ...e, daily: rec, present, late, absent, leave, holiday, total_days: allUniqueDates.length };
+            const recValues = Object.values(rec);
+            const present = recValues.filter(v => v.status === 'Present').length;
+            const late_in = recValues.filter(v => v.is_in_late || v.status === 'Late').length;
+            const early_out = recValues.filter(v => v.is_out_early).length;
+            const absent = recValues.filter(v => v.status === 'Absent').length;
+            const leave = recValues.filter(v => v.status === 'Leave').length;
+            const holiday = recValues.filter(v => v.status === 'Holiday').length;
+            return { 
+                ...e, 
+                daily: rec, 
+                present, 
+                late_in, 
+                early_out, 
+                absent, 
+                leave, 
+                holiday, 
+                total_days: allUniqueDates.length 
+            };
         });
 
-        res.json({ staff: rows, working_dates: allUniqueDates, holidays: holidayDateMap });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        res.json({ 
+            staff: rows, 
+            working_dates: allUniqueDates, 
+            holidays: holidayDateMap,
+            settings 
+        });
+    } catch (err) { 
+        console.error('staff/history error:', err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 // GET /attendance/staff/:employee_id/history?month=&year=
@@ -683,7 +953,8 @@ router.get('/staff/:employee_id/history', async (req, res) => {
 
         const result = await pool.query(
             `SELECT sa.attendance_id, sa.attendance_date, sa.status,
-                    sa.check_in_time, sa.check_out_time, sa.remarks
+                    sa.check_in_time, sa.check_out_time, sa.remarks,
+                    sa.in_verified, sa.out_verified, sa.is_in_late, sa.is_out_early
              FROM staff_attendance sa
              WHERE sa.employee_id = $1 ${whereExtra}
              ORDER BY sa.attendance_date DESC`,
@@ -694,7 +965,8 @@ router.get('/staff/:employee_id/history', async (req, res) => {
         const stats = {
             present: records.filter(r => r.status === 'Present').length,
             absent: records.filter(r => r.status === 'Absent').length,
-            late: records.filter(r => r.status === 'Late').length,
+            late_in: records.filter(r => r.is_in_late || r.status === 'Late').length,
+            early_out: records.filter(r => r.is_out_early).length,
             leave: records.filter(r => r.status === 'Leave').length,
             total: records.length,
         };

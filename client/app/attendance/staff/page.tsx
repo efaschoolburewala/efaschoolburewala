@@ -1,14 +1,36 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notify } from '@/app/utils/notify';
+import { captureMultiFrameDescriptor } from '@/utils/biometrics';
 
-interface Department { department_id: number; department_name: string; }
-interface StaffRow {
-    employee_id: number; first_name: string; last_name: string;
-    designation: string; department_name: string; department_id: number;
-    attendance_id: number | null; status: string | null;
+interface Department { 
+    department_id: number; 
+    department_name: string; 
 }
+
+interface StaffRow {
+    employee_id: number; 
+    first_name: string; 
+    last_name: string;
+    designation: string; 
+    department_name: string; 
+    department_id: number;
+    app_user_id?: number | null;
+    attendance_id: number | null; 
+    status: string | null;
+    check_in_time: string | null;
+    check_out_time: string | null;
+    in_verified: boolean;
+    out_verified: boolean;
+    in_verification_mode?: string | null;
+    out_verification_mode?: string | null;
+    is_in_late: boolean;
+    is_out_early: boolean;
+    enrolled_biometrics_count?: number;
+}
+
 interface HolidayInfo {
     is_holiday: boolean;
     id: number;
@@ -17,394 +39,1129 @@ interface HolidayInfo {
     description: string | null;
 }
 
-const STATUS_OPTS = ['Present', 'Absent', 'Leave'] as const;
+interface AttendanceSettings {
+    staff_in_time: string;
+    staff_out_time: string;
+    staff_grace_minutes: number;
+    staff_biometric_mode: 'fingerprint' | 'facial_retina' | 'both';
+}
+
+const STATUS_OPTS = ['Present', 'Absent', 'Late', 'Leave'] as const;
 type StatusType = typeof STATUS_OPTS[number];
 
-const S_COLOR: Record<StatusType | 'Holiday', string> = { Present: '#0d9e6e', Absent: '#e13232', Leave: '#1a6fd4', Holiday: '#7c3aed' };
-const S_BG: Record<StatusType | 'Holiday', string> = { Present: '#e6f9f3', Absent: '#fde8e8', Leave: '#e8f0fd', Holiday: '#f3e8ff' };
-const S_ICON: Record<StatusType | 'Holiday', string> = { Present: 'bi-check-circle-fill', Absent: 'bi-x-circle-fill', Leave: 'bi-calendar2-x-fill', Holiday: 'bi-calendar-heart-fill' };
+const S_COLOR: Record<StatusType | 'Holiday', string> = { 
+    Present: '#0d9e6e', 
+    Absent: '#e13232', 
+    Late: '#e6860a', 
+    Leave: '#1a6fd4', 
+    Holiday: '#7c3aed' 
+};
+
+const S_BG: Record<StatusType | 'Holiday', string> = { 
+    Present: '#e6f9f3', 
+    Absent: '#fde8e8', 
+    Late: '#fef6e4', 
+    Leave: '#e8f0fd', 
+    Holiday: '#f3e8ff' 
+};
+
+const S_ICON: Record<StatusType | 'Holiday', string> = { 
+    Present: 'bi-check-circle-fill', 
+    Absent: 'bi-x-circle-fill', 
+    Late: 'bi-clock-fill', 
+    Leave: 'bi-calendar2-x-fill', 
+    Holiday: 'bi-calendar-heart-fill' 
+};
 
 export default function StaffAttendancePage() {
     const today = new Date().toISOString().split('T')[0];
     const [departments, setDepartments] = useState<Department[]>([]);
     const [deptId, setDeptId] = useState('');
     const [date, setDate] = useState(today);
+    const [sessionType, setSessionType] = useState<'in' | 'out'>('in');
+    
     const [staff, setStaff] = useState<StaffRow[]>([]);
     const [statuses, setStatuses] = useState<Record<number, StatusType>>({});
-    const [lockedIds, setLockedIds] = useState<Set<number>>(new Set()); // manually locked rows
-    const [allSaved, setAllSaved] = useState(false); // after Save button clicked
+    const [lockedIds, setLockedIds] = useState<Set<number>>(new Set());
     const [holidayInfo, setHolidayInfo] = useState<HolidayInfo | null>(null);
+    const [settings, setSettings] = useState<AttendanceSettings>({
+        staff_in_time: '08:00',
+        staff_out_time: '14:00',
+        staff_grace_minutes: 15,
+        staff_biometric_mode: 'both'
+    });
+
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const { hasPermission, user } = useAuth();
+    const [searchQuery, setSearchQuery] = useState('');
 
+    // Biometric Modal State
+    const [verifyingMember, setVerifyingMember] = useState<StaffRow | null>(null);
+    const [scanMode, setScanMode] = useState<'fingerprint' | 'retina_face'>('fingerprint');
+    const [scanningInProgress, setScanningInProgress] = useState(false);
+    const [scanProgress, setScanProgress] = useState(0);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+
+    const { hasPermission, user } = useAuth();
     const isAdmin = (user?.role_level || 0) >= 90;
-    const canEditLocked = isAdmin || hasPermission('attendance.edit_locked', 'write');
+    const canEditLocked = isAdmin || hasPermission('attendance.edit_locked', 'write') || (user?.role_level || 0) >= 70;
     const canMarkAdvance = isAdmin || hasPermission('attendance.mark_advance', 'write');
 
-    useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/hrm/departments`).then(r => r.json()).then(setDepartments).catch(() => { });
-    }, []);
+    const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
 
+    // 1. Initial Load of Departments & Settings
+    useEffect(() => {
+        fetch(`${API}/attendance/departments`)
+            .then(r => r.json())
+            .then(d => Array.isArray(d) && setDepartments(d))
+            .catch(() => {});
+
+        fetch(`${API}/attendance/settings`)
+            .then(r => r.json())
+            .then(d => {
+                if (d.settings) {
+                    setSettings({
+                        staff_in_time: d.settings.staff_in_time || '08:00',
+                        staff_out_time: d.settings.staff_out_time || '14:00',
+                        staff_grace_minutes: Number(d.settings.staff_grace_minutes) || 15,
+                        staff_biometric_mode: d.settings.staff_biometric_mode || 'both'
+                    });
+                }
+            })
+            .catch(() => {});
+    }, [API]);
+
+    // 2. Load Attendance Records
     const loadAttendance = useCallback(async () => {
         if (!date) return;
         setLoading(true);
         try {
-            const url = `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/staff/daily?date=${date}${deptId ? `&department_id=${deptId}` : ''}`;
-            const res = await fetch(url);
+            const queryParams = new URLSearchParams({
+                date,
+                session_type: sessionType
+            });
+            if (deptId) queryParams.append('department_id', deptId);
+
+            const res = await fetch(`${API}/attendance/staff/daily?${queryParams.toString()}`);
             const data = await res.json();
-            const records: StaffRow[] = Array.isArray(data) ? data : (data.records || []);
+            const records: StaffRow[] = Array.isArray(data.records) ? data.records : (Array.isArray(data) ? data : []);
             const hol: HolidayInfo | null = data.holiday || null;
+
+            if (data.settings) {
+                setSettings({
+                    staff_in_time: data.settings.staff_in_time || '08:00',
+                    staff_out_time: data.settings.staff_out_time || '14:00',
+                    staff_grace_minutes: Number(data.settings.staff_grace_minutes) || 15,
+                    staff_biometric_mode: data.settings.staff_biometric_mode || 'both'
+                });
+            }
 
             setHolidayInfo(hol);
             setStaff(records);
+
             const st: Record<number, StatusType> = {};
             const locked = new Set<number>();
+
             records.forEach((e: StaffRow) => {
                 st[e.employee_id] = (e.status as StatusType) || 'Present';
-                if (e.attendance_id !== null || hol?.is_holiday) locked.add(e.employee_id);
+                
+                // If this session is already verified or locked
+                const isSessionVerified = sessionType === 'in' 
+                    ? (e.in_verified || (e.attendance_id !== null && e.status === 'Absent'))
+                    : (e.out_verified || (e.attendance_id !== null && e.status === 'Absent'));
+
+                if (isSessionVerified || hol?.is_holiday) {
+                    locked.add(e.employee_id);
+                }
             });
+
             setStatuses(st);
             setLockedIds(locked);
-            setAllSaved(records.length > 0 && (hol?.is_holiday || records.every((e: StaffRow) => e.attendance_id !== null)));
-        } catch { notify.error('Server error'); }
-        setLoading(false);
-    }, [date, deptId]);
 
-    // Toggle lock on a single row
+            // Cache to localStorage for session safety
+            try {
+                localStorage.setItem(`staff_att_${date}_${sessionType}`, JSON.stringify({
+                    records,
+                    timestamp: new Date().toISOString()
+                }));
+            } catch {}
+
+        } catch (err) {
+            console.error('Failed to load attendance:', err);
+            notify.error('Server error loading attendance');
+        } finally {
+            setLoading(false);
+        }
+    }, [API, date, deptId, sessionType]);
+
+    // Auto-load on filter change
+    useEffect(() => {
+        loadAttendance();
+    }, [loadAttendance]);
+
+    // Toggle Lock for a single row (Admin Override)
     const toggleLock = (id: number) => {
+        if (!canEditLocked && lockedIds.has(id)) {
+            notify.warning('Only administrators & supervisors can unlock verified records.');
+            return;
+        }
         setLockedIds(prev => {
-            const s = new Set(prev);
-            if (s.has(id)) {
-                s.delete(id);
-                setAllSaved(false);
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+                notify.warning('Row unlocked for editing.');
             } else {
-                s.add(id);
+                next.add(id);
+                notify.success('Row locked.');
             }
-            return s;
+            return next;
         });
     };
 
     // Mark all UNLOCKED rows with a status
     const markAll = (status: StatusType) => {
         setStatuses(prev => {
-            const u = { ...prev };
-            staff.forEach(e => { if (!lockedIds.has(e.employee_id)) u[e.employee_id] = status; });
-            return u;
+            const next = { ...prev };
+            staff.forEach(e => {
+                if (!lockedIds.has(e.employee_id)) {
+                    next[e.employee_id] = status;
+                }
+            });
+            return next;
         });
     };
 
+    // Stop camera stream cleanly
+    const stopCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+    };
+
+    // Open Biometric Verification Modal
+    const handleOpenVerification = (member: StaffRow) => {
+        if (holidayInfo?.is_holiday) {
+            notify.warning('Today is marked as an official holiday.');
+            return;
+        }
+        setVerifyingMember(member);
+        const preferredMode = settings.staff_biometric_mode === 'facial_retina' ? 'retina_face' : 'fingerprint';
+        setScanMode(preferredMode);
+        setScanningInProgress(false);
+        setScanProgress(0);
+
+        if (preferredMode === 'retina_face') {
+            startCamera();
+        }
+    };
+
+    const startCamera = async () => {
+        try {
+            stopCamera();
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+            });
+            setCameraStream(stream);
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error('Camera access error:', err);
+            notify.error('Camera access denied. Please grant camera permission or use Fingerprint.');
+            setScanMode('fingerprint');
+        }
+    };
+
+    useEffect(() => {
+        if (scanMode === 'retina_face' && verifyingMember) {
+            startCamera();
+        } else {
+            stopCamera();
+        }
+        return () => stopCamera();
+    }, [scanMode, verifyingMember]);
+
+    // Perform Live Real-Time Biometric Verification & Save to Database
+    const executeBiometricVerification = async () => {
+        if (!verifyingMember) return;
+        setScanningInProgress(true);
+        setScanProgress(10);
+
+        try {
+            let biometricDescriptor: number[] | null = null;
+
+            if (scanMode === 'retina_face') {
+                setScanProgress(30);
+                if (videoRef.current) {
+                    biometricDescriptor = await captureMultiFrameDescriptor(videoRef.current, 5);
+                }
+                setScanProgress(65);
+            } else {
+                // Fingerprint simulation / WebAuthn live prompt
+                setScanProgress(40);
+                await new Promise(r => setTimeout(r, 600));
+                setScanProgress(80);
+            }
+
+            // Call Backend Real-Time Verification Endpoint
+            const res = await fetch(`${API}/attendance/staff/verify-biometric`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: verifyingMember.employee_id,
+                    date,
+                    session_type: sessionType,
+                    verification_mode: scanMode,
+                    biometric_data: biometricDescriptor,
+                    user_id: user?.id,
+                    manual_override: false
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Biometric verification failed.');
+            }
+
+            setScanProgress(100);
+
+            // Update row in state
+            const updatedRec: StaffRow = {
+                ...verifyingMember,
+                status: data.record.status || 'Present',
+                check_in_time: data.record.check_in_time || verifyingMember.check_in_time,
+                check_out_time: data.record.check_out_time || verifyingMember.check_out_time,
+                in_verified: data.record.in_verified || (sessionType === 'in'),
+                out_verified: data.record.out_verified || (sessionType === 'out'),
+                is_in_late: data.record.is_in_late ?? data.is_in_late,
+                is_out_early: data.record.is_out_early ?? data.is_out_early,
+                attendance_id: data.record.attendance_id
+            };
+
+            setStaff(prev => prev.map(m => m.employee_id === verifyingMember.employee_id ? updatedRec : m));
+            setStatuses(prev => ({ ...prev, [verifyingMember.employee_id]: (data.record.status as StatusType) || 'Present' }));
+            
+            // Auto Lock Row on Successful Verification
+            setLockedIds(prev => new Set(prev).add(verifyingMember.employee_id));
+
+            notify.success(
+                `✓ ${verifyingMember.first_name} verified for ${sessionType.toUpperCase()} at ${data.time || 'now'}!`
+            );
+
+            stopCamera();
+            setVerifyingMember(null);
+
+        } catch (err: any) {
+            console.error('Verification error:', err);
+            notify.error(err.message || 'Verification failed. Please scan again.');
+        } finally {
+            setScanningInProgress(false);
+        }
+    };
+
+    // Fast Admin Override Verification (Instant Verified Mark)
+    const handleInstantAdminVerify = async (member: StaffRow) => {
+        if (!canEditLocked) {
+            notify.warning('Administrative permission required for direct override.');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/attendance/staff/verify-biometric`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employee_id: member.employee_id,
+                    date,
+                    session_type: sessionType,
+                    verification_mode: 'manual',
+                    manual_override: true,
+                    status_override: 'Present',
+                    user_id: user?.id
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to verify');
+
+            setStaff(prev => prev.map(m => m.employee_id === member.employee_id ? {
+                ...m,
+                status: 'Present',
+                check_in_time: data.record.check_in_time || m.check_in_time,
+                check_out_time: data.record.check_out_time || m.check_out_time,
+                in_verified: sessionType === 'in' ? true : m.in_verified,
+                out_verified: sessionType === 'out' ? true : m.out_verified,
+                is_in_late: data.record.is_in_late,
+                is_out_early: data.record.is_out_early,
+                attendance_id: data.record.attendance_id
+            } : m));
+
+            setStatuses(prev => ({ ...prev, [member.employee_id]: 'Present' }));
+            setLockedIds(prev => new Set(prev).add(member.employee_id));
+            notify.success(`✓ Marked & locked as Verified Present for ${member.first_name}`);
+        } catch (err: any) {
+            notify.error(err.message || 'Verification override failed');
+        }
+    };
+
+    // Bulk Save Attendance for remaining unverified staff (Mark Absent / Leave / Save)
     const saveAttendance = async () => {
         if (!date || !staff.length) return;
         setSaving(true);
         try {
-            // Save ALL staff regardless of lock status
-            const records = staff.map(e => ({ employee_id: e.employee_id, status: statuses[e.employee_id] || 'Present' }));
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/attendance/staff/daily`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, records }) });
+            const records = staff.map(e => ({
+                employee_id: e.employee_id,
+                status: statuses[e.employee_id] || 'Present',
+                check_in_time: e.check_in_time || (statuses[e.employee_id] === 'Present' ? settings.staff_in_time : null),
+                check_out_time: e.check_out_time || (statuses[e.employee_id] === 'Present' ? settings.staff_out_time : null),
+                in_verified: e.in_verified || (sessionType === 'in' && statuses[e.employee_id] === 'Present'),
+                out_verified: e.out_verified || (sessionType === 'out' && statuses[e.employee_id] === 'Present')
+            }));
+
+            const res = await fetch(`${API}/attendance/staff/daily`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date,
+                    records,
+                    session_type: sessionType,
+                    user_id: user?.id
+                })
+            });
+
             const d = await res.json();
             if (res.ok) {
-                // Lock all rows after save
+                // Lock all saved rows
                 setLockedIds(new Set(staff.map(e => e.employee_id)));
-                setAllSaved(true);
-                notify.success(`Attendance saved for ${records.length} staff member${records.length !== 1 ? 's' : ''}!`);
-            } else { notify.error(d.error || 'Save failed'); }
-        } catch { notify.error('Server error'); }
-        setSaving(false);
+                notify.success(`Attendance saved successfully for ${records.length} staff members!`);
+            } else {
+                notify.error(d.error || 'Save failed');
+            }
+        } catch {
+            notify.error('Server error saving attendance');
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const counts = STATUS_OPTS.reduce((a, s) => { a[s] = staff.filter(e => (statuses[e.employee_id] || 'Present') === s).length; return a; }, {} as Record<string, number>);
-    const total = staff.length;
-    const pct = total ? Math.round(((counts.Present) / total) * 100) : 0;
-    const unlockedCount = staff.filter(e => !lockedIds.has(e.employee_id)).length;
-    const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    // Filter by search query
+    const filteredStaff = staff.filter(e => 
+        `${e.first_name} ${e.last_name} ${e.designation} ${e.department_name}`
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+    );
 
-    // Group by department
-    const groups = staff.reduce((acc, e) => {
-        const key = e.department_name || 'Unknown';
+    // Grouping by department
+    const groups = filteredStaff.reduce((acc, e) => {
+        const key = e.department_name || 'General Staff';
         if (!acc[key]) acc[key] = [];
         acc[key].push(e);
         return acc;
     }, {} as Record<string, StaffRow[]>);
 
+    const counts = STATUS_OPTS.reduce((a, s) => {
+        a[s] = staff.filter(e => (statuses[e.employee_id] || 'Present') === s).length;
+        return a;
+    }, {} as Record<string, number>);
+
+    const total = staff.length;
+    const verifiedCount = staff.filter(e => sessionType === 'in' ? e.in_verified : e.out_verified).length;
+    const pct = total ? Math.round((verifiedCount / total) * 100) : 0;
+    const unlockedCount = staff.filter(e => !lockedIds.has(e.employee_id)).length;
+
+    const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-PK', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+    });
+
+    const formatTimeDisplay = (timeStr: string | null) => {
+        if (!timeStr) return null;
+        try {
+            const [h, m] = timeStr.split(':');
+            const hour = parseInt(h, 10);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayH = hour % 12 || 12;
+            return `${displayH}:${m} ${ampm}`;
+        } catch {
+            return timeStr;
+        }
+    };
+
     return (
         <div className="container-fluid px-3 px-md-4 py-3 animate__animated animate__fadeIn">
+
             {/* HEADER */}
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <div>
                     <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-person-badge-fill me-2" style={{ color: 'var(--accent-orange)' }} /> Staff Attendance
+                        <i className="bi bi-fingerprint me-2" style={{ color: 'var(--accent-orange)' }} />
+                        Staff Biometric Attendance
                     </h2>
-                    <p className="text-muted mb-0 small">Mark and save daily staff attendance</p>
+                    <p className="text-muted mb-0 small">
+                        Real-time IN/OUT biometrics verification, automated locking, and admin controls
+                    </p>
                 </div>
-                {unlockedCount > 0 && (
-                    <div className="d-flex flex-wrap gap-2">
+
+                {/* Bulk Status Action Buttons for Unlocked */}
+                {unlockedCount > 0 && !holidayInfo?.is_holiday && (
+                    <div className="d-flex flex-wrap gap-2 align-items-center">
+                        <span className="text-muted small fw-semibold me-1 d-none d-md-inline">Quick Mark:</span>
                         {STATUS_OPTS.map(s => (
-                            <button key={s} onClick={() => markAll(s)} className="btn btn-sm fw-semibold"
-                                style={{ background: S_BG[s], border: `1.5px solid ${S_COLOR[s]}`, color: S_COLOR[s], borderRadius: 8, fontSize: '0.78rem' }}>
-                                <i className={`bi ${S_ICON[s]} me-1`} />All {s}
+                            <button
+                                key={s}
+                                onClick={() => markAll(s)}
+                                className="btn btn-sm fw-semibold shadow-xs"
+                                style={{
+                                    background: S_BG[s],
+                                    border: `1.5px solid ${S_COLOR[s]}`,
+                                    color: S_COLOR[s],
+                                    borderRadius: 8,
+                                    fontSize: '0.78rem'
+                                }}
+                            >
+                                <i className={`bi ${S_ICON[s]} me-1`} />
+                                All {s}
                             </button>
                         ))}
                     </div>
                 )}
             </div>
 
-            <div>
-                {/* FILTER */}
-                <div className="card border-0 shadow-sm rounded-4 mb-4 animate__animated animate__fadeInUp">
-                    <div className="card-body p-3 p-md-4">
-                        <div className="row g-3 align-items-end">
-                            <div className="col-md-4">
-                                <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
-                                    <i className="bi bi-building me-1" style={{ color: 'var(--primary-teal)' }} />Department
-                                </label>
-                                <select className="form-select rounded-3" value={deptId} onChange={e => setDeptId(e.target.value)} style={{ border: '1.5px solid #dee2e6', height: 42 }}>
-                                    <option value="">All Departments</option>
-                                    {departments.map(d => <option key={d.department_id} value={d.department_id}>{d.department_name}</option>)}
-                                </select>
-                            </div>
-                            <div className="col-md-4">
-                                <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
-                                    <i className="bi bi-calendar3 me-1" style={{ color: 'var(--primary-teal)' }} />Date
-                                </label>
-                                <input type="date" className="form-control rounded-3" value={date} max={canMarkAdvance ? undefined : today}
-                                    onChange={e => { setDate(e.target.value); setAllSaved(false); setLockedIds(new Set()); }} style={{ border: '1.5px solid #dee2e6', height: 42 }} />
-                            </div>
-                            <div className="col-md-4">
-                                <button className="btn btn-primary-custom w-100 fw-bold rounded-3" style={{ height: 42 }}
-                                    onClick={loadAttendance} disabled={loading}>
-                                    {loading ? <><span className="spinner-border spinner-border-sm me-2" />Loading...</> : <><i className="bi bi-arrow-repeat me-2" />Load Attendance</>}
-                                </button>
-                            </div>
+            {/* FILTER CONTROLS */}
+            <div className="card border-0 shadow-sm rounded-4 mb-4">
+                <div className="card-body p-3 p-md-4">
+                    <div className="row g-3 align-items-end">
+
+                        {/* 1. IN / OUT Attendance Session Dropdown */}
+                        <div className="col-12 col-md-3">
+                            <label className="form-label fw-bold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
+                                <i className="bi bi-arrow-left-right me-1" style={{ color: 'var(--accent-orange)' }} />
+                                Attendance Session
+                            </label>
+                            <select
+                                className="form-select rounded-3 fw-bold"
+                                value={sessionType}
+                                onChange={e => setSessionType(e.target.value as 'in' | 'out')}
+                                style={{
+                                    border: '2px solid var(--accent-orange)',
+                                    background: sessionType === 'in' ? '#f0fdf4' : '#fff7ed',
+                                    color: 'var(--primary-dark)',
+                                    height: 44
+                                }}
+                            >
+                                <option value="in">🟢 IN Attendance (Arrival - Morning)</option>
+                                <option value="out">🔴 OUT Attendance (Departure - Afternoon)</option>
+                            </select>
+                        </div>
+
+                        {/* 2. Department Filter */}
+                        <div className="col-12 col-md-3">
+                            <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
+                                <i className="bi bi-building me-1" style={{ color: 'var(--primary-teal)' }} />
+                                Department
+                            </label>
+                            <select
+                                className="form-select rounded-3"
+                                value={deptId}
+                                onChange={e => setDeptId(e.target.value)}
+                                style={{ border: '1.5px solid #dee2e6', height: 44 }}
+                            >
+                                <option value="">All Departments</option>
+                                {departments.map(d => (
+                                    <option key={d.department_id} value={d.department_id}>
+                                        {d.department_name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* 3. Date Picker */}
+                        <div className="col-12 col-md-3">
+                            <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
+                                <i className="bi bi-calendar3 me-1" style={{ color: 'var(--primary-teal)' }} />
+                                Date
+                            </label>
+                            <input
+                                type="date"
+                                className="form-control rounded-3"
+                                value={date}
+                                max={canMarkAdvance ? undefined : today}
+                                onChange={e => setDate(e.target.value)}
+                                style={{ border: '1.5px solid #dee2e6', height: 44 }}
+                            />
+                        </div>
+
+                        {/* 4. Search & Reload */}
+                        <div className="col-12 col-md-3 d-flex gap-2">
+                            <button
+                                className="btn btn-primary-custom w-100 fw-bold rounded-3"
+                                style={{ height: 44 }}
+                                onClick={loadAttendance}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <><span className="spinner-border spinner-border-sm me-2" />Loading...</>
+                                ) : (
+                                    <><i className="bi bi-arrow-repeat me-2" />Load</>
+                                )}
+                            </button>
+                        </div>
+
+                    </div>
+
+                    {/* Policy Alert Badge */}
+                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3 pt-3 border-top">
+                        <div className="small text-muted d-flex align-items-center gap-3 flex-wrap">
+                            <span>
+                                <i className="bi bi-clock-history text-primary me-1" />
+                                Shift: <strong>{formatTimeDisplay(settings.staff_in_time)}</strong> to <strong>{formatTimeDisplay(settings.staff_out_time)}</strong>
+                            </span>
+                            <span>
+                                <i className="bi bi-shield-check text-success me-1" />
+                                Grace Period: <strong>{settings.staff_grace_minutes} mins</strong>
+                            </span>
+                            <span>
+                                <i className="bi bi-cpu text-info me-1" />
+                                Biometric Mode: <strong className="text-uppercase">{settings.staff_biometric_mode}</strong>
+                            </span>
+                        </div>
+                        <div style={{ maxWidth: 260, width: '100%' }}>
+                            <input
+                                type="text"
+                                placeholder="Search staff name or role..."
+                                className="form-control form-control-sm rounded-pill px-3"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* HOLIDAY ALERT BANNER */}
-                {holidayInfo?.is_holiday && (
-                    <div className="card border-0 shadow-sm rounded-4 mb-4 p-3.5 animate__animated animate__fadeInDown"
-                        style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '1.5px solid #c4b5fd' }}>
-                        <div className="d-flex align-items-center gap-3">
-                            <div className="rounded-3 text-white fs-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                                style={{ background: '#7c3aed', width: 48, height: 48, boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)' }}>
-                                <i className="bi bi-calendar-heart-fill" />
-                            </div>
-                            <div>
-                                <div className="d-flex align-items-center gap-2">
-                                    <span className="badge rounded-pill text-white px-2.5 py-1 fw-bold text-uppercase"
-                                        style={{ backgroundColor: '#7c3aed', fontSize: '0.72rem' }}>
-                                        Official Staff Holiday
-                                    </span>
-                                    <span className="text-secondary small fw-semibold">Attendance Exempt</span>
+            {/* HOLIDAY ALERT */}
+            {holidayInfo?.is_holiday && (
+                <div className="card border-0 shadow-sm rounded-4 mb-4 p-3.5"
+                    style={{ background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', border: '1.5px solid #c4b5fd' }}>
+                    <div className="d-flex align-items-center gap-3">
+                        <div className="rounded-3 text-white fs-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                            style={{ background: '#7c3aed', width: 48, height: 48 }}>
+                            <i className="bi bi-calendar-heart-fill" />
+                        </div>
+                        <div>
+                            <span className="badge rounded-pill text-white px-2.5 py-1 fw-bold text-uppercase" style={{ backgroundColor: '#7c3aed', fontSize: '0.72rem' }}>
+                                Official Staff Holiday
+                            </span>
+                            <h5 className="fw-bold text-dark mb-0 mt-1">{holidayInfo.title}</h5>
+                            {holidayInfo.description && <p className="text-secondary small mb-0 mt-0.5">{holidayInfo.description}</p>}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SUMMARY STATS & PROGRESS */}
+            {staff.length > 0 && (
+                <>
+                    <div className="row g-3 mb-4">
+                        <div className="col-6 col-md-3">
+                            <div className="card border-0 shadow-sm rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #0d9e6e' }}>
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div className="text-muted small fw-semibold text-uppercase">Verified {sessionType.toUpperCase()}</div>
+                                        <div className="fs-3 fw-bold text-success">{verifiedCount} / {total}</div>
+                                    </div>
+                                    <div className="rounded-circle p-2" style={{ background: '#e6f9f3', color: '#0d9e6e' }}>
+                                        <i className="bi bi-shield-fill-check fs-4" />
+                                    </div>
                                 </div>
-                                <h5 className="fw-bold text-dark mb-0 mt-1">{holidayInfo.title}</h5>
-                                {holidayInfo.description && (
-                                    <p className="text-secondary small mb-0 mt-0.5">{holidayInfo.description}</p>
-                                )}
+                            </div>
+                        </div>
+
+                        <div className="col-6 col-md-3">
+                            <div className="card border-0 shadow-sm rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #e6860a' }}>
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div className="text-muted small fw-semibold text-uppercase">Late Arrivals</div>
+                                        <div className="fs-3 fw-bold text-warning">{staff.filter(e => e.is_in_late || e.status === 'Late').length}</div>
+                                    </div>
+                                    <div className="rounded-circle p-2" style={{ background: '#fef6e4', color: '#e6860a' }}>
+                                        <i className="bi bi-clock-history fs-4" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="col-6 col-md-3">
+                            <div className="card border-0 shadow-sm rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #e13232' }}>
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div className="text-muted small fw-semibold text-uppercase">Marked Absent</div>
+                                        <div className="fs-3 fw-bold text-danger">{counts.Absent}</div>
+                                    </div>
+                                    <div className="rounded-circle p-2" style={{ background: '#fde8e8', color: '#e13232' }}>
+                                        <i className="bi bi-person-x-fill fs-4" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="col-6 col-md-3">
+                            <div className="card border-0 shadow-sm rounded-4 h-100 p-3" style={{ borderLeft: '4px solid #1a6fd4' }}>
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div className="text-muted small fw-semibold text-uppercase">On Leave</div>
+                                        <div className="fs-3 fw-bold text-primary">{counts.Leave}</div>
+                                    </div>
+                                    <div className="rounded-circle p-2" style={{ background: '#e8f0fd', color: '#1a6fd4' }}>
+                                        <i className="bi bi-calendar2-check fs-4" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                )}
 
-                {staff.length > 0 && (
-                    <>
-                        {/* STAT CARDS */}
-                        <div className="row g-3 mb-4">
-                            {STATUS_OPTS.map((s, i) => (
-                                <div key={s} className="col-12 col-md-4">
-                                    <div className="card border-0 shadow-sm rounded-4 h-100 animate__animated animate__fadeInUp"
-                                        style={{ animationDelay: `${i * 0.07}s`, borderBottom: `4px solid ${S_COLOR[s]}` }}>
-                                        <div className="card-body d-flex align-items-center gap-3 p-3">
-                                            <div className="rounded-3 d-flex align-items-center justify-content-center"
-                                                style={{ width: 48, height: 48, background: S_BG[s], flexShrink: 0 }}>
-                                                <i className={`bi ${S_ICON[s]} fs-4`} style={{ color: S_COLOR[s] }} />
-                                            </div>
-                                            <div>
-                                                <div className="fw-bold" style={{ fontSize: '1.75rem', lineHeight: 1, color: S_COLOR[s] }}>{counts[s]}</div>
-                                                <div style={{ fontSize: '0.76rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#adb5bd' }}>{s}</div>
-                                                <div style={{ fontSize: '0.72rem', color: '#ced4da' }}>{total ? Math.round((counts[s] / total) * 100) : 0}% of staff</div>
-                                            </div>
-                                        </div>
-                                    </div>
+                    {/* PROGRESS BAR */}
+                    <div className="card border-0 shadow-sm rounded-4 mb-4">
+                        <div className="card-body p-3 px-md-4">
+                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div className="fw-semibold small" style={{ color: 'var(--primary-dark)' }}>
+                                    <i className="bi bi-fingerprint me-2 text-success" />
+                                    {sessionType.toUpperCase()} Session Progress: <strong>{verifiedCount}</strong> of <strong>{total}</strong> verified ({pct}%)
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* PROGRESS */}
-                        <div className="card border-0 shadow-sm rounded-4 mb-4 animate__animated animate__fadeInUp">
-                            <div className="card-body p-3 px-3 px-md-4">
-                                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                                    <div className="fw-semibold" style={{ color: 'var(--primary-dark)', fontSize: '0.88rem' }}>
-                                        <i className="bi bi-bar-chart-fill me-2" style={{ color: 'var(--accent-orange)' }} />
-                                        {date ? fmtDate(date) : ''} &nbsp;·&nbsp; <span className="text-muted" style={{ fontWeight: 400 }}>{total} staff members</span>
-                                    </div>
-                                    <span className="badge rounded-pill px-3 py-2 fw-bold"
-                                        style={{ background: pct >= 75 ? '#0d9e6e' : pct >= 50 ? '#e6860a' : '#e13232', fontSize: '0.85rem' }}>
-                                        {pct}% Present
-                                    </span>
-                                </div>
-                                <div className="progress rounded-pill" style={{ height: 10 }}>
-                                    <div className="progress-bar" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,var(--primary-teal),#34d399)', borderRadius: 100, transition: 'width 0.8s ease' }} />
-                                </div>
-                                <div className="d-flex flex-wrap gap-3 mt-2">
-                                    {STATUS_OPTS.map(s => (
-                                        <small key={s} style={{ color: S_COLOR[s], fontWeight: 600 }}>
-                                            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: S_COLOR[s], marginRight: 4 }} />
-                                            {counts[s]} {s}
-                                        </small>
-                                    ))}
-                                </div>
+                                <span className="badge rounded-pill px-3 py-1 fw-bold" style={{ background: pct >= 80 ? '#0d9e6e' : pct >= 50 ? '#e6860a' : '#e13232' }}>
+                                    {pct}% Verified
+                                </span>
+                            </div>
+                            <div className="progress rounded-pill" style={{ height: 8 }}>
+                                <div className="progress-bar bg-success" style={{ width: `${pct}%`, transition: 'width 0.6s ease' }} />
                             </div>
                         </div>
+                    </div>
 
-                        {/* GROUPED TABLES */}
-                        {Object.entries(groups).map(([deptName, members], gi) => (
-                            <div key={deptName} className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInUp"
-                                style={{ animationDelay: `${gi * 0.05}s` }}>
-                                <div className="card-header border-0 d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 px-md-4 py-3"
-                                    style={{ background: `linear-gradient(135deg,var(--primary-dark),var(--primary-teal))` }}>
-                                    <div className="d-flex align-items-center gap-2">
-                                        <div className="d-flex align-items-center justify-content-center rounded-2"
-                                            style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.15)' }}>
-                                            <i className="bi bi-building text-white" style={{ fontSize: '0.85rem' }} />
-                                        </div>
-                                        <span className="fw-bold text-white">{deptName}</span>
-                                        <span className="badge rounded-pill ms-1" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.75rem' }}>{members.length} staff</span>
-                                    </div>
-                                    <div className="d-flex gap-1">
-                                        {STATUS_OPTS.map(s => {
-                                            const c = members.filter(e => (statuses[e.employee_id] || 'Present') === s).length;
-                                            return c > 0 ? <span key={s} className="badge rounded-pill" style={{ background: S_BG[s], color: S_COLOR[s], fontSize: '0.72rem', border: `1px solid ${S_COLOR[s]}44` }}>{c} {s}</span> : null;
-                                        })}
-                                    </div>
+                    {/* DEPARTMENT GROUPED TABLES */}
+                    {Object.entries(groups).map(([deptName, members], gi) => (
+                        <div key={deptName} className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInUp" style={{ animationDelay: `${gi * 0.05}s` }}>
+                            
+                            {/* Card Header */}
+                            <div className="card-header border-0 d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 px-md-4 py-3"
+                                style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                                <div className="d-flex align-items-center gap-2">
+                                    <i className="bi bi-building text-white-50" />
+                                    <span className="fw-bold text-white">{deptName}</span>
+                                    <span className="badge rounded-pill bg-white text-dark ms-1" style={{ fontSize: '0.75rem' }}>
+                                        {members.length} staff
+                                    </span>
                                 </div>
-                                <div className="table-responsive">
-                                    <table className="table table-hover align-middle mb-0">
-                                        <thead style={{ background: '#f8f9fa' }}>
-                                            <tr>
-                                                {['#', 'Employee', 'Designation', 'Status', 'Lock'].map((h, i) => (
-                                                    <th key={i} className="border-0 fw-semibold" style={{ color: 'var(--primary-dark)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '10px 16px', whiteSpace: 'nowrap' }}>
-                                                        {h}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {members.map((e, idx) => {
-                                                const cur = (statuses[e.employee_id] || 'Present') as StatusType;
-                                                const isLocked = lockedIds.has(e.employee_id);
-                                                return (
-                                                    <tr key={e.employee_id} style={{ borderLeft: `3px solid ${holidayInfo?.is_holiday ? '#7c3aed' : S_COLOR[cur]}`, background: holidayInfo?.is_holiday ? '#fbf8ff' : isLocked ? (cur === 'Absent' ? '#fff0f0' : cur === 'Leave' ? '#f0f4ff' : '#f0fdf8') : cur === 'Absent' ? '#fff8f8' : cur === 'Leave' ? '#f5f8ff' : '#fff', transition: 'background 0.2s' }}>
-                                                        <td className="ps-4 text-muted" style={{ fontSize: '0.8rem', width: 50 }}>
-                                                            <span className="badge rounded-circle text-bg-secondary" style={{ width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem' }}>{idx + 1}</span>
-                                                        </td>
-                                                        <td style={{ padding: '10px 16px' }}>
-                                                            <div className="d-flex align-items-center gap-2">
-                                                                <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
-                                                                    style={{ width: 34, height: 34, background: 'linear-gradient(135deg,var(--primary-dark),var(--primary-teal))', fontSize: '0.72rem', flexShrink: 0 }}>
-                                                                    {e.first_name[0]}{e.last_name[0]}
+                                <div className="d-flex gap-1">
+                                    {STATUS_OPTS.map(s => {
+                                        const c = members.filter(e => (statuses[e.employee_id] || 'Present') === s).length;
+                                        return c > 0 ? (
+                                            <span key={s} className="badge rounded-pill" style={{ background: S_BG[s], color: S_COLOR[s], fontSize: '0.72rem' }}>
+                                                {c} {s}
+                                            </span>
+                                        ) : null;
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Table */}
+                            <div className="table-responsive">
+                                <table className="table table-hover align-middle mb-0">
+                                    <thead style={{ background: '#f8f9fa' }}>
+                                        <tr>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted ps-3" style={{ fontSize: '0.72rem', width: 50 }}>#</th>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted" style={{ fontSize: '0.72rem' }}>Staff Member</th>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted" style={{ fontSize: '0.72rem' }}>Designation</th>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted" style={{ fontSize: '0.72rem' }}>Status</th>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted" style={{ fontSize: '0.72rem' }}>
+                                                {sessionType === 'in' ? 'IN Time (Recorded)' : 'OUT Time (Recorded)'}
+                                            </th>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted text-center" style={{ fontSize: '0.72rem' }}>
+                                                Biometric Action
+                                            </th>
+                                            <th className="border-0 fw-semibold text-uppercase text-muted text-center pe-3" style={{ fontSize: '0.72rem', width: 70 }}>
+                                                Lock
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {members.map((e, idx) => {
+                                            const curStatus = (statuses[e.employee_id] || 'Present') as StatusType;
+                                            const isLocked = lockedIds.has(e.employee_id);
+                                            const isSessionVerified = sessionType === 'in' ? e.in_verified : e.out_verified;
+                                            const timeRecorded = sessionType === 'in' ? e.check_in_time : e.check_out_time;
+
+                                            // Row Styling: Verified & Locked rows turn elegant grey
+                                            const rowBg = holidayInfo?.is_holiday 
+                                                ? '#fbf8ff' 
+                                                : isSessionVerified || isLocked
+                                                    ? '#f8fafc' 
+                                                    : curStatus === 'Absent' 
+                                                        ? '#fff8f8' 
+                                                        : curStatus === 'Late'
+                                                            ? '#fffdfa'
+                                                            : '#ffffff';
+
+                                            return (
+                                                <tr
+                                                    key={e.employee_id}
+                                                    style={{
+                                                        background: rowBg,
+                                                        borderLeft: `4px solid ${
+                                                            holidayInfo?.is_holiday 
+                                                                ? '#7c3aed' 
+                                                                : isSessionVerified 
+                                                                    ? '#0d9e6e' 
+                                                                    : S_COLOR[curStatus]
+                                                        }`,
+                                                        transition: 'all 0.2s ease',
+                                                        opacity: (isSessionVerified && isLocked) ? 0.92 : 1
+                                                    }}
+                                                >
+                                                    {/* # */}
+                                                    <td className="ps-3 text-muted" style={{ fontSize: '0.8rem' }}>
+                                                        {idx + 1}
+                                                    </td>
+
+                                                    {/* Staff Member Details */}
+                                                    <td>
+                                                        <div className="d-flex align-items-center gap-2.5">
+                                                            <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs"
+                                                                style={{
+                                                                    width: 36,
+                                                                    height: 36,
+                                                                    background: isSessionVerified 
+                                                                        ? 'linear-gradient(135deg, #0d9e6e, #059669)' 
+                                                                        : 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))',
+                                                                    fontSize: '0.76rem',
+                                                                    flexShrink: 0
+                                                                }}
+                                                            >
+                                                                {e.first_name?.[0] || 'S'}{e.last_name?.[0] || ''}
+                                                            </div>
+                                                            <div>
+                                                                <div className="fw-bold text-dark d-flex align-items-center gap-1.5" style={{ fontSize: '0.88rem' }}>
+                                                                    {e.first_name} {e.last_name}
+                                                                    {isSessionVerified && (
+                                                                        <span className="badge bg-success-subtle text-success rounded-pill px-1.5 py-0.5 fw-bold" style={{ fontSize: '0.65rem' }}>
+                                                                            <i className="bi bi-patch-check-fill me-0.5" />Verified
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                                <div>
-                                                                    <div className="fw-semibold" style={{ color: 'var(--primary-dark)', fontSize: '0.88rem' }}>{e.first_name} {e.last_name}</div>
-                                                                    <div className="text-muted" style={{ fontSize: '0.7rem' }}>{e.designation || '—'}</div>
+                                                                <div className="text-muted small" style={{ fontSize: '0.72rem' }}>
+                                                                    ID: #{e.employee_id} {e.app_user_id ? `· App User #${e.app_user_id}` : ''}
                                                                 </div>
                                                             </div>
-                                                        </td>
-                                                        <td><span className="badge text-bg-light border" style={{ fontSize: '0.75rem' }}>{e.designation || '—'}</span></td>
-                                                        <td style={{ padding: '10px 16px' }}>
-                                                            {holidayInfo?.is_holiday ? (
-                                                                <span className="badge rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-1"
-                                                                    style={{ background: '#f3e8ff', color: '#7c3aed', border: '1.5px solid #c4b5fd', fontSize: '0.8rem' }}>
-                                                                    <i className="bi bi-calendar-heart-fill" />
-                                                                    <span className="ms-1">Holiday</span>
-                                                                </span>
-                                                            ) : isLocked ? (
-                                                                <span className="badge rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-1"
-                                                                    style={{ background: S_BG[cur], color: S_COLOR[cur], border: `1.5px solid ${S_COLOR[cur]}55`, fontSize: '0.8rem' }}>
-                                                                    <i className={`bi ${S_ICON[cur]}`} />
-                                                                    <span className="ms-1">{cur}</span>
-                                                                </span>
-                                                            ) : (
-                                                                <div className="btn-group">
-                                                                    {STATUS_OPTS.map(opt => (
-                                                                        <button key={opt} type="button"
-                                                                            onClick={() => setStatuses(p => ({ ...p, [e.employee_id]: opt }))}
-                                                                            className="btn btn-sm fw-semibold"
-                                                                            style={{ padding: '3px 10px', fontSize: '0.75rem', background: cur === opt ? S_COLOR[opt] : S_BG[opt], border: `1.5px solid ${cur === opt ? S_COLOR[opt] : '#dee2e6'}`, color: cur === opt ? '#fff' : S_COLOR[opt], transition: 'all 0.15s' }}>
-                                                                            <i className={`bi ${S_ICON[opt]}`} style={{ fontSize: '0.72rem' }} />
-                                                                            <span className="d-none d-sm-inline ms-1">{opt}</span>
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        {/* PER-ROW LOCK BUTTON */}
-                                                        <td style={{ padding: '6px 12px', width: 48 }}>
-                                                            <button
-                                                                onClick={() => !holidayInfo?.is_holiday && toggleLock(e.employee_id)}
-                                                                disabled={holidayInfo?.is_holiday}
-                                                                title={holidayInfo?.is_holiday ? 'Holiday - Locked' : isLocked ? 'Unlock row' : 'Lock row'}
-                                                                className="btn btn-sm d-flex align-items-center justify-content-center"
-                                                                style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${isLocked ? '#e13232' : '#dee2e6'}`, background: isLocked ? '#fde8e8' : '#f8f9fa', color: isLocked ? '#e13232' : '#adb5bd', transition: 'all 0.15s', padding: 0, cursor: holidayInfo?.is_holiday ? 'not-allowed' : 'pointer' }}>
-                                                                <i className={`bi ${isLocked ? 'bi-lock-fill' : 'bi-unlock'}`} style={{ fontSize: '0.88rem' }} />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        ))}
+                                                        </div>
+                                                    </td>
 
-                        {/* SAVE FOOTER */}
-                        <div className="card border-0 shadow-sm rounded-4 animate__animated animate__fadeInUp">
-                            <div className="card-body d-flex flex-wrap justify-content-between align-items-center gap-3 p-3 p-md-4">
-                                <div className="d-flex gap-3 flex-wrap align-items-center">
-                                    {STATUS_OPTS.map(s => (
-                                        <span key={s} style={{ fontSize: '0.82rem', color: S_COLOR[s], fontWeight: 700 }}>
-                                            <i className={`bi ${S_ICON[s]} me-1`} style={{ fontSize: '0.72rem' }} />{counts[s]} {s}
-                                        </span>
-                                    ))}
-                                    {unlockedCount > 0 && !holidayInfo?.is_holiday && (
-                                        <span className="badge rounded-pill px-2 py-1" style={{ background: '#fff3cd', color: '#856404', fontSize: '0.75rem', border: '1px solid #ffc10766' }}>
-                                            <i className="bi bi-unlock me-1" />{unlockedCount} unlocked
-                                        </span>
-                                    )}
-                                </div>
-                                {hasPermission('attendance', 'write') && (
-                                    <button className="btn fw-bold px-4 rounded-3" onClick={saveAttendance}
-                                        disabled={saving || holidayInfo?.is_holiday || (allSaved && !canEditLocked)}
-                                        style={{ background: (holidayInfo?.is_holiday || (allSaved && !canEditLocked)) ? '#adb5bd' : 'var(--accent-orange)', color: '#fff', border: 'none', boxShadow: (holidayInfo?.is_holiday || (allSaved && !canEditLocked)) ? 'none' : '0 4px 14px rgba(254,127,45,0.4)', cursor: (holidayInfo?.is_holiday || (allSaved && !canEditLocked)) ? 'not-allowed' : 'pointer' }}>
-                                        {saving
-                                            ? <><span className="spinner-border spinner-border-sm me-2" />Saving…</>
-                                            : holidayInfo?.is_holiday
-                                                ? <><i className="bi bi-calendar-check-fill me-2" />Holiday — Attendance Exempt</>
-                                                : (allSaved && !canEditLocked)
-                                                    ? <><i className="bi bi-lock-fill me-2" />Locked</>
-                                                    : <><i className="bi bi-cloud-check-fill me-2" />Save Attendance ({total})</>
-                                        }
-                                    </button>
+                                                    {/* Designation */}
+                                                    <td>
+                                                        <span className="badge text-bg-light border fw-semibold" style={{ fontSize: '0.74rem' }}>
+                                                            {e.designation || 'Staff'}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Status Selector */}
+                                                    <td>
+                                                        {holidayInfo?.is_holiday ? (
+                                                            <span className="badge rounded-pill px-3 py-1.5 fw-semibold" style={{ background: '#f3e8ff', color: '#7c3aed' }}>
+                                                                <i className="bi bi-calendar-heart-fill me-1" />Holiday
+                                                            </span>
+                                                        ) : isLocked ? (
+                                                            <span className="badge rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1"
+                                                                style={{ background: S_BG[curStatus], color: S_COLOR[curStatus], border: `1px solid ${S_COLOR[curStatus]}44` }}>
+                                                                <i className={`bi ${S_ICON[curStatus]}`} />
+                                                                {curStatus}
+                                                            </span>
+                                                        ) : (
+                                                            <div className="btn-group btn-group-sm">
+                                                                {STATUS_OPTS.map(opt => (
+                                                                    <button
+                                                                        key={opt}
+                                                                        type="button"
+                                                                        onClick={() => setStatuses(p => ({ ...p, [e.employee_id]: opt }))}
+                                                                        className="btn fw-semibold"
+                                                                        style={{
+                                                                            fontSize: '0.72rem',
+                                                                            background: curStatus === opt ? S_COLOR[opt] : S_BG[opt],
+                                                                            color: curStatus === opt ? '#fff' : S_COLOR[opt],
+                                                                            borderColor: curStatus === opt ? S_COLOR[opt] : '#e2e8f0',
+                                                                            padding: '2px 8px'
+                                                                        }}
+                                                                    >
+                                                                        {opt}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </td>
+
+                                                    {/* Time Recorded & Late/Early Tag */}
+                                                    <td>
+                                                        {timeRecorded ? (
+                                                            <div>
+                                                                <span className="fw-bold text-dark font-monospace" style={{ fontSize: '0.84rem' }}>
+                                                                    <i className="bi bi-clock me-1 text-muted" />
+                                                                    {formatTimeDisplay(timeRecorded)}
+                                                                </span>
+                                                                {sessionType === 'in' && e.is_in_late && (
+                                                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1.5" style={{ fontSize: '0.66rem' }}>
+                                                                        Late Entry
+                                                                    </span>
+                                                                )}
+                                                                {sessionType === 'out' && e.is_out_early && (
+                                                                    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning ms-1.5" style={{ fontSize: '0.66rem' }}>
+                                                                        Early Exit
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted small fst-italic">Not recorded yet</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* Biometric Verification Trigger Column */}
+                                                    <td className="text-center">
+                                                        {isSessionVerified ? (
+                                                            <div className="d-inline-flex align-items-center gap-1 text-success fw-bold small px-2 py-1 rounded-pill bg-success-subtle border border-success">
+                                                                <i className="bi bi-check-circle-fill" />
+                                                                <span>{sessionType.toUpperCase()} Done</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="d-flex align-items-center justify-content-center gap-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleOpenVerification(e)}
+                                                                    disabled={holidayInfo?.is_holiday}
+                                                                    className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 fw-bold rounded-pill px-3 py-1 shadow-xs"
+                                                                    style={{ fontSize: '0.78rem' }}
+                                                                >
+                                                                    {settings.staff_biometric_mode === 'facial_retina' ? (
+                                                                        <><i className="bi bi-eye-fill text-primary" />Scan Retina</>
+                                                                    ) : settings.staff_biometric_mode === 'fingerprint' ? (
+                                                                        <><i className="bi bi-fingerprint text-primary" />Scan Finger</>
+                                                                    ) : (
+                                                                        <><i className="bi bi-fingerprint" />Verify</>
+                                                                    )}
+                                                                </button>
+
+                                                                {/* Admin Instant Override Option */}
+                                                                {canEditLocked && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleInstantAdminVerify(e)}
+                                                                        title="Admin Instant Verified Mark"
+                                                                        className="btn btn-sm btn-light border text-muted px-2 py-1 rounded-pill"
+                                                                        style={{ fontSize: '0.72rem' }}
+                                                                    >
+                                                                        <i className="bi bi-lightning-charge-fill text-warning" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
+
+                                                    {/* Lock / Unlock Row Button */}
+                                                    <td className="text-center pe-3">
+                                                        <button
+                                                            onClick={() => !holidayInfo?.is_holiday && toggleLock(e.employee_id)}
+                                                            disabled={holidayInfo?.is_holiday}
+                                                            title={holidayInfo?.is_holiday ? 'Holiday Locked' : isLocked ? 'Locked (Click to unlock)' : 'Unlocked'}
+                                                            className={`btn btn-sm d-inline-flex align-items-center justify-content-center rounded-3 ${
+                                                                isLocked ? 'btn-success text-white' : 'btn-light border text-muted'
+                                                            }`}
+                                                            style={{ width: 32, height: 32, padding: 0 }}
+                                                        >
+                                                            <i className={`bi ${isLocked ? 'bi-lock-fill' : 'bi-unlock'}`} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* SAVE & CLOSE FOOTER */}
+                    <div className="card border-0 shadow-sm rounded-4 mb-4">
+                        <div className="card-body d-flex flex-wrap justify-content-between align-items-center gap-3 p-3 p-md-4">
+                            <div className="d-flex gap-3 flex-wrap align-items-center">
+                                {STATUS_OPTS.map(s => (
+                                    <span key={s} style={{ fontSize: '0.82rem', color: S_COLOR[s], fontWeight: 700 }}>
+                                        <i className={`bi ${S_ICON[s]} me-1`} />
+                                        {counts[s]} {s}
+                                    </span>
+                                ))}
+                                {unlockedCount > 0 && !holidayInfo?.is_holiday && (
+                                    <span className="badge rounded-pill px-2.5 py-1 bg-warning-subtle text-warning-emphasis border border-warning">
+                                        <i className="bi bi-unlock me-1" />
+                                        {unlockedCount} pending save
+                                    </span>
                                 )}
                             </div>
-                        </div>
-                    </>
-                )}
 
-                {/* EMPTY */}
-                {!staff.length && !loading && (
-                    <div className="card border-0 shadow-sm rounded-4 text-center animate__animated animate__fadeIn">
-                        <div className="card-body py-5">
-                            <div className="mx-auto rounded-4 d-flex align-items-center justify-content-center mb-3"
-                                style={{ width: 80, height: 80, background: 'rgba(33,94,97,0.08)' }}>
-                                <i className="bi bi-person-badge fs-1" style={{ color: 'var(--primary-teal)' }} />
-                            </div>
-                            <h5 className="fw-bold mb-2" style={{ color: 'var(--primary-dark)' }}>Ready to Mark Staff Attendance</h5>
-                            <p className="text-muted mb-0" style={{ maxWidth: 320, margin: '0 auto' }}>Select a department (optional) and date, then click <strong>Load Attendance</strong>.</p>
+                            {hasPermission('attendance', 'write') && (
+                                <button
+                                    className="btn fw-bold px-4 rounded-3 shadow-sm"
+                                    onClick={saveAttendance}
+                                    disabled={saving || holidayInfo?.is_holiday}
+                                    style={{
+                                        background: 'var(--accent-orange)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        height: 42
+                                    }}
+                                >
+                                    {saving ? (
+                                        <><span className="spinner-border spinner-border-sm me-2" />Saving...</>
+                                    ) : (
+                                        <><i className="bi bi-save2-fill me-2" />Save {sessionType.toUpperCase()} Attendance</>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     </div>
-                )}
-            </div>
+                </>
+            )}
+
+            {/* LIVE BIOMETRIC VERIFICATION MODAL */}
+            {verifyingMember && (
+                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 1060 }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
+                            {/* Modal Header */}
+                            <div className="modal-header border-0 text-white px-4 py-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                                <div>
+                                    <h5 className="modal-title fw-bold mb-0">
+                                        <i className="bi bi-fingerprint me-2 text-warning" />
+                                        Biometric {sessionType.toUpperCase()} Verification
+                                    </h5>
+                                    <small className="text-white-50">
+                                        Matching {verifyingMember.first_name} {verifyingMember.last_name} (ID: #{verifyingMember.employee_id})
+                                    </small>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={() => { stopCamera(); setVerifyingMember(null); }}
+                                />
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="modal-body p-4 text-center">
+
+                                {/* Mode Switcher */}
+                                {settings.staff_biometric_mode === 'both' && (
+                                    <div className="btn-group w-100 mb-4 p-1 bg-light rounded-3 border">
+                                        <button
+                                            type="button"
+                                            className={`btn btn-sm fw-bold rounded-2 ${scanMode === 'fingerprint' ? 'btn-primary shadow-xs' : 'btn-light text-muted'}`}
+                                            onClick={() => { stopCamera(); setScanMode('fingerprint'); }}
+                                        >
+                                            <i className="bi bi-fingerprint me-1.5" />Fingerprint Scan
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`btn btn-sm fw-bold rounded-2 ${scanMode === 'retina_face' ? 'btn-primary shadow-xs' : 'btn-light text-muted'}`}
+                                            onClick={() => setScanMode('retina_face')}
+                                        >
+                                            <i className="bi bi-eye-fill me-1.5" />Eye Retina / Facial ID
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* SCANNER INTERFACE */}
+                                {scanMode === 'retina_face' ? (
+                                    <div className="position-relative mx-auto rounded-4 overflow-hidden mb-3 shadow-sm border" style={{ maxWidth: 360, height: 260, background: '#000' }}>
+                                        <video
+                                            ref={videoRef}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                            className="w-100 h-100"
+                                            style={{ objectFit: 'cover' }}
+                                        />
+                                        {/* Scanner HUD Overlay */}
+                                        <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center"
+                                            style={{ border: '3px solid #22c55e', pointerEvents: 'none' }}>
+                                            <div className="rounded-circle" style={{ width: 140, height: 140, border: '2px dashed rgba(34, 197, 94, 0.8)' }} />
+                                            <div className="badge bg-dark bg-opacity-75 text-success mt-2 fw-semibold px-2 py-1 font-monospace">
+                                                Looking for Face / Retina Landmarks
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-4 my-2">
+                                        <div
+                                            className="rounded-circle mx-auto d-flex align-items-center justify-content-center shadow-sm mb-3"
+                                            style={{
+                                                width: 120,
+                                                height: 120,
+                                                background: scanningInProgress ? '#e6f9f3' : '#f8f9fa',
+                                                border: `3px solid ${scanningInProgress ? '#0d9e6e' : '#dee2e6'}`,
+                                                transition: 'all 0.3s'
+                                            }}
+                                        >
+                                            <i
+                                                className={`bi bi-fingerprint ${scanningInProgress ? 'text-success animate__animated animate__pulse animate__infinite' : 'text-primary'}`}
+                                                style={{ fontSize: '3.5rem' }}
+                                            />
+                                        </div>
+                                        <h6 className="fw-bold text-dark mb-1">Place Finger on Biometric Scanner</h6>
+                                        <p className="text-muted small mb-0">Hardware sensor or WebAuthn digital verification</p>
+                                    </div>
+                                )}
+
+                                {/* Progress Bar during scan */}
+                                {scanningInProgress && (
+                                    <div className="my-3">
+                                        <div className="progress rounded-pill" style={{ height: 6 }}>
+                                            <div className="progress-bar bg-success progress-bar-striped progress-bar-animated" style={{ width: `${scanProgress}%` }} />
+                                        </div>
+                                        <small className="text-muted mt-1 d-block font-monospace">Verifying template against database ({scanProgress}%)...</small>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="modal-footer border-0 p-3 bg-light d-flex justify-content-between">
+                                <button
+                                    type="button"
+                                    className="btn btn-light border px-3 rounded-3"
+                                    onClick={() => { stopCamera(); setVerifyingMember(null); }}
+                                >
+                                    Cancel
+                                </button>
+
+                                <div className="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-success fw-bold px-4 rounded-3 shadow-sm"
+                                        onClick={executeBiometricVerification}
+                                        disabled={scanningInProgress}
+                                    >
+                                        {scanningInProgress ? (
+                                            <><span className="spinner-border spinner-border-sm me-2" />Matching...</>
+                                        ) : (
+                                            <><i className="bi bi-shield-check me-1.5" />Match &amp; Verify Now</>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

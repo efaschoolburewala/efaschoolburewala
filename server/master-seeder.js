@@ -768,10 +768,34 @@ async function runMasterSeeder() {
                     check_in_time TIME,
                     check_out_time TIME,
                     remarks VARCHAR(255),
+                    in_verified BOOLEAN DEFAULT FALSE,
+                    out_verified BOOLEAN DEFAULT FALSE,
+                    in_verification_mode VARCHAR(50),
+                    out_verification_mode VARCHAR(50),
+                    is_in_late BOOLEAN DEFAULT FALSE,
+                    is_out_early BOOLEAN DEFAULT FALSE,
+                    in_marked_by INTEGER REFERENCES app_users(id),
+                    out_marked_by INTEGER REFERENCES app_users(id),
                     created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(employee_id, attendance_date)
                 );
             `);
+
+            const staffAttAlters = [
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS in_verified BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS out_verified BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS in_verification_mode VARCHAR(50)",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS out_verification_mode VARCHAR(50)",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS is_in_late BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS is_out_early BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS in_marked_by INTEGER REFERENCES app_users(id)",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS out_marked_by INTEGER REFERENCES app_users(id)",
+                "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ];
+            for (const q of staffAttAlters) {
+                await pool.query(q);
+            }
 
             console.log("   ✅ Attendance Module Tables set up successfully.");
         } catch (err) {

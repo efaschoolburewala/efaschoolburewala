@@ -415,6 +415,17 @@ async function runEssentialMigrations() {
             FROM app_roles
             WHERE role_level >= 80 OR LOWER(role_name) LIKE '%admin%' OR LOWER(role_name) LIKE '%principal%'
             ON CONFLICT (role_id, module_name) DO NOTHING;
+
+            -- 10. Staff Attendance Enhanced Biometrics & In/Out Columns
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS in_verified BOOLEAN DEFAULT FALSE;
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS out_verified BOOLEAN DEFAULT FALSE;
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS in_verification_mode VARCHAR(50);
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS out_verification_mode VARCHAR(50);
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS is_in_late BOOLEAN DEFAULT FALSE;
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS is_out_early BOOLEAN DEFAULT FALSE;
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS in_marked_by INTEGER REFERENCES app_users(id);
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS out_marked_by INTEGER REFERENCES app_users(id);
+            ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
         `);
 
         const { syncAllSequences } = require('./utils/sequenceSync');
