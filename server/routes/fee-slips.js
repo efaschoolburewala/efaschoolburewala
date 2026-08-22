@@ -1027,13 +1027,39 @@ router.get('/print-queue', async (req, res) => {
             });
         }
 
-        // Family vouchers primary = student in highest class (max class_id)
+        // Helper to determine class seniority/rank (highest class first)
+        const getClassRank = (className, classId) => {
+            if (!className) return typeof classId === 'number' ? classId : 0;
+            const name = className.toString().trim().toLowerCase();
+            const numMatch = name.match(/\b(\d+)(?:st|nd|rd|th)?\b/) || name.match(/(\d+)/);
+            if (numMatch) {
+                return parseInt(numMatch[1], 10);
+            }
+            if (name.includes('prep') || name.includes('kg') || name.includes('kindergarten')) return 0;
+            if (name.includes('nursery')) return -1;
+            if (name.includes('play') || name.includes('pg') || name.includes('daycare') || name.includes('montessori')) return -2;
+            return typeof classId === 'number' ? classId : 0;
+        };
+
+        const compareSections = (secA, secB) => {
+            const sA = (secA || '').toString().trim().toLowerCase();
+            const sB = (secB || '').toString().trim().toLowerCase();
+            if (!sA && !sB) return 0;
+            if (!sA) return 1;
+            if (!sB) return -1;
+            return sA.localeCompare(sB, undefined, { sensitivity: 'base' });
+        };
+
+        // Family vouchers primary = student in highest class, then earlier section
         for (const [fid, slips] of Object.entries(familyMap)) {
             slips.sort((a, b) => {
-                if ((b.c_class_id || 0) !== (a.c_class_id || 0)) return (b.c_class_id || 0) - (a.c_class_id || 0);
-                const secA = a.section_name || '';
-                const secB = b.section_name || '';
-                if (secA !== secB) return secA.localeCompare(secB);
+                const rankA = getClassRank(a.class_name, a.c_class_id || a.class_id);
+                const rankB = getClassRank(b.class_name, b.c_class_id || b.class_id);
+                if (rankA !== rankB) return rankB - rankA;
+
+                const secComp = compareSections(a.section_name, b.section_name);
+                if (secComp !== 0) return secComp;
+
                 return (a.first_name || '').localeCompare(b.first_name || '');
             });
             const primary = slips[0];
@@ -1046,10 +1072,18 @@ router.get('/print-queue', async (req, res) => {
                  FROM students s
                  LEFT JOIN classes c ON s.class_id = c.class_id
                  LEFT JOIN sections sec ON s.section_id = sec.section_id
-                 WHERE s.family_id = $1 AND s.status = 'Active'
-                 ORDER BY c.class_id DESC NULLS LAST, sec.section_name ASC NULLS LAST, s.first_name`,
+                 WHERE s.family_id = $1 AND s.status = 'Active'`,
                 [fid]
             );
+
+            const sortedMembers = (membersResult.rows || []).sort((a, b) => {
+                const rankA = getClassRank(a.class_name, a.class_id);
+                const rankB = getClassRank(b.class_name, b.class_id);
+                if (rankA !== rankB) return rankB - rankA;
+                const secComp = compareSections(a.section_name, b.section_name);
+                if (secComp !== 0) return secComp;
+                return (a.first_name || '').localeCompare(b.first_name || '');
+            });
 
             const pCount = famPendingMap[fid] || 1;
             vouchers.push({
@@ -1062,7 +1096,7 @@ router.get('/print-queue', async (req, res) => {
                 is_printed: slips.every(s => s.is_printed),
                 partial_printed: slips.some(s => s.is_printed) && !slips.every(s => s.is_printed),
                 slip_ids: slips.map(s => s.slip_id),
-                family_members: membersResult.rows,
+                family_members: sortedMembers,
                 pending_months_count: pCount
             });
         }
@@ -1094,19 +1128,28 @@ router.get('/print-queue', async (req, res) => {
             }
         }
 
-        // Sort: class_id DESC, then section_name ASC, then pending first, then by name
+        // Sort: 1) Highest Class First -> 2) Section Alphabetical (A-Z, Blue/Green/Red) -> 3) Unprinted First -> 4) Name Alphabetical
         filteredVouchers.sort((a, b) => {
-            const classA = a.primary.c_class_id || 0;
-            const classB = b.primary.c_class_id || 0;
-            if (classA !== classB) return classB - classA;
+            const rankA = getClassRank(a.primary.class_name, a.primary.c_class_id || a.primary.class_id);
+            const rankB = getClassRank(b.primary.class_name, b.primary.c_class_id || b.primary.class_id);
+            if (rankA !== rankB) return rankB - rankA;
 
-            const secA = a.primary.section_name || '';
-            const secB = b.primary.section_name || '';
-            if (secA !== secB) return secA.localeCompare(secB);
+            const clsA = (a.primary.class_name || '').trim().toLowerCase();
+            const clsB = (b.primary.class_name || '').trim().toLowerCase();
+            if (clsA !== clsB) {
+                const clsComp = clsA.localeCompare(clsB);
+                if (clsComp !== 0) return clsComp;
+            }
+
+            const secComp = compareSections(a.primary.section_name, b.primary.section_name);
+            if (secComp !== 0) return secComp;
 
             if (!a.is_printed && b.is_printed) return -1;
             if (a.is_printed && !b.is_printed) return 1;
-            return (a.primary.first_name || '').localeCompare(b.primary.first_name || '');
+
+            const nameA = `${a.primary.first_name || ''} ${a.primary.last_name || ''}`.trim().toLowerCase();
+            const nameB = `${b.primary.first_name || ''} ${b.primary.last_name || ''}`.trim().toLowerCase();
+            return nameA.localeCompare(nameB);
         });
 
         res.json({

@@ -546,7 +546,51 @@ export default function PrintSlipsPage() {
             const r = await fetch(url);
             const data = await r.json();
             if (!r.ok) throw new Error(data.error);
-            setVouchers(data.vouchers || []);
+
+            const getClassRank = (className?: string, classId?: number) => {
+                if (!className) return typeof classId === 'number' ? classId : 0;
+                const name = className.toString().trim().toLowerCase();
+                const numMatch = name.match(/\b(\d+)(?:st|nd|rd|th)?\b/) || name.match(/(\d+)/);
+                if (numMatch) return parseInt(numMatch[1], 10);
+                if (name.includes('prep') || name.includes('kg') || name.includes('kindergarten')) return 0;
+                if (name.includes('nursery')) return -1;
+                if (name.includes('play') || name.includes('pg') || name.includes('daycare') || name.includes('montessori')) return -2;
+                return typeof classId === 'number' ? classId : 0;
+            };
+
+            const compareSections = (secA?: string, secB?: string) => {
+                const sA = (secA || '').toString().trim().toLowerCase();
+                const sB = (secB || '').toString().trim().toLowerCase();
+                if (!sA && !sB) return 0;
+                if (!sA) return 1;
+                if (!sB) return -1;
+                return sA.localeCompare(sB, undefined, { sensitivity: 'base' });
+            };
+
+            const sortedList = (data.vouchers || []).sort((a: Voucher, b: Voucher) => {
+                const rankA = getClassRank(a.primary.class_name, a.primary.c_class_id || a.primary.class_id);
+                const rankB = getClassRank(b.primary.class_name, b.primary.c_class_id || b.primary.class_id);
+                if (rankA !== rankB) return rankB - rankA;
+
+                const clsA = (a.primary.class_name || '').trim().toLowerCase();
+                const clsB = (b.primary.class_name || '').trim().toLowerCase();
+                if (clsA !== clsB) {
+                    const clsComp = clsA.localeCompare(clsB);
+                    if (clsComp !== 0) return clsComp;
+                }
+
+                const secComp = compareSections((a.primary as any).section_name, (b.primary as any).section_name);
+                if (secComp !== 0) return secComp;
+
+                if (!a.is_printed && b.is_printed) return -1;
+                if (a.is_printed && !b.is_printed) return 1;
+
+                const nameA = `${a.primary.first_name || ''} ${a.primary.last_name || ''}`.trim().toLowerCase();
+                const nameB = `${b.primary.first_name || ''} ${b.primary.last_name || ''}`.trim().toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+            setVouchers(sortedList);
             setCoveredStudents(data.covered_students || []);
             setStats(data.stats || null);
         } catch (err: any) { setMessage({ type: 'danger', text: err.message }); }
