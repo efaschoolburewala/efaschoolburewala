@@ -128,41 +128,76 @@ router.get('/expenses', async (req, res) => {
                 e.paid_to,
                 e.status,
                 ec.category_name,
-                e.academic_year_id
+                e.academic_year_id,
+                ay.year_name AS academic_year_name
             FROM expenses e
             LEFT JOIN expense_categories ec ON e.category_id = ec.category_id
+            LEFT JOIN academic_years ay ON e.academic_year_id = ay.id
             WHERE 1=1
         `;
         const params = [];
         let idx = 1;
 
-        if (from_date) { query += ` AND e.expense_date >= $${idx++}`; params.push(from_date); }
-        if (to_date)   { query += ` AND e.expense_date <= $${idx++}`; params.push(to_date); }
-        if (category_id) { query += ` AND e.category_id = $${idx++}`; params.push(category_id); }
+        if (from_date) {
+            query += ` AND e.expense_date::date >= $${idx++}::date`;
+            params.push(from_date);
+        }
+        if (to_date) {
+            query += ` AND e.expense_date::date <= $${idx++}::date`;
+            params.push(to_date);
+        }
+        if (category_id) {
+            query += ` AND e.category_id = $${idx++}`;
+            params.push(category_id);
+        }
         if (academic_year_id && academic_year_id !== 'all') {
             query += ` AND (e.academic_year_id = $${idx++} OR e.academic_year_id IS NULL)`;
             params.push(parseInt(academic_year_id, 10));
         }
 
-        query += ` ORDER BY e.expense_date DESC`;
+        query += ` ORDER BY e.expense_date DESC, e.expense_id DESC`;
 
         const result = await pool.query(query, params);
 
-        // Category-wise summary
+        // Category-wise summary & stats
         const summaryMap = {};
         let grandTotal = 0;
+        let approvedTotal = 0;
+        let pendingTotal = 0;
+
         result.rows.forEach(r => {
             const cat = r.category_name || 'Uncategorized';
-            if (!summaryMap[cat]) summaryMap[cat] = 0;
-            summaryMap[cat] += parseFloat(r.amount || 0);
-            grandTotal += parseFloat(r.amount || 0);
+            const amt = parseFloat(r.amount || 0);
+            if (!summaryMap[cat]) summaryMap[cat] = { category: cat, total: 0, count: 0 };
+            summaryMap[cat].total += amt;
+            summaryMap[cat].count += 1;
+            grandTotal += amt;
+
+            const st = (r.status || '').toLowerCase();
+            if (st === 'approved' || st === 'paid' || st === 'completed') {
+                approvedTotal += amt;
+            } else if (st === 'pending') {
+                pendingTotal += amt;
+            }
         });
 
-        const categorySummary = Object.entries(summaryMap).map(([category, total]) => ({ category, total }));
+        const categorySummary = Object.values(summaryMap).map(c => ({
+            category: c.category,
+            total: c.total,
+            count: c.count,
+            percentage: grandTotal > 0 ? Math.round((c.total / grandTotal) * 100) : 0
+        })).sort((a, b) => b.total - a.total);
 
-        res.json({ expenses: result.rows, categorySummary, grandTotal });
+        res.json({
+            expenses: result.rows,
+            categorySummary,
+            grandTotal,
+            approvedTotal,
+            pendingTotal,
+            totalCount: result.rows.length
+        });
     } catch (err) {
-        console.error(err.message);
+        console.error('Expense report error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
