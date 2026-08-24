@@ -704,8 +704,10 @@ export default function NewAdmission() {
                                                                     <span className="badge bg-primary ms-2 small">{student.admission_no}</span>
                                                                 </h6>
                                                                 <small className="text-muted">
-                                                                    Father: {student.father_name || 'N/A'}
-                                                                    {student.class_name && ` | ${student.class_name}`}
+                                                                    Father: <strong>{student.father_name || 'N/A'}</strong>
+                                                                    {student.class_name && (
+                                                                        <> | Class: <strong>{student.class_name}</strong>{student.section_name ? ` (${student.section_name})` : ''}</>
+                                                                    )}
                                                                 </small>
                                                             </div>
                                                             <i className="bi bi-plus-circle text-success fs-4"></i>
@@ -773,7 +775,9 @@ export default function NewAdmission() {
                                                                     ) : (
                                                                         <><i className="bi bi-diagram-3-fill text-warning me-1"></i>Cousin</>
                                                                     )}
-                                                                    {sibling.class_name && ` | ${sibling.class_name}`}
+                                                                    {sibling.class_name && (
+                                                                        <> | Class: <strong>{sibling.class_name}</strong>{sibling.section_name ? ` (${sibling.section_name})` : ''}</>
+                                                                    )}
                                                                 </small>
                                                             </div>
                                                         </div>
@@ -949,7 +953,7 @@ export default function NewAdmission() {
                                                         </div>
                                                         {item.first_name && (
                                                             <div className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                                                Student: {item.first_name} {item.last_name} ({item.admission_no})
+                                                                Student: {item.first_name} {item.last_name} ({item.admission_no}) {item.class_name ? `| Class: ${item.class_name}${item.section_name ? ` (${item.section_name})` : ''}` : ''}
                                                             </div>
                                                         )}
                                                     </div>
