@@ -9,7 +9,11 @@ const config: CapacitorConfig = {
   },
   server: {
     url: 'https://demo-private-school.vercel.app',
-    cleartext: true
+    cleartext: true,
+    allowNavigation: [
+      'demo-private-school.vercel.app',
+      '*.vercel.app'
+    ]
   },
   plugins: {
     SplashScreen: {

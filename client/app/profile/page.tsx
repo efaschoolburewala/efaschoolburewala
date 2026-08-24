@@ -218,66 +218,64 @@ export default function ProfilePage() {
 
         setScanningFingerprint(true);
 
-        // 1. Check Native Android / iOS Biometric Sensor (Capacitor Mobile App)
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const avail = await NativeBiometric.isAvailable();
-                if (avail.isAvailable) {
-                    toast.info('Please touch your fingerprint sensor to register...');
-                    await NativeBiometric.verifyIdentity({
-                        reason: 'Scan your fingerprint to register biometric credentials',
-                        title: 'Fingerprint Biometric Registration',
-                        subtitle: 'Confirm your fingerprint',
-                        description: 'Touch the device fingerprint sensor to verify identity',
-                        negativeButtonText: 'Cancel',
-                        maxAttempts: 3
-                    });
+        // 1. Try Native Android / iOS Biometric Sensor (Capacitor Mobile Bridge)
+        try {
+            const avail = await NativeBiometric.isAvailable();
+            if (avail && avail.isAvailable) {
+                toast.info('Please touch your fingerprint sensor to register...');
+                await NativeBiometric.verifyIdentity({
+                    reason: 'Scan your fingerprint to register biometric credentials',
+                    title: 'Fingerprint Biometric Registration',
+                    subtitle: 'Confirm your fingerprint',
+                    description: 'Touch the device fingerprint sensor to verify identity',
+                    negativeButtonText: 'Cancel',
+                    maxAttempts: 3
+                });
 
-                    // Sensor successfully verified! Register credential on backend
-                    const currentHost = getCurrentHost();
-                    const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
+                // Sensor successfully verified! Register credential on backend
+                const currentHost = getCurrentHost();
+                const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
 
-                    const { challengeId } = data;
-                    const nativeCredId = 'native_fp_' + (profile?.id || 'usr') + '_' + Date.now();
+                const { challengeId } = data;
+                const nativeCredId = 'native_fp_' + (profile?.id || 'usr') + '_' + Date.now();
 
-                    const verifyRes = await fetch(`${API}/auth/webauthn/register-verify`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${token}`
+                const verifyRes = await fetch(`${API}/auth/webauthn/register-verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        challengeId,
+                        credential: {
+                            id: nativeCredId,
+                            response: {
+                                transports: ['internal']
+                            }
                         },
-                        body: JSON.stringify({
-                            challengeId,
-                            credential: {
-                                id: nativeCredId,
-                                response: {
-                                    transports: ['internal']
-                                }
-                            },
-                            credential_type: 'fingerprint',
-                            device_name: 'Mobile Hardware Fingerprint Sensor'
-                        })
-                    });
-                    const verifyData = await verifyRes.json();
-                    if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
+                        credential_type: 'fingerprint',
+                        device_name: 'Mobile Hardware Fingerprint Sensor'
+                    })
+                });
+                const verifyData = await verifyRes.json();
+                if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
 
-                    toast.success('✓ Device Fingerprint sensor registered and saved to database!');
-                    loadProfile();
-                    return;
-                }
-            } catch (nativeErr: any) {
-                console.warn('Native biometric error:', nativeErr);
-                if (nativeErr?.message && !nativeErr.message.includes('not available') && !nativeErr.message.includes('not implemented')) {
-                    toast.error(nativeErr.message || 'Fingerprint verification cancelled or failed.');
-                    return;
-                }
-            } finally {
-                setScanningFingerprint(false);
+                toast.success('✓ Device Fingerprint sensor registered and saved to database!');
+                loadProfile();
+                return;
             }
+        } catch (nativeErr: any) {
+            console.warn('Native biometric check/attempt:', nativeErr);
+            if (nativeErr?.message && !nativeErr.message.includes('not available') && !nativeErr.message.includes('not implemented') && !nativeErr.message.includes('plugin is not implemented') && !nativeErr.message.includes('Uncaught')) {
+                toast.error(nativeErr.message || 'Fingerprint verification cancelled or failed.');
+                return;
+            }
+        } finally {
+            setScanningFingerprint(false);
         }
 
         // 2. Web Browser FIDO2 WebAuthn (Desktop TouchID / Windows Hello / YubiKey)
