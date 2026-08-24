@@ -782,28 +782,48 @@ router.get('/families-directory', async (req, res) => {
         const familiesList = Object.values(familiesMap).map(fam => {
             const members = fam.members;
 
-            // Majority Father Name logic:
-            const fatherCounts = {};
+            // Distinct Fathers & Multi-Household (Cousin) Detection
+            const fatherMap = new Map();
             members.forEach(m => {
-                if (m.father_name) {
-                    fatherCounts[m.father_name] = (fatherCounts[m.father_name] || 0) + 1;
+                const fn = (m.father_name || '').trim();
+                if (fn) {
+                    if (!fatherMap.has(fn)) {
+                        fatherMap.set(fn, {
+                            name: fn,
+                            phone: (m.father_phone || '').trim(),
+                            cnic: (m.father_cnic || '').trim(),
+                            count: 1
+                        });
+                    } else {
+                        const existing = fatherMap.get(fn);
+                        existing.count++;
+                        if (!existing.phone && m.father_phone) existing.phone = m.father_phone.trim();
+                    }
                 }
             });
 
+            const fathersList = Array.from(fatherMap.values());
+            const isCousinFamily = fathersList.length > 1;
+
+            // Majority Father Name logic:
             let primaryFatherName = '';
             let maxCount = 0;
-            for (const [fn, count] of Object.entries(fatherCounts)) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    primaryFatherName = fn;
+            fathersList.forEach(f => {
+                if (f.count > maxCount) {
+                    maxCount = f.count;
+                    primaryFatherName = f.name;
                 }
-            }
+            });
 
             if (!primaryFatherName) {
                 primaryFatherName = members.find(m => m.father_name)?.father_name ||
                     members.find(m => m.guardian_name)?.guardian_name ||
                     `Family (${fam.family_id})`;
             }
+
+            const combinedFatherNames = isCousinFamily 
+                ? fathersList.map(f => f.name).join(' & ') 
+                : primaryFatherName;
 
             // Majority Mother Name
             const motherCounts = {};
@@ -830,6 +850,11 @@ router.get('/families-directory', async (req, res) => {
             const guardianPhone = members.find(m => m.guardian_phone)?.guardian_phone || '';
             const primaryPhone = fatherPhone || motherPhone || guardianPhone || '';
 
+            const uniquePhones = Array.from(new Set(
+                fathersList.map(f => f.phone).concat([fatherPhone, motherPhone, guardianPhone]).filter(Boolean)
+            ));
+            const combinedPhones = uniquePhones.join(', ');
+
             // Children list, Classes, Sections
             const childrenNames = members.map(m => m.full_name);
             const classesList = members.map(m => m.class_name);
@@ -846,6 +871,10 @@ router.get('/families-directory', async (req, res) => {
                 mother_phone: motherPhone,
                 guardian_phone: guardianPhone,
                 primary_phone: primaryPhone,
+                is_cousin_family: isCousinFamily,
+                fathers_list: fathersList,
+                combined_father_names: combinedFatherNames,
+                combined_phones: combinedPhones,
                 total_children: members.length,
                 children_names: childrenNames,
                 classes_list: classesList,
