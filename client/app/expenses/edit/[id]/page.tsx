@@ -142,17 +142,17 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
     }
 
     return (
-        <div className="container-fluid p-4 animate__animated animate__fadeIn">
+        <div className="container-fluid p-2 p-sm-3 p-md-4 animate__animated animate__fadeIn">
             <div className="row justify-content-center">
-                <div className="col-lg-8">
+                <div className="col-12 col-lg-8">
 
                     {/* Header */}
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                        <div className="d-flex align-items-center gap-2">
-                            <h2 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
+                    <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-3 mb-md-4">
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                            <h2 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)', fontSize: 'clamp(1.3rem, 3vw, 1.75rem)' }}>
                                 <i className="bi bi-pencil-square me-2"></i>Edit Expense
                             </h2>
-                            <span className="badge rounded-pill bg-light text-dark border ms-2">
+                            <span className="badge rounded-pill bg-light text-dark border">
                                 Academic Year: {expenseYearName || activeYearName || '—'}
                             </span>
                         </div>
@@ -165,9 +165,9 @@ export default function EditExpensePage({ params }: { params: { id: string } }) 
                     </div>
 
                     {/* Form Card */}
-                    <div className="card shadow-lg border-0 animate__animated animate__fadeInUp">
+                    <div className="card shadow-lg border-0 animate__animated animate__fadeInUp" style={{ borderRadius: 16, overflow: 'hidden' }}>
                         {/* Decorative Top Border */}
-                        <div className="card-body p-5 position-relative" style={{ borderTop: isClosedYear ? '5px solid var(--bs-warning)' : '5px solid var(--primary-teal)' }}>
+                        <div className="card-body p-3 p-sm-4 p-md-5 position-relative" style={{ borderTop: isClosedYear ? '5px solid var(--bs-warning)' : '5px solid var(--primary-teal)' }}>
 
                             {isClosedYear && (
                                 <div className="alert alert-warning border-start border-4 border-warning shadow-sm mb-4 d-flex align-items-center gap-2">

@@ -394,33 +394,51 @@ export default function FamilyFeeReportPage() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#f4f7f6', padding: '0 0 48px' }}>
-            <div style={{
-                background: 'linear-gradient(135deg, #1e3644 0%, #195053 100%)',
-                padding: '24px 28px',
-                borderRadius: '0 0 24px 24px',
-                boxShadow: '0 6px 20px rgba(33,94,97,0.18)',
-                position: 'relative',
-                color: '#fff',
-                marginBottom: 24
-            }}>
+            {/* Custom Responsive Styles */}
+            <style jsx>{`
+                .family-fee-hero {
+                    background: linear-gradient(135deg, #1e3644 0%, #195053 100%);
+                    padding: 24px 28px;
+                    border-radius: 0 0 24px 24px;
+                    box-shadow: 0 6px 20px rgba(33,94,97,0.18);
+                    position: relative;
+                    color: #fff;
+                    margin-bottom: 24px;
+                }
+                .family-fee-container {
+                    padding: 0 28px;
+                }
+                @media (max-width: 767.98px) {
+                    .family-fee-hero {
+                        padding: 18px 16px;
+                        border-radius: 0 0 18px 18px;
+                        margin-bottom: 16px;
+                    }
+                    .family-fee-container {
+                        padding: 0 12px;
+                    }
+                }
+            `}</style>
+
+            <div className="family-fee-hero">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         <div style={{
-                            width: 50, height: 50, borderRadius: 14,
+                            width: 46, height: 46, borderRadius: 14,
                             background: 'rgba(255,255,255,0.15)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             border: '1.5px solid rgba(255,255,255,0.25)',
                             boxShadow: '0 4px 14px rgba(0,0,0,0.15)'
                         }}>
-                            <i className="bi bi-wallet2" style={{ fontSize: 24, color: BRAND.orange }} />
+                            <i className="bi bi-wallet2" style={{ fontSize: 22, color: BRAND.orange }} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                            <h1 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.4rem)', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
                                 Family Fee &amp; Head Analytics Report
                             </h1>
-                            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <i className="bi bi-bar-chart-fill" style={{ color: '#5eead4' }} />
-                                Head-wise fee collection, recovery tracking &amp; daily revenue velocity
+                                Head-wise fee collection, recovery tracking &amp; daily velocity
                             </div>
                         </div>
                     </div>
@@ -433,7 +451,7 @@ export default function FamilyFeeReportPage() {
                 </div>
             </div>
 
-            <div style={{ padding: '0 28px' }}>
+            <div className="family-fee-container">
                 <div style={{
                     background: '#fff', borderRadius: 18,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',

@@ -250,35 +250,71 @@ export default function ExpenseReportPage() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#f4f7f6', padding: '0 0 48px' }}>
+            {/* Custom Responsive Styles */}
+            <style jsx>{`
+                .expense-hero-header {
+                    background: linear-gradient(135deg, #1e3644 0%, #195053 100%);
+                    padding: 24px 28px;
+                    border-radius: 0 0 24px 24px;
+                    box-shadow: 0 6px 20px rgba(33,94,97,0.18);
+                    position: relative;
+                    color: #fff;
+                    margin-bottom: 24px;
+                }
+                .expense-content-container {
+                    padding: 0 28px;
+                }
+                .expense-kpi-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                    gap: 14px;
+                    margin-bottom: 24px;
+                }
+                @media (max-width: 767.98px) {
+                    .expense-hero-header {
+                        padding: 18px 16px;
+                        border-radius: 0 0 18px 18px;
+                        margin-bottom: 16px;
+                    }
+                    .expense-content-container {
+                        padding: 0 12px;
+                    }
+                    .expense-kpi-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 10px;
+                        margin-bottom: 16px;
+                    }
+                    .expense-kpi-val {
+                        font-size: 1.15rem !important;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .expense-kpi-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                }
+            `}</style>
 
             {/* ── 1. Top Executive Hero Header ── */}
-            <div style={{
-                background: 'linear-gradient(135deg, #1e3644 0%, #195053 100%)',
-                padding: '24px 28px',
-                borderRadius: '0 0 24px 24px',
-                boxShadow: '0 6px 20px rgba(33,94,97,0.18)',
-                position: 'relative',
-                color: '#fff',
-                marginBottom: 24
-            }}>
+            <div className="expense-hero-header">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         <div style={{
-                            width: 50, height: 50, borderRadius: 14,
+                            width: 46, height: 46, borderRadius: 14,
                             background: 'rgba(255,255,255,0.15)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             border: '1.5px solid rgba(255,255,255,0.25)',
                             boxShadow: '0 4px 14px rgba(0,0,0,0.15)'
                         }}>
-                            <i className="bi bi-cash-stack" style={{ fontSize: 24, color: BRAND.orange }} />
+                            <i className="bi bi-cash-stack" style={{ fontSize: 22, color: BRAND.orange }} />
                         </div>
                         <div>
-                            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                            <h1 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.4rem)', fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
                                 Institutional Expense Report
                             </h1>
-                            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <i className="bi bi-pie-chart-fill" style={{ color: '#5eead4' }} />
-                                Category-wise expense distribution &amp; verified fiscal disbursements
+                                Category-wise expense distribution &amp; disbursements
                             </div>
                         </div>
                     </div>
@@ -292,7 +328,7 @@ export default function ExpenseReportPage() {
                 </div>
             </div>
 
-            <div style={{ padding: '0 28px' }}>
+            <div className="expense-content-container">
 
                 {/* ── 2. Filters Panel (Standard Theme Panel) ── */}
                 <div style={{
@@ -424,12 +460,7 @@ export default function ExpenseReportPage() {
 
                 {/* ── 3. KPI StatCards ── */}
                 {hasLoadedOnce && (
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                        gap: 14,
-                        marginBottom: 24
-                    }}>
+                    <div className="expense-kpi-grid">
                         {[
                             { label: 'Total Expenditure', val: fmtPKR(grandTotal), icon: 'bi-cash-coin', accent: BRAND.red, sub: `${expenses.length} Vouchers` },
                             { label: 'Approved / Paid', val: fmtPKR(approvedTotal), icon: 'bi-check-circle-fill', accent: BRAND.green, sub: 'Disbursed funds' },
@@ -440,7 +471,7 @@ export default function ExpenseReportPage() {
                             <div key={card.label} style={{
                                 background: '#fff',
                                 borderRadius: 16,
-                                padding: '16px 18px',
+                                padding: '14px 16px',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
                                 border: '1px solid #f1f5f9',
                                 borderLeft: '4px solid ' + card.accent,
@@ -449,20 +480,20 @@ export default function ExpenseReportPage() {
                                 justifyContent: 'space-between'
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <span style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</span>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</span>
                                     <div style={{
-                                        width: 32, height: 32, borderRadius: 8,
+                                        width: 28, height: 28, borderRadius: 8,
                                         background: card.accent + '15',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}>
-                                        <i className={'bi ' + card.icon} style={{ fontSize: 15, color: card.accent }} />
+                                        <i className={'bi ' + card.icon} style={{ fontSize: 14, color: card.accent }} />
                                     </div>
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: typeof card.val === 'number' ? 24 : 18, fontWeight: 800, color: '#1a2e3b', lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <div className="expense-kpi-val" style={{ fontSize: typeof card.val === 'number' ? 22 : 16, fontWeight: 800, color: '#1a2e3b', lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {card.val}
                                     </div>
-                                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontWeight: 500 }}>{card.sub}</div>
+                                    <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 4, fontWeight: 500 }} className="text-truncate">{card.sub}</div>
                                 </div>
                             </div>
                         ))}

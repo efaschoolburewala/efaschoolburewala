@@ -199,15 +199,32 @@ export default function ExpenseListPage() {
     };
 
     return (
-        <div className="container-fluid p-4 animate__animated animate__fadeIn">
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div className="container-fluid p-2 p-sm-3 p-md-4 animate__animated animate__fadeIn">
+            {/* Custom Responsive Media Queries */}
+            <style jsx>{`
+                @media (max-width: 767.98px) {
+                    .expense-stat-card .fw-bold.mb-0 {
+                        font-size: 1.15rem !important;
+                    }
+                    .expense-stat-card {
+                        padding: 10px !important;
+                    }
+                }
+                @media (max-width: 575.98px) {
+                    .expense-table {
+                        min-width: 650px;
+                    }
+                }
+            `}</style>
+
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-3 mb-md-4">
                 <div>
-                    <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
+                    <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)', fontSize: 'clamp(1.3rem, 3vw, 1.75rem)' }}>
                         <i className="bi bi-wallet2 me-2" style={{ color: 'var(--accent-orange)' }}></i> Expense Management
                     </h2>
                     <div className="text-muted small">Track day-to-day institutional vouchers, categories and fiscal disbursements</div>
                 </div>
-                <div className="d-flex align-items-center gap-2">
+                <div className="d-flex align-items-center gap-2 flex-wrap">
                     <span className="badge rounded-pill bg-light text-dark border px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 600 }}>
                         <i className="bi bi-mortarboard-fill text-primary"></i>
                         Academic Year: {activeYear?.year_name || '—'}
@@ -223,43 +240,43 @@ export default function ExpenseListPage() {
                 </div>
             </div>
 
-            {/* Summary Cards (Dynamic stats for selected date range & filters) */}
-            <div className="row g-3 mb-4">
-                <div className="col-12 col-sm-6 col-md-3">
-                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid var(--primary-teal)', borderRadius: 12 }}>
-                        <div className="card-body p-3">
-                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Total Vouchers</h6>
+            {/* Summary Cards (Dynamic stats for selected date range & filters - 2x2 grid on mobile) */}
+            <div className="row g-2 g-md-3 mb-3 mb-md-4">
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100 expense-stat-card" style={{ borderLeft: '4px solid var(--primary-teal)', borderRadius: 16 }}>
+                        <div className="card-body p-2.5 p-md-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: '0.68rem' }}>Total Vouchers</h6>
                             <h3 className="mb-0 fw-bold" style={{ color: 'var(--primary-teal)' }}>{summary?.total_expenses || 0}</h3>
-                            <small className="text-muted" style={{ fontSize: 10 }}>In selected date / filters</small>
+                            <small className="text-muted d-block text-truncate" style={{ fontSize: 10 }}>In selected range</small>
                         </div>
                     </div>
                 </div>
-                <div className="col-12 col-sm-6 col-md-3">
-                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid var(--primary-dark)', borderRadius: 12 }}>
-                        <div className="card-body p-3">
-                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Total Spent</h6>
-                            <h3 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>{formatCurrency(summary?.total_amount || 0)}</h3>
-                            <small className="text-muted" style={{ fontSize: 10 }}>Net total disbursements</small>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100 expense-stat-card" style={{ borderLeft: '4px solid var(--primary-dark)', borderRadius: 16 }}>
+                        <div className="card-body p-2.5 p-md-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: '0.68rem' }}>Total Spent</h6>
+                            <h3 className="mb-0 fw-bold text-truncate" style={{ color: 'var(--primary-dark)' }}>{formatCurrency(summary?.total_amount || 0)}</h3>
+                            <small className="text-muted d-block text-truncate" style={{ fontSize: 10 }}>Net disbursements</small>
                         </div>
                     </div>
                 </div>
-                <div className="col-12 col-sm-6 col-md-3">
-                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid #16a34a', borderRadius: 12 }}>
-                        <div className="card-body p-3">
-                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Avg per Voucher</h6>
-                            <h3 className="mb-0 fw-bold" style={{ color: '#16a34a' }}>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100 expense-stat-card" style={{ borderLeft: '4px solid #16a34a', borderRadius: 16 }}>
+                        <div className="card-body p-2.5 p-md-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: '0.68rem' }}>Avg / Voucher</h6>
+                            <h3 className="mb-0 fw-bold text-truncate" style={{ color: '#16a34a' }}>
                                 {formatCurrency(Number(summary?.avg_amount || (summary?.total_expenses ? summary.total_amount / summary.total_expenses : 0)))}
                             </h3>
-                            <small className="text-muted" style={{ fontSize: 10 }}>Average expense size</small>
+                            <small className="text-muted d-block text-truncate" style={{ fontSize: 10 }}>Average size</small>
                         </div>
                     </div>
                 </div>
-                <div className="col-12 col-sm-6 col-md-3">
-                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid #f97316', borderRadius: 12 }}>
-                        <div className="card-body p-3">
-                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Active Categories</h6>
+                <div className="col-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100 expense-stat-card" style={{ borderLeft: '4px solid #f97316', borderRadius: 16 }}>
+                        <div className="card-body p-2.5 p-md-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: '0.68rem' }}>Active Categories</h6>
                             <h3 className="mb-0 fw-bold" style={{ color: '#f97316' }}>{summary?.categories_count || 0}</h3>
-                            <small className="text-muted" style={{ fontSize: 10 }}>Expense heads involved</small>
+                            <small className="text-muted d-block text-truncate" style={{ fontSize: 10 }}>Expense heads</small>
                         </div>
                     </div>
                 </div>

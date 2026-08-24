@@ -589,11 +589,37 @@ export default function FamilyListPage() {
     };
 
     return (
-        <div className="container-fluid p-3 p-md-4 animate__animated animate__fadeIn">
+        <div className="container-fluid p-2 p-sm-3 p-md-4 animate__animated animate__fadeIn">
+            {/* Custom Responsive Styles for Family Directory */}
+            <style jsx>{`
+                @media (max-width: 767.98px) {
+                    .family-stat-card .fs-4 {
+                        font-size: 1.25rem !important;
+                    }
+                    .family-stat-card .fs-6 {
+                        font-size: 0.85rem !important;
+                    }
+                    .family-table-container {
+                        border-radius: 12px !important;
+                    }
+                    .family-table {
+                        min-width: 820px;
+                    }
+                }
+                @media (max-width: 575.98px) {
+                    .family-stat-card {
+                        padding: 10px !important;
+                    }
+                    .family-stat-card .bi {
+                        font-size: 1.2rem !important;
+                    }
+                }
+            `}</style>
+
             {/* Top Page Header (Academic Year Badge in top-right opposite Title) */}
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-2 gap-md-3">
                 <div>
-                    <h2 className="fw-bold mb-1 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)', fontSize: '1.75rem' }}>
+                    <h2 className="fw-bold mb-1 d-flex align-items-center gap-2" style={{ color: 'var(--primary-dark)', fontSize: 'clamp(1.3rem, 3vw, 1.75rem)' }}>
                         <i className="bi bi-people-fill" style={{ color: 'var(--primary-teal)' }}></i>
                         Family Directory
                     </h2>
@@ -606,11 +632,11 @@ export default function FamilyListPage() {
                 <div className="d-flex align-items-center gap-2 flex-wrap">
                     {activeYear && (
                         <div
-                            className="badge d-inline-flex align-items-center gap-2 px-3 py-2 text-white shadow-sm"
+                            className="badge d-inline-flex align-items-center gap-1.5 px-3 py-2 text-white shadow-sm"
                             style={{
                                 backgroundColor: 'var(--primary-teal)',
                                 borderRadius: '20px',
-                                fontSize: '0.82rem',
+                                fontSize: '0.8rem',
                                 letterSpacing: '0.3px'
                             }}
                         >
@@ -622,16 +648,16 @@ export default function FamilyListPage() {
             </div>
 
             {/* 4 Summary Stat Squircle Cards */}
-            <div className="row g-3 mb-4">
+            <div className="row g-2 g-md-3 mb-3 mb-md-4">
                 <div className="col-6 col-lg-3">
-                    <div className="card border-0 shadow-sm h-100" style={{ borderLeft: '4px solid var(--primary-teal)', borderRadius: '16px' }}>
-                        <div className="card-body p-3">
+                    <div className="card border-0 shadow-sm h-100 family-stat-card" style={{ borderLeft: '4px solid var(--primary-teal)', borderRadius: '16px' }}>
+                        <div className="card-body p-2.5 p-md-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.72rem' }}>Total Families</div>
+                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Total Families</div>
                                     <div className="fw-bold fs-4 mt-1" style={{ color: 'var(--primary-dark)' }}>{stats?.total_families || families.length}</div>
                                 </div>
-                                <div className="p-2 rounded-3 bg-light text-teal" style={{ color: 'var(--primary-teal)' }}>
+                                <div className="p-2 rounded-3 bg-light text-teal d-none d-sm-block" style={{ color: 'var(--primary-teal)' }}>
                                     <i className="bi bi-people fs-4"></i>
                                 </div>
                             </div>
@@ -640,14 +666,14 @@ export default function FamilyListPage() {
                 </div>
 
                 <div className="col-6 col-lg-3">
-                    <div className="card border-0 shadow-sm h-100" style={{ borderLeft: '4px solid var(--accent-orange)', borderRadius: '16px' }}>
-                        <div className="card-body p-3">
+                    <div className="card border-0 shadow-sm h-100 family-stat-card" style={{ borderLeft: '4px solid var(--accent-orange)', borderRadius: '16px' }}>
+                        <div className="card-body p-2.5 p-md-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.72rem' }}>Total Students</div>
+                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Total Students</div>
                                     <div className="fw-bold fs-4 mt-1" style={{ color: 'var(--accent-orange)' }}>{stats?.total_students || 0}</div>
                                 </div>
-                                <div className="p-2 rounded-3 bg-light text-warning" style={{ color: 'var(--accent-orange)' }}>
+                                <div className="p-2 rounded-3 bg-light text-warning d-none d-sm-block" style={{ color: 'var(--accent-orange)' }}>
                                     <i className="bi bi-backpack4 fs-4"></i>
                                 </div>
                             </div>
@@ -656,16 +682,16 @@ export default function FamilyListPage() {
                 </div>
 
                 <div className="col-6 col-lg-3">
-                    <div className="card border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #3b82f6', borderRadius: '16px' }}>
-                        <div className="card-body p-3">
+                    <div className="card border-0 shadow-sm h-100 family-stat-card" style={{ borderLeft: '4px solid #3b82f6', borderRadius: '16px' }}>
+                        <div className="card-body p-2.5 p-md-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.72rem' }}>Household Structure</div>
-                                    <div className="fw-bold fs-6 mt-1 text-primary">
-                                        {familyCounts.pureSiblings} <span className="text-muted small fw-normal">Siblings</span> • {familyCounts.cousins} <span className="text-muted small fw-normal">Cousins</span>
+                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Household Structure</div>
+                                    <div className="fw-bold fs-6 mt-1 text-primary text-truncate">
+                                        {familyCounts.pureSiblings} <span className="text-muted small fw-normal">Sib</span> • {familyCounts.cousins} <span className="text-muted small fw-normal">Cousin</span>
                                     </div>
                                 </div>
-                                <div className="p-2 rounded-3 bg-light text-primary">
+                                <div className="p-2 rounded-3 bg-light text-primary d-none d-sm-block">
                                     <i className="bi bi-diagram-3 fs-4"></i>
                                 </div>
                             </div>
@@ -674,16 +700,16 @@ export default function FamilyListPage() {
                 </div>
 
                 <div className="col-6 col-lg-3">
-                    <div className="card border-0 shadow-sm h-100" style={{ borderLeft: '4px solid #16a34a', borderRadius: '16px' }}>
-                        <div className="card-body p-3">
+                    <div className="card border-0 shadow-sm h-100 family-stat-card" style={{ borderLeft: '4px solid #16a34a', borderRadius: '16px' }}>
+                        <div className="card-body p-2.5 p-md-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.72rem' }}>Active Filter Results</div>
-                                    <div className="fw-bold fs-4 mt-1 text-success">
+                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Active Filter Results</div>
+                                    <div className="fw-bold fs-4 mt-1 text-success text-truncate">
                                         {filteredFamilies.length} <span className="fs-6 text-muted fw-normal">({displayedStudentsCount} kids)</span>
                                     </div>
                                 </div>
-                                <div className="p-2 rounded-3 bg-light text-success">
+                                <div className="p-2 rounded-3 bg-light text-success d-none d-sm-block">
                                     <i className="bi bi-funnel fs-4"></i>
                                 </div>
                             </div>

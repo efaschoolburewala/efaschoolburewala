@@ -94,11 +94,23 @@ export default function StudentReportPage() {
     };
 
     return (
-        <div className="p-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
+        <div className="container-fluid p-2 p-sm-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
+            {/* Custom Responsive Styles */}
+            <style jsx>{`
+                @media (max-width: 575.98px) {
+                    .student-report-table {
+                        min-width: 820px;
+                    }
+                    .summary-stat-box {
+                        padding: 8px 10px !important;
+                    }
+                }
+            `}</style>
+
             {/* Header */}
-            <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
+            <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3 mb-md-4">
                 <div>
-                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
+                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)', fontSize: 'clamp(1.25rem, 3vw, 1.6rem)' }}>
                         <i className="bi bi-people-fill me-2" style={{ color: 'var(--accent-orange)' }} />
                         Student Report
                     </h4>
@@ -113,12 +125,12 @@ export default function StudentReportPage() {
             </div>
 
             {/* Filters */}
-            <div className="card border-0 shadow-sm mb-4">
-                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
+            <div className="card border-0 shadow-sm mb-3 mb-md-4" style={{ borderRadius: 16 }}>
+                <div className="card-header bg-white border-bottom py-3" style={{ borderLeft: '4px solid var(--primary-teal)', borderRadius: '16px 16px 0 0' }}>
                     <h6 className="mb-0 fw-bold"><i className="bi bi-funnel me-2 text-muted" />Filters</h6>
                 </div>
                 <div className="card-body">
-                    <div className="row g-3 align-items-end">
+                    <div className="row g-2 g-md-3 align-items-end">
                         <div className="col-12 col-sm-6 col-md-3">
                             <label className="form-label fw-semibold small mb-1">
                                 <i className="bi bi-mortarboard-fill me-1 text-primary"></i>Academic Year
@@ -146,12 +158,12 @@ export default function StudentReportPage() {
                             </select>
                         </div>
                         <div className="col-12 col-sm-6 col-md-3 d-flex gap-2">
-                            <button className="btn btn-sm fw-bold px-4 flex-grow-1" style={{ background: 'var(--primary-teal)', color: '#fff', height: 34 }} onClick={loadReport} disabled={loading}>
+                            <button className="btn btn-sm fw-bold px-4 flex-grow-1" style={{ background: 'var(--primary-teal)', color: '#fff', height: 34, borderRadius: 10 }} onClick={loadReport} disabled={loading}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-search me-2" />}
                                 Generate
                             </button>
                             {students.length > 0 && (
-                                <button className="btn btn-outline-secondary btn-sm fw-bold px-3" onClick={handlePrint}>
+                                <button className="btn btn-outline-secondary btn-sm fw-bold px-3" style={{ borderRadius: 10 }} onClick={handlePrint}>
                                     <i className="bi bi-printer" />
                                 </button>
                             )}
@@ -164,7 +176,7 @@ export default function StudentReportPage() {
 
             {/* Report Content */}
             {students.length > 0 && (
-                <div className="card border-0 shadow-sm">
+                <div className="card border-0 shadow-sm" style={{ borderRadius: 16, overflow: 'hidden' }}>
                     <div className="card-body p-0">
                         <div ref={printRef}>
                             <h2 style={{ textAlign: 'center', padding: '16px 0 4px', color: '#233D4D' }}>Student Report</h2>
@@ -176,16 +188,16 @@ export default function StudentReportPage() {
 
                             {/* Summary */}
                             {summary && (
-                                <div className="row g-2 g-md-3 px-3 px-md-4 mb-3">
+                                <div className="row g-2 g-md-3 px-2 px-md-4 mb-3">
                                     {[
                                         { label: 'Total Students', val: summary.total, color: '#233D4D', bg: '#eaf0f6' },
                                         { label: 'Active', val: summary.active, color: '#198754', bg: '#e8f5ee' },
                                         { label: 'Inactive', val: summary.inactive, color: '#dc3545', bg: '#fdecea' },
                                     ].map(s => (
                                         <div key={s.label} className="col-4">
-                                            <div style={{ background: s.bg, padding: '10px 14px', borderRadius: 8, borderTop: `3px solid ${s.color}` }}>
-                                                <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.val}</div>
-                                                <div style={{ fontSize: 11, color: '#666' }}>{s.label}</div>
+                                            <div className="summary-stat-box" style={{ background: s.bg, padding: '10px 14px', borderRadius: 12, borderTop: `3px solid ${s.color}` }}>
+                                                <div style={{ fontSize: 'clamp(1.1rem, 3.5vw, 1.4rem)', fontWeight: 800, color: s.color }}>{s.val}</div>
+                                                <div style={{ fontSize: 11, color: '#666' }} className="text-truncate">{s.label}</div>
                                             </div>
                                         </div>
                                     ))}
@@ -193,7 +205,7 @@ export default function StudentReportPage() {
                             )}
 
                             <div className="table-responsive">
-                                <table className="table table-hover mb-0" style={{ fontSize: 13 }}>
+                                <table className="table table-hover mb-0 student-report-table" style={{ fontSize: 13 }}>
                                     <thead style={{ background: '#233D4D' }}>
                                         <tr>
                                             {['#', 'Admission#', 'Roll#', 'Student Name', 'Gender', 'Class', 'Section', 'Father Name', 'Contact', 'Monthly Fee', 'Status'].map(h => (
