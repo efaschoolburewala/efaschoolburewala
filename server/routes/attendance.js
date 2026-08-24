@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { computeBiometricSimilarity } = require('../utils/biometricMatch');
 
 function parseUserId(input) {
     const value = Number(input);
@@ -613,35 +614,87 @@ router.post('/staff/verify-biometric', async (req, res) => {
             staff_biometric_mode: 'both'
         };
 
-        // 3. Biometric Verification Check (if retina_face descriptor provided and not manual override)
-        if (verification_mode === 'retina_face' && Array.isArray(biometric_data) && biometric_data.length > 0 && !manual_override) {
+        // 3. Strict Biometric Verification — NO ghost verification allowed
+        // Applies to both retina_face and fingerprint modes when biometric_data is provided
+        if (!manual_override && Array.isArray(biometric_data) && biometric_data.length > 0) {
+            // 3a. Resolve the app_user_id for this employee
             let userTargetId = emp.app_user_id;
             if (!userTargetId && emp.email) {
-                const uRes = await client.query(`SELECT id FROM app_users WHERE LOWER(email) = LOWER($1) LIMIT 1`, [emp.email]);
-                userTargetId = uRes.rows[0]?.id;
+                const uRes = await client.query(
+                    `SELECT id FROM app_users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+                    [emp.email]
+                );
+                userTargetId = uRes.rows[0]?.id || null;
             }
 
-            if (userTargetId) {
-                const credRes = await client.query(
-                    `SELECT public_key FROM user_webauthn_credentials WHERE user_id = $1 AND credential_type = 'retina_face' ORDER BY id DESC LIMIT 1`,
-                    [userTargetId]
-                );
-                if (credRes.rows.length > 0) {
-                    try {
-                        const storedDescriptor = JSON.parse(credRes.rows[0].public_key);
-                        const similarity = computeBiometricSimilarity(biometric_data, storedDescriptor);
-                        if (similarity < 0.65) {
-                            await client.query('ROLLBACK');
-                            return res.status(401).json({
-                                success: false,
-                                error: `Facial / Retina scan does not match registered profile (Match score: ${(similarity * 100).toFixed(1)}%). Verification failed.`
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('Descriptor parsing warning:', e.message);
-                    }
-                }
+            // 3b. No linked app account → cannot verify biometrics → REJECT
+            if (!userTargetId) {
+                await client.query('ROLLBACK');
+                return res.status(401).json({
+                    success: false,
+                    error: 'This employee does not have a linked system account. Biometric verification is not possible. Please contact the administrator.'
+                });
             }
+
+            // 3c. Determine credential_type to look up based on verification_mode
+            const credType = (verification_mode === 'fingerprint') ? 'fingerprint' : 'retina_face';
+
+            // 3d. Fetch enrolled biometric template from DB
+            const credRes = await client.query(
+                `SELECT public_key FROM user_webauthn_credentials
+                 WHERE user_id = $1 AND credential_type = $2
+                 ORDER BY id DESC LIMIT 1`,
+                [userTargetId, credType]
+            );
+
+            // 3e. No enrolled template → cannot match → REJECT (prevents unregistered users from passing)
+            if (credRes.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(401).json({
+                    success: false,
+                    error: `No ${credType === 'fingerprint' ? 'fingerprint' : 'facial / retina'} biometric template is enrolled for this employee. Please register biometrics first in the employee profile.`
+                });
+            }
+
+            // 3f. Parse stored descriptor and compute similarity
+            let storedDescriptor;
+            try {
+                storedDescriptor = JSON.parse(credRes.rows[0].public_key);
+            } catch (parseErr) {
+                await client.query('ROLLBACK');
+                console.error('Biometric template parse error for user', userTargetId, parseErr.message);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Stored biometric template is corrupted. Please re-enroll biometrics for this employee.'
+                });
+            }
+
+            // 3g. Ensure stored descriptor is a valid numeric array
+            if (!Array.isArray(storedDescriptor) || storedDescriptor.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(401).json({
+                    success: false,
+                    error: 'Stored biometric template is invalid or empty. Please re-enroll biometrics.'
+                });
+            }
+
+            // 3h. Compute similarity score
+            const similarity = computeBiometricSimilarity(biometric_data, storedDescriptor);
+            const THRESHOLD = 0.90; // 90% required for both fingerprint and retina_face — strict, no exceptions
+
+            console.log(`[Biometric] Employee ${empId} | Mode: ${credType} | Score: ${(similarity * 100).toFixed(2)}% | Threshold: ${(THRESHOLD * 100).toFixed(0)}%`);
+
+            // 3i. Reject if below threshold
+            if (similarity < THRESHOLD) {
+                await client.query('ROLLBACK');
+                return res.status(401).json({
+                    success: false,
+                    error: `${credType === 'fingerprint' ? 'Fingerprint' : 'Facial / Retina'} scan does not match enrolled profile. Match score: ${(similarity * 100).toFixed(1)}% (required: ${(THRESHOLD * 100).toFixed(0)}%). Verification failed.`
+                });
+            }
+
+            // 3j. Verified — log match confidence
+            console.log(`[Biometric] ✅ Employee ${empId} verified successfully. Score: ${(similarity * 100).toFixed(2)}%`);
         }
 
         // 4. Time calculations

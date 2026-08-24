@@ -426,8 +426,8 @@ export default function StaffAttendanceHistoryPage() {
                         </div>
                     </div>
 
-                    {/* MAIN TIMESHEET TABLE */}
-                    <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                    {/* MAIN TIMESHEET TABLE — visible on md+ screens */}
+                    <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-none d-md-block">
                         <div className="table-responsive" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
                             <table className="table table-hover align-middle mb-0" style={{ minWidth: 780 }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--primary-dark)' }}>
@@ -482,7 +482,7 @@ export default function StaffAttendanceHistoryPage() {
                                                     <div className="d-flex align-items-center gap-2">
                                                         <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs"
                                                             style={{ width: 32, height: 32, background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))', fontSize: '0.72rem', flexShrink: 0 }}>
-                                                            {s.first_name[0]}{s.last_name[0]}
+                                                            {(s.first_name?.[0] || '?')}{(s.last_name?.[0] || '')}
                                                         </div>
                                                         <div>
                                                             <div className="fw-bold text-dark" style={{ fontSize: '0.86rem' }}>
@@ -537,20 +537,79 @@ export default function StaffAttendanceHistoryPage() {
                             </table>
                         </div>
                     </div>
+                    {/* MOBILE CARD VIEW — visible on xs/sm screens only */}
+                    <div className="d-md-none mb-4">
+                        {filtered.length === 0 && (
+                            <div className="text-center text-muted py-4">
+                                <i className="bi bi-search fs-3 d-block mb-2" />
+                                No staff found matching your search.
+                            </div>
+                        )}
+                        {filtered.map(s => {
+                            const pct = s.total_days ? Math.round(((s.present + (s.late_in || 0)) / s.total_days) * 100) : 0;
+                            return (
+                                <div
+                                    key={s.employee_id}
+                                    className="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden"
+                                    onClick={() => setSelectedEmployee(s)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <div className="card-body p-3">
+                                        <div className="d-flex align-items-center gap-3 mb-3">
+                                            <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                                                style={{ width: 44, height: 44, background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))', fontSize: '1rem' }}>
+                                                {(s.first_name?.[0] || '?')}{(s.last_name?.[0] || '')}
+                                            </div>
+                                            <div className="flex-grow-1 min-width-0">
+                                                <div className="fw-bold text-dark" style={{ fontSize: '0.92rem' }}>
+                                                    {s.first_name} {s.last_name}
+                                                </div>
+                                                <div className="text-muted small">{s.designation || 'Staff'} &middot; {s.department_name}</div>
+                                            </div>
+                                            <span className="badge rounded-pill fw-bold" style={{
+                                                fontSize: '0.78rem',
+                                                background: pct >= 75 ? '#e6f9f3' : pct >= 50 ? '#fef6e4' : '#fde8e8',
+                                                color: pct >= 75 ? '#0d9e6e' : pct >= 50 ? '#e6860a' : '#e13232'
+                                            }}>{pct}%</span>
+                                        </div>
+                                        <div className="row g-2">
+                                            {[
+                                                { label: 'Present', val: s.present, color: '#0d9e6e', bg: '#e6f9f3' },
+                                                { label: 'Late', val: s.late_in || 0, color: '#e6860a', bg: '#fef6e4' },
+                                                { label: 'Early Exit', val: s.early_out || 0, color: '#f97316', bg: '#fff7ed' },
+                                                { label: 'Absent', val: s.absent, color: '#e13232', bg: '#fde8e8' },
+                                                { label: 'Leave', val: s.leave, color: '#1a6fd4', bg: '#e8f0fd' },
+                                            ].map(({ label, val, color, bg }) => (
+                                                <div key={label} className="col">
+                                                    <div className="text-center rounded-3 py-2" style={{ background: bg }}>
+                                                        <div className="fw-bold" style={{ color, fontSize: '1.1rem' }}>{val}</div>
+                                                        <div style={{ color, fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="text-muted small mt-2 text-end">
+                                            <i className="bi bi-chevron-right me-1" />Tap to view full timesheet
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
                 </>
             )}
 
-            {/* DETAILED EMPLOYEE TIMESHEET MODAL */}
             {selectedEmployee && (
                 <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" style={{ margin: '0.5rem auto', padding: '0 0.5rem' }}>
                         <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
                             
                             {/* Modal Header */}
-                            <div className="modal-header border-0 text-white px-4 py-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
+                            <div className="modal-header border-0 text-white px-3 px-md-4 py-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
                                 <div className="d-flex align-items-center gap-3">
-                                    <div className="rounded-circle d-flex align-items-center justify-content-center bg-white text-dark fw-bold" style={{ width: 44, height: 44, fontSize: '1rem' }}>
-                                        {selectedEmployee.first_name[0]}{selectedEmployee.last_name[0]}
+                                    <div className="rounded-circle d-flex align-items-center justify-content-center bg-white text-dark fw-bold flex-shrink-0" style={{ width: 44, height: 44, fontSize: '1rem' }}>
+                                        {(selectedEmployee.first_name?.[0] || '?')}{(selectedEmployee.last_name?.[0] || '')}
                                     </div>
                                     <div>
                                         <h5 className="modal-title fw-bold mb-0">
@@ -565,21 +624,21 @@ export default function StaffAttendanceHistoryPage() {
                             </div>
 
                             {/* Modal Body */}
-                            <div className="modal-body p-4">
-                                <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 border-bottom pb-3">
-                                    <h6 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
+                            <div className="modal-body p-3 p-md-4">
+                                <div className="d-flex justify-content-between align-items-start align-items-md-center mb-3 flex-wrap gap-2 border-bottom pb-3">
+                                    <h6 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)', fontSize: '0.9rem' }}>
                                         Daily IN / OUT Attendance Log ({monthNames[+month - 1]} {year})
                                     </h6>
-                                    <div className="d-flex gap-2">
-                                        <span className="badge bg-success-subtle text-success">Present: {selectedEmployee.present}</span>
-                                        <span className="badge bg-warning-subtle text-warning-emphasis">Late: {selectedEmployee.late_in || 0}</span>
-                                        <span className="badge bg-danger-subtle text-danger">Absent: {selectedEmployee.absent}</span>
-                                        <span className="badge bg-primary-subtle text-primary">Leaves: {selectedEmployee.leave}</span>
+                                    <div className="d-flex gap-1 flex-wrap">
+                                        <span className="badge bg-success-subtle text-success" style={{ fontSize: '0.72rem' }}>Present: {selectedEmployee.present}</span>
+                                        <span className="badge bg-warning-subtle text-warning-emphasis" style={{ fontSize: '0.72rem' }}>Late: {selectedEmployee.late_in || 0}</span>
+                                        <span className="badge bg-danger-subtle text-danger" style={{ fontSize: '0.72rem' }}>Absent: {selectedEmployee.absent}</span>
+                                        <span className="badge bg-primary-subtle text-primary" style={{ fontSize: '0.72rem' }}>Leaves: {selectedEmployee.leave}</span>
                                     </div>
                                 </div>
 
                                 <div className="table-responsive">
-                                    <table className="table table-hover align-middle mb-0">
+                                    <table className="table table-hover align-middle mb-0" style={{ minWidth: 460 }}>
                                         <thead className="table-light">
                                             <tr>
                                                 <th className="small fw-bold">Date</th>

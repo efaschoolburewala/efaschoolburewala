@@ -1,30 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Comprehensive Mobile Permissions -->
+    <!-- ═══════════════════════════════════════════════════════════════
+         NETWORK & CONNECTIVITY
+         ═══════════════════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- Android 13+ nearby Wi-Fi for network discovery (future school IoT / printers) -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         CAMERA — Required for biometric facial / retina scan
+         ═══════════════════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         BIOMETRICS — Fingerprint sensor + Face unlock + General biometric API
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Modern unified biometric API (Android 9+, API 28+) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Legacy fingerprint API (Android 6–8, kept for backward compat) -->
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <!-- High-frequency sensor sampling for advanced fingerprint hardware (Android 12+) -->
+    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         AUDIO — For voice announcements / alerts during attendance
+         ═══════════════════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         STORAGE — Scoped storage (Android 10+) + legacy guards
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Legacy storage (API ≤28 only — Android 9 and below) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <!-- Legacy read (API ≤32 only — Android 12L and below) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Scoped media permissions for Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Android 14+ partial media access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         LOCATION — For geo-fenced attendance verification (future: staff must be on campus)
+         ═══════════════════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Background location for geo-fence triggers while app is in background -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         NOTIFICATIONS — Push alerts for attendance verification results
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Android 13+ runtime notification permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Required to receive FCM / local notifications after device reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
-    <uses-feature android:name="android.hardware.biometrics.face" android:required="false" />
+    <!-- ═══════════════════════════════════════════════════════════════
+         FOREGROUND SERVICE — Keeps biometric scan session alive
+         ═══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+: must declare the type of foreground service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         ALARMS & SCHEDULING — Exact alarms for attendance reminders
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Android 12+ exact alarm (attendance bell / reminder notifications) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         DEVICE INTERACTION
+         ═══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Prevent screen from sleeping during biometric scan -->
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <!-- Keep screen on during active biometric verification session -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         NFC — Future: NFC card / RFID-based staff identification
+         ═══════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.NFC" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         BLUETOOTH — Future: BLE fingerprint scanners / proximity badges
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Legacy Bluetooth (API ≤30) -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!-- Android 12+ scoped Bluetooth permissions -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         HARDWARE FEATURE DECLARATIONS
+         android:required="false" = optional hardware (app still installs on devices without it)
+         ═══════════════════════════════════════════════════════════════ -->
+    <!-- Camera features — not required so the app works on devices without them -->
+    <uses-feature android:name="android.hardware.camera"                android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front"          android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus"      android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash"          android:required="false" />
+    <!-- Biometric hardware -->
+    <uses-feature android:name="android.hardware.fingerprint"           android:required="false" />
+    <uses-feature android:name="android.hardware.biometrics.face"       android:required="false" />
+    <uses-feature android:name="android.hardware.biometrics.iris"       android:required="false" />
+    <!-- NFC & Bluetooth -->
+    <uses-feature android:name="android.hardware.nfc"                   android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth"             android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le"          android:required="false" />
+    <!-- Location -->
+    <uses-feature android:name="android.hardware.location.gps"          android:required="false" />
+    <uses-feature android:name="android.hardware.location.network"      android:required="false" />
+    <!-- Sensors for future fingerprint hardware -->
+    <uses-feature android:name="android.hardware.sensor.accelerometer"  android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -33,7 +143,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
@@ -41,15 +153,33 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="portrait">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- NFC tag dispatch for future NFC card scanning -->
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
         </activity>
 
+        <!-- Boot broadcast receiver — restores scheduled attendance reminders after reboot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- File provider for sharing captured attendance media / reports -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -59,6 +189,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
     </application>
 
 </manifest>

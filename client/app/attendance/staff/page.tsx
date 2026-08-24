@@ -251,10 +251,8 @@ export default function StaffAttendancePage() {
         setScanMode(preferredMode);
         setScanningInProgress(false);
         setScanProgress(0);
-
-        if (preferredMode === 'retina_face') {
-            startCamera();
-        }
+        // Always start camera — both fingerprint & retina_face use camera-based descriptor
+        startCamera();
     };
 
     const startCamera = async () => {
@@ -269,19 +267,20 @@ export default function StaffAttendancePage() {
             }
         } catch (err) {
             console.error('Camera access error:', err);
-            notify.error('Camera access denied. Please grant camera permission or use Fingerprint.');
-            setScanMode('fingerprint');
+            // Don't switch mode — just notify. Both modes need camera.
+            notify.error('Camera access denied. Please grant camera permission in your browser settings and try again.');
         }
     };
 
     useEffect(() => {
-        if (scanMode === 'retina_face' && verifyingMember) {
+        // Always start camera for biometric verification (both modes use camera-based descriptors)
+        if (verifyingMember) {
             startCamera();
         } else {
             stopCamera();
         }
         return () => stopCamera();
-    }, [scanMode, verifyingMember]);
+    }, [verifyingMember]);
 
     // Perform Live Real-Time Biometric Verification & Save to Database
     const executeBiometricVerification = async () => {
@@ -292,18 +291,20 @@ export default function StaffAttendancePage() {
         try {
             let biometricDescriptor: number[] | null = null;
 
-            if (scanMode === 'retina_face') {
-                setScanProgress(30);
-                if (videoRef.current) {
-                    biometricDescriptor = await captureMultiFrameDescriptor(videoRef.current, 5);
-                }
-                setScanProgress(65);
-            } else {
-                // Fingerprint simulation / WebAuthn live prompt
-                setScanProgress(40);
-                await new Promise(r => setTimeout(r, 600));
-                setScanProgress(80);
+            // Always capture a camera-based LBP+HOG descriptor for all biometric modes.
+            // For 'fingerprint' mode: uses the same visual descriptor but matched against
+            // user_webauthn_credentials WHERE credential_type = 'fingerprint' in the DB.
+            // For 'retina_face' mode: matched against credential_type = 'retina_face'.
+            setScanProgress(30);
+            if (videoRef.current) {
+                biometricDescriptor = await captureMultiFrameDescriptor(videoRef.current, 6);
             }
+
+            if (!biometricDescriptor || biometricDescriptor.length === 0) {
+                throw new Error('Could not capture biometric data. Ensure your face is clearly visible in the camera and try again.');
+            }
+
+            setScanProgress(65);
 
             // Call Backend Real-Time Verification Endpoint
             const res = await fetch(`${API}/attendance/staff/verify-biometric`, {
@@ -1034,7 +1035,7 @@ export default function StaffAttendancePage() {
             {/* LIVE BIOMETRIC VERIFICATION MODAL */}
             {verifyingMember && (
                 <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480, margin: '1rem auto', padding: '0 0.75rem' }}>
                         <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
 
                             {/* Modal Header */}
@@ -1058,47 +1059,66 @@ export default function StaffAttendancePage() {
                             {/* Modal Body */}
                             <div className="modal-body p-4 text-center">
 
-                                {/* Mode Switcher */}
+                                {/* Mode Switcher — shown only when both modes allowed */}
                                 {settings.staff_biometric_mode === 'both' && (
                                     <div className="btn-group w-100 mb-4 p-1 bg-light rounded-3 border">
                                         <button
                                             type="button"
                                             className={`btn btn-sm fw-bold rounded-2 ${scanMode === 'fingerprint' ? 'btn-primary shadow-xs' : 'btn-light text-muted'}`}
-                                            onClick={() => { stopCamera(); setScanMode('fingerprint'); }}
+                                            onClick={() => { setScanMode('fingerprint'); startCamera(); }}
                                         >
-                                            <i className="bi bi-fingerprint me-1.5" />Fingerprint Scan
+                                            <i className="bi bi-fingerprint me-1" />Fingerprint Scan
                                         </button>
                                         <button
                                             type="button"
                                             className={`btn btn-sm fw-bold rounded-2 ${scanMode === 'retina_face' ? 'btn-primary shadow-xs' : 'btn-light text-muted'}`}
-                                            onClick={() => setScanMode('retina_face')}
+                                            onClick={() => { setScanMode('retina_face'); startCamera(); }}
                                         >
-                                            <i className="bi bi-eye-fill me-1.5" />Eye Retina / Facial ID
+                                            <i className="bi bi-eye-fill me-1" />Eye Retina / Facial ID
                                         </button>
                                     </div>
                                 )}
 
                                 {/* SCANNER INTERFACE */}
-                                {scanMode === 'retina_face' ? (
-                                    <div className="position-relative mx-auto rounded-4 overflow-hidden mb-3 shadow-sm border" style={{ maxWidth: 360, height: 260, background: '#000' }}>
-                                        <video
-                                            ref={videoRef}
-                                            autoPlay
-                                            playsInline
-                                            muted
-                                            className="w-100 h-100"
-                                            style={{ objectFit: 'cover' }}
-                                        />
-                                        {/* Scanner HUD Overlay */}
+                                {/* 
+                                    IMPORTANT: The <video> element is ALWAYS rendered (never conditionally removed)
+                                    so that videoRef.current is always available for captureMultiFrameDescriptor.
+                                    In 'fingerprint' mode it is hidden via CSS — the camera still runs and captures.
+                                */}
+                                <div
+                                    className="position-relative mx-auto rounded-4 overflow-hidden mb-3 shadow-sm border"
+                                    style={{
+                                        maxWidth: 360,
+                                        width: '100%',
+                                        height: scanMode === 'retina_face' ? 260 : 0,
+                                        background: '#000',
+                                        overflow: 'hidden',
+                                        transition: 'height 0.3s ease',
+                                        border: scanMode === 'retina_face' ? undefined : 'none'
+                                    }}
+                                >
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        className="w-100 h-100"
+                                        style={{ objectFit: 'cover' }}
+                                    />
+                                    {/* Scanner HUD Overlay — only visible in retina_face mode */}
+                                    {scanMode === 'retina_face' && (
                                         <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center"
                                             style={{ border: '3px solid #22c55e', pointerEvents: 'none' }}>
                                             <div className="rounded-circle" style={{ width: 140, height: 140, border: '2px dashed rgba(34, 197, 94, 0.8)' }} />
-                                            <div className="badge bg-dark bg-opacity-75 text-success mt-2 fw-semibold px-2 py-1 font-monospace">
+                                            <div className="badge bg-dark bg-opacity-75 text-success mt-2 fw-semibold px-2 py-1 font-monospace" style={{ fontSize: '0.72rem' }}>
                                                 Looking for Face / Retina Landmarks
                                             </div>
                                         </div>
-                                    </div>
-                                ) : (
+                                    )}
+                                </div>
+
+                                {/* Fingerprint mode UI — shown on top when in fingerprint mode */}
+                                {scanMode === 'fingerprint' && (
                                     <div className="py-4 my-2">
                                         <div
                                             className="rounded-circle mx-auto d-flex align-items-center justify-content-center shadow-sm mb-3"
@@ -1115,8 +1135,17 @@ export default function StaffAttendancePage() {
                                                 style={{ fontSize: '3.5rem' }}
                                             />
                                         </div>
-                                        <h6 className="fw-bold text-dark mb-1">Place Finger on Biometric Scanner</h6>
-                                        <p className="text-muted small mb-0">Hardware sensor or WebAuthn digital verification</p>
+                                        <h6 className="fw-bold text-dark mb-1">Biometric Scan</h6>
+                                        <p className="text-muted small mb-0">Camera is capturing your biometric data.<br />Please look directly at the camera.</p>
+                                        {!cameraStream && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-primary mt-2 rounded-pill px-3"
+                                                onClick={startCamera}
+                                            >
+                                                <i className="bi bi-camera-video me-1" />Enable Camera
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 

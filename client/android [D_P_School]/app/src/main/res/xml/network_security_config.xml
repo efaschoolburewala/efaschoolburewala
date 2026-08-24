@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Configuration for D_P_School
+    - Allows cleartext (HTTP) traffic only for localhost/development server
+    - All other traffic (production API) must use HTTPS
+    - Trusts system CA store for HTTPS connections
+-->
+<network-security-config>
+
+    <!-- Development: allow HTTP to localhost and LAN IP ranges -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>    <!-- Android emulator host -->
+        <domain includeSubdomains="true">192.168.0.0</domain>  <!-- Local LAN -->
+        <domain includeSubdomains="true">192.168.1.0</domain>
+        <domain includeSubdomains="true">192.168.100.0</domain>
+        <domain includeSubdomains="true">10.0.0.0</domain>
+    </domain-config>
+
+    <!-- Production: all other domains must use HTTPS only -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system-provided CA certificates -->
+            <certificates src="system" />
+            <!-- Also trust user-installed CAs during development/testing -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+</network-security-config>
