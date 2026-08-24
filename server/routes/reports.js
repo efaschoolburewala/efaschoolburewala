@@ -192,7 +192,7 @@ router.get('/expense-categories', async (req, res) => {
 // ─── 6. Family Fee Report (monthly, head-wise & collective) ──────────────────
 router.get('/family-fee', async (req, res) => {
     try {
-        const { month, year, class_id, section_id, status, head_id, academic_year_id } = req.query;
+        const { month, year, class_id, section_id, status, head_id, academic_year_id, as_of_date } = req.query;
 
         const monthArr = month ? month.toString().split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n)) : [];
         const yearNum = year ? parseInt(year.toString(), 10) : null;
@@ -208,9 +208,13 @@ router.get('/family-fee', async (req, res) => {
                 ms.paid_amount,
                 ms.status,
                 ms.due_date,
+                ms.issue_date,
                 ms.academic_year_id,
                 CONCAT(s.first_name, ' ', s.last_name) AS student_name,
                 s.admission_no,
+                s.roll_no,
+                s.father_name,
+                s.father_phone,
                 f.family_name,
                 c.class_name,
                 sec.section_name
@@ -238,34 +242,44 @@ router.get('/family-fee', async (req, res) => {
         }
         if (class_id)  { slipQuery += ` AND s.class_id = $${idx++}`;   params.push(class_id); }
         if (section_id){ slipQuery += ` AND s.section_id = $${idx++}`; params.push(section_id); }
-        if (status)    { slipQuery += ` AND ms.status = $${idx++}`;    params.push(status); }
-        if (head_id)   {
+
+        if (head_id) {
             slipQuery += ` AND EXISTS (
                 SELECT 1 FROM slip_line_items sli2
                 WHERE sli2.slip_id = ms.slip_id AND sli2.head_id = $${idx++}
             )`;
-            params.push(head_id);
+            params.push(parseInt(head_id, 10));
         }
 
         slipQuery += ` ORDER BY class_name, section_name, student_name`;
 
         const slipsResult = await pool.query(slipQuery, params);
-        const slips = slipsResult.rows;
+        let rawSlips = slipsResult.rows;
 
-        if (slips.length === 0) {
-            return res.json({ slips: [], headSummary: [], collective: { total_billed: 0, total_collected: 0, total_pending: 0 } });
+        if (rawSlips.length === 0) {
+            return res.json({
+                slips: [],
+                headSummary: [],
+                collective: { total_billed: 0, total_collected: 0, total_pending: 0, total_students: 0, paid_count: 0, partial_count: 0, unpaid_count: 0 },
+                timeline: [],
+                weeklySummary: [],
+                selectedHeadInfo: null
+            });
         }
 
-        // Get head-wise breakdown for matching slips
-        const slipIds = slips.map(s => s.slip_id);
+        const slipIds = rawSlips.map(s => s.slip_id);
+
+        // Fetch line items for matching slips
         const lineQuery = `
             SELECT
                 sli.slip_id,
                 sli.head_id,
                 sli.head_name,
-                sli.amount
+                sli.amount,
+                COALESCE(sli.paid_amount, 0) AS paid_amount
             FROM slip_line_items sli
             WHERE sli.slip_id = ANY($1::int[])
+            ORDER BY sli.item_id ASC
         `;
         const lineResult = await pool.query(lineQuery, [slipIds]);
 
@@ -273,27 +287,213 @@ router.get('/family-fee', async (req, res) => {
         const lineMap = {};
         lineResult.rows.forEach(li => {
             if (!lineMap[li.slip_id]) lineMap[li.slip_id] = [];
-            lineMap[li.slip_id].push(li);
+            lineMap[li.slip_id].push({
+                ...li,
+                amount: parseFloat(li.amount || 0),
+                paid_amount: parseFloat(li.paid_amount || 0)
+            });
         });
-        slips.forEach(s => { s.line_items = lineMap[s.slip_id] || []; });
 
-        // Head-wise summary
+        // Fetch all payment transactions for timeline analysis
+        const paymentsQuery = `
+            SELECT
+                fp.payment_id,
+                fp.slip_id,
+                fp.amount_paid,
+                fp.payment_date::date AS payment_date,
+                fp.payment_method
+            FROM fee_payments fp
+            WHERE fp.slip_id = ANY($1::int[])
+            ORDER BY fp.payment_date ASC
+        `;
+        const paymentsRes = await pool.query(paymentsQuery, [slipIds]);
+        const payments = paymentsRes.rows.map(p => ({
+            ...p,
+            amount_paid: parseFloat(p.amount_paid || 0),
+            payment_date: p.payment_date ? new Date(p.payment_date).toISOString().split('T')[0] : null
+        }));
+
+        // Filter payments by as_of_date if specified
+        const validPayments = as_of_date 
+            ? payments.filter(p => p.payment_date && p.payment_date <= as_of_date)
+            : payments;
+
+        // Group payments by slip if as_of_date is used
+        const slipPaymentAsOf = {};
+        if (as_of_date) {
+            validPayments.forEach(p => {
+                slipPaymentAsOf[p.slip_id] = (slipPaymentAsOf[p.slip_id] || 0) + p.amount_paid;
+            });
+        }
+
+        // Process slips & calculate specific head vs overall values
+        const selectedHeadIdNum = head_id ? parseInt(head_id, 10) : null;
+        let processedSlips = rawSlips.map(s => {
+            const items = lineMap[s.slip_id] || [];
+            s.line_items = items;
+
+            if (selectedHeadIdNum) {
+                // Individual Head Mode: Only count and display this selected head
+                const matchingItem = items.find(li => li.head_id === selectedHeadIdNum);
+                const billed = matchingItem ? matchingItem.amount : 0;
+                const paid = matchingItem ? matchingItem.paid_amount : 0;
+                const balance = Math.max(0, billed - paid);
+                let st = 'unpaid';
+                if (paid >= billed && billed > 0) st = 'paid';
+                else if (paid > 0) st = 'partial';
+
+                return {
+                    ...s,
+                    total_amount: billed,
+                    paid_amount: paid,
+                    balance: balance,
+                    status: st,
+                    line_items: matchingItem ? [matchingItem] : []
+                };
+            } else {
+                // All Heads Mode
+                const billed = parseFloat(s.total_amount || 0);
+                const paid = as_of_date ? (slipPaymentAsOf[s.slip_id] || 0) : parseFloat(s.paid_amount || 0);
+                const balance = Math.max(0, billed - paid);
+                let st = s.status;
+                if (as_of_date) {
+                    if (paid >= billed && billed > 0) st = 'paid';
+                    else if (paid > 0) st = 'partial';
+                    else st = 'unpaid';
+                }
+
+                return {
+                    ...s,
+                    total_amount: billed,
+                    paid_amount: paid,
+                    balance: balance,
+                    status: st
+                };
+            }
+        });
+
+        // Filter by status if requested
+        if (status && status !== 'all') {
+            processedSlips = processedSlips.filter(s => s.status === status);
+        }
+
+        // Head-wise Summary Calculation
         const headMap = {};
         lineResult.rows.forEach(li => {
-            if (!headMap[li.head_name]) headMap[li.head_name] = 0;
-            headMap[li.head_name] += parseFloat(li.amount || 0);
+            if (selectedHeadIdNum && li.head_id !== selectedHeadIdNum) return;
+            if (!headMap[li.head_name]) {
+                headMap[li.head_name] = {
+                    head_id: li.head_id,
+                    head_name: li.head_name,
+                    total: 0,
+                    collected: 0,
+                    pending: 0,
+                    students_count: 0
+                };
+            }
+            headMap[li.head_name].total += parseFloat(li.amount || 0);
+            headMap[li.head_name].collected += parseFloat(li.paid_amount || 0);
+            headMap[li.head_name].students_count += 1;
         });
-        const headSummary = Object.entries(headMap).map(([head_name, total]) => ({ head_name, total })).sort((a, b) => b.total - a.total);
 
-        // Collective summary
-        const total_billed    = slips.reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0);
-        const total_collected = slips.reduce((sum, s) => sum + parseFloat(s.paid_amount || 0), 0);
-        const total_pending   = total_billed - total_collected;
+        const total_billed = processedSlips.reduce((sum, s) => sum + s.total_amount, 0);
+        const total_collected = processedSlips.reduce((sum, s) => sum + s.paid_amount, 0);
+        const total_pending = Math.max(0, total_billed - total_collected);
+
+        const headSummary = Object.values(headMap).map(h => {
+            h.pending = Math.max(0, h.total - h.collected);
+            h.collection_rate = h.total > 0 ? Math.round((h.collected / h.total) * 100) : 0;
+            h.percentage = total_billed > 0 ? Math.round((h.total / total_billed) * 100) : 0;
+            return h;
+        }).sort((a, b) => b.total - a.total);
+
+        // Collective Stats
+        const paid_count = processedSlips.filter(s => s.status === 'paid').length;
+        const partial_count = processedSlips.filter(s => s.status === 'partial').length;
+        const unpaid_count = processedSlips.filter(s => s.status === 'unpaid').length;
+
+        const collective = {
+            total_billed,
+            total_collected,
+            total_pending,
+            total_students: processedSlips.length,
+            paid_count,
+            partial_count,
+            unpaid_count,
+            collection_rate: total_billed > 0 ? Math.round((total_collected / total_billed) * 100) : 0
+        };
+
+        // ── Daily & Weekly Timeline Trend Generation ──
+        const targetYear = yearNum || new Date().getFullYear();
+        const primaryMonth = monthArr[0] || (new Date().getMonth() + 1);
+        const daysInMonth = new Date(targetYear, primaryMonth, 0).getDate();
+
+        const dailyMap = {};
+        validPayments.forEach(p => {
+            if (p.payment_date) {
+                dailyMap[p.payment_date] = (dailyMap[p.payment_date] || 0) + p.amount_paid;
+            }
+        });
+
+        const timeline = [];
+        let runningCollected = 0;
+        const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const mLabel = MONTH_NAMES[primaryMonth - 1] || 'Month';
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayStr = String(day).padStart(2, '0');
+            const mStr = String(primaryMonth).padStart(2, '0');
+            const fullDate = `${targetYear}-${mStr}-${dayStr}`;
+            const dayCollected = dailyMap[fullDate] || 0;
+            runningCollected += dayCollected;
+            const remainingAtDay = Math.max(0, total_billed - runningCollected);
+
+            timeline.push({
+                date: fullDate,
+                day: `${day} ${mLabel}`,
+                day_num: day,
+                daily_collected: dayCollected,
+                cumulative_collected: runningCollected,
+                target_billed: total_billed,
+                remaining_dues: remainingAtDay,
+                collection_rate: total_billed > 0 ? Math.round((runningCollected / total_billed) * 100) : 0
+            });
+        }
+
+        // Weekly Summary
+        const weeklySummary = [
+            { week: 'Week 1 (1-7)', days: [1, 7], collected: 0 },
+            { week: 'Week 2 (8-14)', days: [8, 14], collected: 0 },
+            { week: 'Week 3 (15-21)', days: [15, 21], collected: 0 },
+            { week: 'Week 4 (22-28)', days: [22, 28], collected: 0 },
+            { week: `Week 5 (29-${daysInMonth})`, days: [29, daysInMonth], collected: 0 }
+        ];
+
+        timeline.forEach(t => {
+            const w = weeklySummary.find(ws => t.day_num >= ws.days[0] && t.day_num <= ws.days[1]);
+            if (w) w.collected += t.daily_collected;
+        });
+
+        weeklySummary.forEach(w => {
+            w.percentage = total_collected > 0 ? Math.round((w.collected / total_collected) * 100) : 0;
+        });
+
+        let selectedHeadInfo = null;
+        if (selectedHeadIdNum && headSummary.length > 0) {
+            selectedHeadInfo = headSummary[0];
+        }
 
         res.json({
-            slips,
+            slips: processedSlips,
             headSummary,
-            collective: { total_billed, total_collected, total_pending }
+            collective,
+            timeline,
+            weeklySummary,
+            selectedHeadInfo,
+            dateRange: {
+                start: `${targetYear}-${String(primaryMonth).padStart(2, '0')}-01`,
+                end: `${targetYear}-${String(primaryMonth).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`
+            }
         });
     } catch (err) {
         console.error(err.message);
