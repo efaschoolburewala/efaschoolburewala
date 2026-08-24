@@ -56,11 +56,20 @@ router.get('/', async (req, res) => {
         const params = [];
         let paramCount = 0;
 
-        // Apply Academic Year filter (default to active year if not 'all')
-        if (academic_year_id && academic_year_id !== 'all') {
-            paramCount++;
-            query += ` AND e.academic_year_id = $${paramCount}`;
-            params.push(Number(academic_year_id));
+        // Apply Academic Year filter safely
+        if (academic_year_id === 'active') {
+            if (activeYear?.id) {
+                paramCount++;
+                query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
+                params.push(activeYear.id);
+            }
+        } else if (academic_year_id && academic_year_id !== 'all') {
+            const parsedYId = parseInt(academic_year_id, 10);
+            if (!isNaN(parsedYId)) {
+                paramCount++;
+                query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
+                params.push(parsedYId);
+            }
         } else if (!academic_year_id && activeYear?.id) {
             paramCount++;
             query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
@@ -82,13 +91,13 @@ router.get('/', async (req, res) => {
         
         if (from_date) {
             paramCount++;
-            query += ` AND e.expense_date >= $${paramCount}`;
+            query += ` AND e.expense_date::date >= $${paramCount}::date`;
             params.push(from_date);
         }
         
         if (to_date) {
             paramCount++;
-            query += ` AND e.expense_date <= $${paramCount}`;
+            query += ` AND e.expense_date::date <= $${paramCount}::date`;
             params.push(to_date);
         }
         
@@ -123,10 +132,19 @@ router.get('/', async (req, res) => {
         const countParams = [];
         let countParamCount = 0;
 
-        if (academic_year_id && academic_year_id !== 'all') {
-            countParamCount++;
-            countQuery += ` AND e.academic_year_id = $${countParamCount}`;
-            countParams.push(Number(academic_year_id));
+        if (academic_year_id === 'active') {
+            if (activeYear?.id) {
+                countParamCount++;
+                countQuery += ` AND (e.academic_year_id = $${countParamCount} OR e.academic_year_id IS NULL)`;
+                countParams.push(activeYear.id);
+            }
+        } else if (academic_year_id && academic_year_id !== 'all') {
+            const parsedYId = parseInt(academic_year_id, 10);
+            if (!isNaN(parsedYId)) {
+                countParamCount++;
+                countQuery += ` AND (e.academic_year_id = $${countParamCount} OR e.academic_year_id IS NULL)`;
+                countParams.push(parsedYId);
+            }
         } else if (!academic_year_id && activeYear?.id) {
             countParamCount++;
             countQuery += ` AND (e.academic_year_id = $${countParamCount} OR e.academic_year_id IS NULL)`;
@@ -138,7 +156,7 @@ router.get('/', async (req, res) => {
             countQuery += ` AND e.category_id = $${countParamCount}`;
             countParams.push(category_id);
         }
-        
+
         if (status) {
             countParamCount++;
             countQuery += ` AND e.status = $${countParamCount}`;
@@ -147,13 +165,13 @@ router.get('/', async (req, res) => {
         
         if (from_date) {
             countParamCount++;
-            countQuery += ` AND e.expense_date >= $${countParamCount}`;
+            countQuery += ` AND e.expense_date::date >= $${countParamCount}::date`;
             countParams.push(from_date);
         }
         
         if (to_date) {
             countParamCount++;
-            countQuery += ` AND e.expense_date <= $${countParamCount}`;
+            countQuery += ` AND e.expense_date::date <= $${countParamCount}::date`;
             countParams.push(to_date);
         }
         
@@ -181,7 +199,7 @@ router.get('/', async (req, res) => {
             active_year: activeYear
         });
     } catch (err) {
-        console.error(err);
+        console.error('Expenses GET error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -204,10 +222,19 @@ router.get('/stats/summary', async (req, res) => {
         const params = [];
         let paramCount = 0;
 
-        if (academic_year_id && academic_year_id !== 'all') {
-            paramCount++;
-            query += ` AND academic_year_id = $${paramCount}`;
-            params.push(Number(academic_year_id));
+        if (academic_year_id === 'active') {
+            if (activeYear?.id) {
+                paramCount++;
+                query += ` AND (academic_year_id = $${paramCount} OR academic_year_id IS NULL)`;
+                params.push(activeYear.id);
+            }
+        } else if (academic_year_id && academic_year_id !== 'all') {
+            const parsedYId = parseInt(academic_year_id, 10);
+            if (!isNaN(parsedYId)) {
+                paramCount++;
+                query += ` AND (academic_year_id = $${paramCount} OR academic_year_id IS NULL)`;
+                params.push(parsedYId);
+            }
         } else if (!academic_year_id && activeYear?.id) {
             paramCount++;
             query += ` AND (academic_year_id = $${paramCount} OR academic_year_id IS NULL)`;
@@ -216,13 +243,13 @@ router.get('/stats/summary', async (req, res) => {
         
         if (from_date) {
             paramCount++;
-            query += ` AND expense_date >= $${paramCount}`;
+            query += ` AND expense_date::date >= $${paramCount}::date`;
             params.push(from_date);
         }
         
         if (to_date) {
             paramCount++;
-            query += ` AND expense_date <= $${paramCount}`;
+            query += ` AND expense_date::date <= $${paramCount}::date`;
             params.push(to_date);
         }
         
@@ -235,7 +262,7 @@ router.get('/stats/summary', async (req, res) => {
         const result = await pool.query(query, params);
         res.json(result.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error('Expenses stats error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -259,10 +286,19 @@ router.get('/stats/by-category', async (req, res) => {
         
         query += ' WHERE 1=1';
 
-        if (academic_year_id && academic_year_id !== 'all') {
-            paramCount++;
-            query += ` AND e.academic_year_id = $${paramCount}`;
-            params.push(Number(academic_year_id));
+        if (academic_year_id === 'active') {
+            if (activeYear?.id) {
+                paramCount++;
+                query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
+                params.push(activeYear.id);
+            }
+        } else if (academic_year_id && academic_year_id !== 'all') {
+            const parsedYId = parseInt(academic_year_id, 10);
+            if (!isNaN(parsedYId)) {
+                paramCount++;
+                query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
+                params.push(parsedYId);
+            }
         } else if (!academic_year_id && activeYear?.id) {
             paramCount++;
             query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
@@ -271,13 +307,13 @@ router.get('/stats/by-category', async (req, res) => {
         
         if (from_date) {
             paramCount++;
-            query += ` AND e.expense_date >= $${paramCount}`;
+            query += ` AND e.expense_date::date >= $${paramCount}::date`;
             params.push(from_date);
         }
         
         if (to_date) {
             paramCount++;
-            query += ` AND e.expense_date <= $${paramCount}`;
+            query += ` AND e.expense_date::date <= $${paramCount}::date`;
             params.push(to_date);
         }
         

@@ -197,40 +197,60 @@ export default function ExpenseListPage() {
 
     return (
         <div className="container-fluid p-4 animate__animated animate__fadeIn">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div className="d-flex align-items-center gap-2">
-                    <h2 className="fw-bold mb-0" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-wallet2 me-2"></i> Expense Management
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
+                        <i className="bi bi-wallet2 me-2" style={{ color: 'var(--accent-orange)' }}></i> Expense Management
                     </h2>
-                    <span className="badge rounded-pill bg-light text-dark border ms-2">
+                    <div className="text-muted small">Track day-to-day institutional vouchers, categories and fiscal disbursements</div>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                    <span className="badge rounded-pill bg-light text-dark border px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 600 }}>
+                        <i className="bi bi-mortarboard-fill text-primary"></i>
                         Academic Year: {activeYear?.year_name || '—'}
                     </span>
+                    {hasPermission('expenses', 'write') && (
+                        <button
+                            className="btn btn-primary-custom shadow-sm d-flex align-items-center gap-2 px-3"
+                            onClick={() => router.push('/expenses/add')}
+                        >
+                            <i className="bi bi-plus-lg"></i> Add New Expense
+                        </button>
+                    )}
                 </div>
-                {hasPermission('expenses', 'write') && (
-                    <button
-                        className="btn btn-primary-custom shadow-sm d-flex align-items-center gap-2"
-                        onClick={() => router.push('/expenses/add')}
-                    >
-                        <i className="bi bi-plus-lg"></i> Add New Expense
-                    </button>
-                )}
             </div>
 
             {/* Summary Cards */}
             <div className="row g-3 mb-4">
-                <div className="col-md-6">
-                    <div className="card shadow-sm border-0 h-100 animate__animated animate__fadeInUp" style={{ borderLeft: '4px solid var(--primary-teal)' }}>
-                        <div className="card-body">
-                            <h6 className="text-muted text-uppercase small fw-bold">Total Expenses Count</h6>
+                <div className="col-12 col-sm-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid var(--primary-teal)', borderRadius: 12 }}>
+                        <div className="card-body p-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Total Vouchers</h6>
                             <h3 className="mb-0 fw-bold" style={{ color: 'var(--primary-teal)' }}>{summary?.total_expenses || 0}</h3>
                         </div>
                     </div>
                 </div>
-                <div className="col-md-6">
-                    <div className="card shadow-sm border-0 h-100 animate__animated animate__fadeInUp" style={{ animationDelay: '0.1s', borderLeft: '4px solid var(--primary-dark)' }}>
-                        <div className="card-body">
-                            <h6 className="text-muted text-uppercase small fw-bold">Total Amount Spent</h6>
+                <div className="col-12 col-sm-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid var(--primary-dark)', borderRadius: 12 }}>
+                        <div className="card-body p-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Total Spent</h6>
                             <h3 className="mb-0 fw-bold" style={{ color: 'var(--primary-dark)' }}>{formatCurrency(summary?.total_amount || 0)}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid #16a34a', borderRadius: 12 }}>
+                        <div className="card-body p-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Approved Disbursed</h6>
+                            <h3 className="mb-0 fw-bold" style={{ color: '#16a34a' }}>{formatCurrency((summary as any)?.approved_amount || 0)}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-12 col-sm-6 col-md-3">
+                    <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '4px solid #d97706', borderRadius: 12 }}>
+                        <div className="card-body p-3">
+                            <h6 className="text-muted text-uppercase small fw-bold mb-1" style={{ fontSize: 11 }}>Pending Review</h6>
+                            <h3 className="mb-0 fw-bold" style={{ color: '#d97706' }}>{formatCurrency((summary as any)?.pending_amount || 0)}</h3>
                         </div>
                     </div>
                 </div>
