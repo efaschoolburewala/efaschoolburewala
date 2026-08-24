@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@capacitor/local-notifications": "^6.0.0",
-    "@capgo/capacitor-native-biometric": "^8.6.7",
+    "@capgo/capacitor-native-biometric": "^6.0.4",
     "animate.css": "^4.1.1",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
@@ -26,14 +26,14 @@
   },
   "devDependencies": {
     "@capacitor/android": "^6.0.0",
-    "@capacitor/cli": "^8.5.0",
+    "@capacitor/cli": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
-    "eslint-config-next": "^16.3.2",
+    "eslint-config-next": "14.2.35",
     "typescript": "^5"
   }
 }
