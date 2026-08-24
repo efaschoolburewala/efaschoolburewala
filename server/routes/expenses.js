@@ -207,16 +207,17 @@ router.get('/', async (req, res) => {
 // Get expense statistics
 router.get('/stats/summary', async (req, res) => {
     try {
-        const { from_date, to_date, category_id, academic_year_id } = req.query;
+        const { from_date, to_date, category_id, academic_year_id, search, payment_method } = req.query;
         const activeYear = await getActiveAcademicYear(pool);
         
         let query = `
             SELECT 
                 COUNT(*) as total_expenses,
-                COALESCE(SUM(amount), 0) as total_amount,
-                COALESCE(SUM(CASE WHEN status = 'approved' THEN amount ELSE 0 END), 0) as approved_amount,
-                COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0) as pending_amount
-            FROM expenses
+                COALESCE(SUM(e.amount), 0) as total_amount,
+                COALESCE(AVG(e.amount), 0) as avg_amount,
+                COUNT(DISTINCT e.category_id) as categories_count,
+                COALESCE(MAX(e.amount), 0) as highest_expense
+            FROM expenses e
             WHERE 1=1
         `;
         const params = [];
@@ -225,38 +226,50 @@ router.get('/stats/summary', async (req, res) => {
         if (academic_year_id === 'active') {
             if (activeYear?.id) {
                 paramCount++;
-                query += ` AND (academic_year_id = $${paramCount} OR academic_year_id IS NULL)`;
+                query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
                 params.push(activeYear.id);
             }
         } else if (academic_year_id && academic_year_id !== 'all') {
             const parsedYId = parseInt(academic_year_id, 10);
             if (!isNaN(parsedYId)) {
                 paramCount++;
-                query += ` AND (academic_year_id = $${paramCount} OR academic_year_id IS NULL)`;
+                query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
                 params.push(parsedYId);
             }
         } else if (!academic_year_id && activeYear?.id) {
             paramCount++;
-            query += ` AND (academic_year_id = $${paramCount} OR academic_year_id IS NULL)`;
+            query += ` AND (e.academic_year_id = $${paramCount} OR e.academic_year_id IS NULL)`;
             params.push(activeYear.id);
         }
         
         if (from_date) {
             paramCount++;
-            query += ` AND expense_date::date >= $${paramCount}::date`;
+            query += ` AND e.expense_date::date >= $${paramCount}::date`;
             params.push(from_date);
         }
         
         if (to_date) {
             paramCount++;
-            query += ` AND expense_date::date <= $${paramCount}::date`;
+            query += ` AND e.expense_date::date <= $${paramCount}::date`;
             params.push(to_date);
         }
         
         if (category_id) {
             paramCount++;
-            query += ` AND category_id = $${paramCount}`;
+            query += ` AND e.category_id = $${paramCount}`;
             params.push(category_id);
+        }
+
+        if (payment_method) {
+            paramCount++;
+            query += ` AND e.payment_method = $${paramCount}`;
+            params.push(payment_method);
+        }
+
+        if (search) {
+            paramCount++;
+            query += ` AND (e.expense_title ILIKE $${paramCount} OR e.paid_to ILIKE $${paramCount} OR e.reference_no ILIKE $${paramCount})`;
+            params.push(`%${search}%`);
         }
         
         const result = await pool.query(query, params);
