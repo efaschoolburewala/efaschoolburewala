@@ -297,18 +297,19 @@ export default function FamilyFeeReportPage() {
         <div className="p-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
 
             {/* ── Page Header ── */}
-            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
+            <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
                 <div>
-                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                        <span className="badge rounded-pill bg-light text-dark border">
-                            Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
-                        </span>
-                    </div>
                     <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-wallet2 me-2" style={{ color: 'var(--accent-orange)' }} />
                         Family Fee Report
                     </h4>
                     <div className="text-muted small">Monthly fee collection head-wise per student &amp; collective summary</div>
+                </div>
+                <div>
+                    <span className="badge rounded-pill bg-light text-dark border px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 600 }}>
+                        <i className="bi bi-mortarboard-fill text-primary"></i>
+                        Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
+                    </span>
                 </div>
             </div>
 

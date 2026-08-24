@@ -103,18 +103,19 @@ export default function ResultsReportPage() {
 
     return (
         <div className="p-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
-            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
+            <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
                 <div>
-                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                        <span className="badge rounded-pill bg-light text-dark border">
-                            Academic Year: {years.find(y => String(y.id) === yearId)?.year_name || years.find(y => y.status === 'active')?.year_name || '—'}
-                        </span>
-                    </div>
                     <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-bar-chart-fill me-2" style={{ color: 'var(--accent-orange)' }} />
                         Results Report
                     </h4>
-                    <div className="text-muted small">Class & Section wise exam results</div>
+                    <div className="text-muted small">Class &amp; Section wise exam results</div>
+                </div>
+                <div>
+                    <span className="badge rounded-pill bg-light text-dark border px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 600 }}>
+                        <i className="bi bi-mortarboard-fill text-primary"></i>
+                        Academic Year: {years.find(y => String(y.id) === yearId)?.year_name || years.find(y => y.status === 'active')?.year_name || '—'}
+                    </span>
                 </div>
             </div>
 

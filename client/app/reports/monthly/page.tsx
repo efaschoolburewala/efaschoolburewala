@@ -366,12 +366,9 @@ export default function MonthlyReportPage() {
                     borderLeft: '5px solid #14b8a6'
                 }}>
                 <div style={{ position: 'relative', zIndex: 2 }}>
-                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                    <div className="d-flex align-items-center gap-2 mb-1">
                         <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
                             <i className="bi bi-shield-check me-1"></i>EXECUTIVE FINANCIAL AUDIT
-                        </span>
-                        <span className="badge rounded-pill bg-light text-dark border">
-                            Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
                         </span>
                     </div>
                     <h2 className="mb-1 fw-black text-white" style={{ letterSpacing: '-0.8px', fontSize: 'clamp(1.2rem, 2.5vw, 1.75rem)' }}>
@@ -382,7 +379,11 @@ export default function MonthlyReportPage() {
                     </p>
                 </div>
 
-                <div className="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end" style={{ position: 'relative', zIndex: 2 }}>
+                <div className="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end align-items-center" style={{ position: 'relative', zIndex: 2 }}>
+                    <span className="badge rounded-pill bg-light text-dark border px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 600 }}>
+                        <i className="bi bi-mortarboard-fill text-primary"></i>
+                        Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
+                    </span>
                     <button className="btn btn-sm text-white border-0 d-flex align-items-center gap-1 shadow-sm px-3 py-2 flex-grow-1 flex-md-grow-0 justify-content-center"
                         onClick={doExportPDF} title="Export PDF Report"
                         style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', borderRadius: 10, transition: 'all 0.2s' }}
