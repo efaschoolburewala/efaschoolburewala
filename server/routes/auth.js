@@ -2,6 +2,7 @@ const router = require('express').Router();
 const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { computeBiometricSimilarity } = require('../utils/biometricMatch');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'shaheen_school_jwt_secret_key_2026_secure';
 
@@ -526,37 +527,6 @@ router.get('/webauthn/register-options', async (req, res) => {
     }
 });
 
-// High-Assurance Zero-Mean Pearson Correlation Biometric Similarity
-function computeBiometricSimilarity(v1, v2) {
-    if (!v1 || !v2 || !Array.isArray(v1) || !Array.isArray(v2) || v1.length === 0 || v1.length !== v2.length) return 0;
-    
-    const n = v1.length;
-    let sum1 = 0, sum2 = 0;
-    for (let i = 0; i < n; i++) {
-        sum1 += v1[i];
-        sum2 += v2[i];
-    }
-    const mean1 = sum1 / n;
-    const mean2 = sum2 / n;
-
-    let numerator = 0;
-    let var1 = 0;
-    let var2 = 0;
-    for (let i = 0; i < n; i++) {
-        const diff1 = v1[i] - mean1;
-        const diff2 = v2[i] - mean2;
-        numerator += diff1 * diff2;
-        var1 += diff1 * diff1;
-        var2 += diff2 * diff2;
-    }
-
-    const denom = Math.sqrt(var1) * Math.sqrt(var2);
-    if (!denom || denom === 0) return 0;
-
-    const correlation = numerator / denom;
-    return Math.max(0, correlation);
-}
-
 // POST /auth/webauthn/register-verify - Save enrolled biometric credential
 router.post('/webauthn/register-verify', async (req, res) => {
     try {
@@ -727,12 +697,12 @@ router.post('/webauthn/login-verify', async (req, res) => {
             }
 
             const similarity = computeBiometricSimilarity(credential.face_descriptor, storedDescriptor);
-            console.log(`[Biometric Auth] Face matching score for @${user.username}: ${(similarity * 100).toFixed(2)}%`);
+            const THRESHOLD = 0.95; // Strict 95% required for facial/retina & biometric login
+            console.log(`[Biometric Auth] Face matching score for @${user.username}: ${(similarity * 100).toFixed(2)}% | Required: ${(THRESHOLD * 100).toFixed(0)}%`);
 
-            // Strict Pearson Correlation Threshold: 0.70 (70.0% correlation on 256-D LBP-HOG vector)
-            if (similarity < 0.70) {
+            if (similarity < THRESHOLD) {
                 return res.status(401).json({ 
-                    error: `Facial / Eye Retina scan does not match the registered user profile (Biometric Match: ${(similarity * 100).toFixed(1)}%, Minimum 70.0% Required). Access denied.` 
+                    error: `Facial / Eye Retina scan does not match the registered user profile (Biometric Match: ${(similarity * 100).toFixed(1)}%, Minimum 95.0% Required). Access denied.` 
                 });
             }
         }

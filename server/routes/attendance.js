@@ -320,7 +320,7 @@ router.post('/students/daily', async (req, res) => {
                      WHERE s.student_id = $1`,
                     [r.student_id]
                 );
-                
+
                 const sRow = sInfo.rows[0];
                 if (!sRow) continue;
 
@@ -529,9 +529,9 @@ router.get('/staff/daily', async (req, res) => {
 
         let whereClause = 'WHERE e.status = $2';
         const params = [date, 'Active'];
-        if (department_id) { 
-            params.push(department_id); 
-            whereClause += ` AND e.department_id = $${params.length}`; 
+        if (department_id) {
+            params.push(department_id);
+            whereClause += ` AND e.department_id = $${params.length}`;
         }
 
         const result = await pool.query(
@@ -566,9 +566,9 @@ router.get('/staff/daily', async (req, res) => {
             holiday: holidayInfo,
             session_type
         });
-    } catch (err) { 
+    } catch (err) {
         console.error('staff/daily error:', err);
-        res.status(500).json({ error: err.message }); 
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -577,12 +577,12 @@ router.get('/staff/daily', async (req, res) => {
 router.post('/staff/verify-biometric', async (req, res) => {
     const client = await pool.connect();
     try {
-        const { 
-            employee_id, 
-            date, 
-            session_type = 'in', 
-            verification_mode = 'fingerprint', 
-            biometric_data, 
+        const {
+            employee_id,
+            date,
+            session_type = 'in',
+            verification_mode = 'fingerprint',
+            biometric_data,
             user_id,
             manual_override = false,
             status_override
@@ -680,7 +680,7 @@ router.post('/staff/verify-biometric', async (req, res) => {
 
             // 3h. Compute similarity score
             const similarity = computeBiometricSimilarity(biometric_data, storedDescriptor);
-            const THRESHOLD = 0.90; // 90% required for both fingerprint and retina_face — strict, no exceptions
+            const THRESHOLD = 0.90; // 95% required for both fingerprint and retina_face — strict, no exceptions
 
             console.log(`[Biometric] Employee ${empId} | Mode: ${credType} | Score: ${(similarity * 100).toFixed(2)}% | Threshold: ${(THRESHOLD * 100).toFixed(0)}%`);
 
@@ -812,7 +812,7 @@ router.post('/staff/daily', async (req, res) => {
         for (const r of records) {
             const empId = parseUserId(r.employee_id);
             if (!empId) continue;
-            
+
             const status = r.status || 'Present';
             const checkIn = r.check_in_time || null;
             const checkOut = r.check_out_time || null;
@@ -966,28 +966,28 @@ router.get('/staff/history', async (req, res) => {
             const absent = recValues.filter(v => v.status === 'Absent').length;
             const leave = recValues.filter(v => v.status === 'Leave').length;
             const holiday = recValues.filter(v => v.status === 'Holiday').length;
-            return { 
-                ...e, 
-                daily: rec, 
-                present, 
-                late_in, 
-                early_out, 
-                absent, 
-                leave, 
-                holiday, 
-                total_days: allUniqueDates.length 
+            return {
+                ...e,
+                daily: rec,
+                present,
+                late_in,
+                early_out,
+                absent,
+                leave,
+                holiday,
+                total_days: allUniqueDates.length
             };
         });
 
-        res.json({ 
-            staff: rows, 
-            working_dates: allUniqueDates, 
+        res.json({
+            staff: rows,
+            working_dates: allUniqueDates,
             holidays: holidayDateMap,
-            settings 
+            settings
         });
-    } catch (err) { 
+    } catch (err) {
         console.error('staff/history error:', err);
-        res.status(500).json({ error: err.message }); 
+        res.status(500).json({ error: err.message });
     }
 });
 

@@ -12,6 +12,8 @@ import {
     base64UrlToBuffer, 
     bufferToBase64Url 
 } from '@/utils/biometrics';
+import { Capacitor } from '@capacitor/core';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 export default function LoginPage() {
     const { login, loginWithUserData, isLoggedIn, isLoading } = useAuth();
@@ -25,11 +27,13 @@ export default function LoginPage() {
     const [submitting, setSubmitting] = useState(false);
     const [bioLoggingIn, setBioLoggingIn] = useState(false);
     const [showLoginCameraModal, setShowLoginCameraModal] = useState(false);
+    const [loginBioMode, setLoginBioMode] = useState<'retina_face' | 'fingerprint'>('retina_face');
     const [loginCameraStream, setLoginCameraStream] = useState<MediaStream | null>(null);
     const [cameraScanning, setCameraScanning] = useState(false);
     const loginVideoRef = useRef<HTMLVideoElement | null>(null);
 
     const handleStartCameraRetinaLogin = async () => {
+        setLoginBioMode('retina_face');
         setShowLoginCameraModal(true);
         setCameraScanning(true);
         setError('');
@@ -45,7 +49,7 @@ export default function LoginPage() {
                 }
             }
         } catch (camErr: any) {
-            setError('Camera permission needed for Eye Retina login: ' + (camErr.message || 'Permission denied'));
+            setError('Camera access required for Face / Eye Retina login: ' + (camErr.message || 'Permission denied'));
         }
     };
 
@@ -57,6 +61,62 @@ export default function LoginPage() {
         setShowLoginCameraModal(false);
         setCameraScanning(false);
         setBioLoggingIn(false);
+    };
+
+    const handleNativeFingerprintLogin = async () => {
+        setBioLoggingIn(true);
+        setError('');
+        try {
+            if (Capacitor.isNativePlatform()) {
+                const avail = await NativeBiometric.isAvailable();
+                if (avail.isAvailable) {
+                    await NativeBiometric.verifyIdentity({
+                        reason: 'Scan your fingerprint to log in to Falcon School System',
+                        title: 'Biometric Sign In',
+                        subtitle: 'Confirm your fingerprint',
+                        description: 'Touch device fingerprint sensor to verify identity',
+                        negativeButtonText: 'Cancel'
+                    });
+
+                    // Hardware identity verified!
+                    const userToAuth = username.trim() || undefined;
+                    const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: userToAuth, rp_id: getCurrentHost() })
+                    });
+                    const optData = await optRes.json();
+                    if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric login');
+
+                    const { challengeId } = optData;
+                    const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            challengeId,
+                            username: userToAuth,
+                            credential: {
+                                id: 'native_fp_login_' + Date.now(),
+                                response: { transports: ['internal'] }
+                            }
+                        })
+                    });
+
+                    const verifyData = await verifyRes.json();
+                    if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Fingerprint verification failed');
+
+                    closeLoginCameraModal();
+                    loginWithUserData(verifyData);
+                    router.replace('/');
+                    return;
+                }
+            }
+        } catch (err: any) {
+            console.warn('Native fingerprint error:', err);
+            setError(err.message || 'Fingerprint authentication cancelled or failed.');
+        } finally {
+            setBioLoggingIn(false);
+        }
     };
 
     const handleConfirmCameraLogin = async () => {
@@ -74,8 +134,8 @@ export default function LoginPage() {
 
             const { challengeId, options } = optData;
 
-            // Extract multi-frame 256-D LBP-HOG descriptor from live camera stream
-            const liveVector = await captureMultiFrameDescriptor(loginVideoRef.current, 3);
+            // Extract high-speed 256-D descriptor from live camera stream
+            const liveVector = await captureMultiFrameDescriptor(loginVideoRef.current, 2);
             if (!liveVector || liveVector.length === 0) {
                 throw new Error('Please ensure your face is clearly centered inside the circular scanner frame.');
             }
@@ -104,7 +164,7 @@ export default function LoginPage() {
 
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) {
-                throw new Error(verifyData.error || verifyData.message || 'Face / Eye Retina biometric does not match.');
+                throw new Error(verifyData.error || verifyData.message || 'Face / Eye Retina biometric does not match profile (95% required).');
             }
 
             closeLoginCameraModal();
@@ -119,7 +179,18 @@ export default function LoginPage() {
     const handleBiometricLogin = async () => {
         if (typeof window === 'undefined') return;
 
-        // If WebAuthn is available, try native platform biometric
+        // 1. If on native mobile, try Native Hardware Fingerprint Sensor directly
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const avail = await NativeBiometric.isAvailable();
+                if (avail.isAvailable) {
+                    await handleNativeFingerprintLogin();
+                    return;
+                }
+            } catch {}
+        }
+
+        // 2. If WebAuthn is available (Desktop TouchID / Windows Hello / YubiKey)
         if (window.PublicKeyCredential && navigator.credentials) {
             setBioLoggingIn(true);
             setError('');
@@ -175,14 +246,13 @@ export default function LoginPage() {
                 router.replace('/');
                 return;
             } catch (err: any) {
-                // If WebAuthn was cancelled or not supported in WebView, fall back to Camera Scanner
                 console.warn('WebAuthn platform fallback to camera:', err.message);
             } finally {
                 setBioLoggingIn(false);
             }
         }
 
-        // Fallback: Open Eye Retina Camera Scanner
+        // 3. Fallback: Open Futuristic Eye Retina / Face Camera Scanner
         handleStartCameraRetinaLogin();
     };
 
@@ -743,66 +813,196 @@ export default function LoginPage() {
                 </div>
             </footer>
 
-            {/* Eye Retina Live Camera Login Modal / Mobile Bottom Sheet */}
+            {/* Ultra-Futuristic Cyber Biometric Login Modal / Mobile Bottom Sheet */}
             {showLoginCameraModal && (
-                <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 1060 }}>
-                    <div className="modal-dialog modal-dialog-centered bottom-sheet-dialog" style={{ maxWidth: 460 }}>
-                        <div className="modal-content border-0 rounded-4 shadow-lg overflow-hidden bottom-sheet-content" style={{ background: '#0f172a', color: '#fff' }}>
-                            {/* Mobile drag handle */}
-                            <div className="d-md-none text-center pt-2">
-                                <div style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)', margin: '0 auto' }} />
+                <div className="modal show d-block animate__animated animate__fadeIn" tabIndex={-1} style={{ backgroundColor: 'rgba(2, 6, 23, 0.88)', backdropFilter: 'blur(16px)', zIndex: 1060 }}>
+                    <div className="modal-dialog modal-dialog-centered bottom-sheet-dialog" style={{ maxWidth: 480, margin: '1rem auto', padding: '0 0.75rem' }}>
+                        <div className="modal-content border-0 rounded-4 shadow-2xl overflow-hidden bottom-sheet-content animate__animated animate__slideInUp" 
+                            style={{ 
+                                background: 'linear-gradient(180deg, rgba(15, 28, 44, 0.98) 0%, rgba(6, 13, 23, 0.99) 100%)', 
+                                color: '#fff',
+                                border: '1px solid rgba(6, 182, 212, 0.35)',
+                                boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.25)'
+                            }}>
+                            
+                            {/* Mobile Drag Bar */}
+                            <div className="d-md-none text-center pt-3 pb-1">
+                                <div style={{ width: 48, height: 5, borderRadius: 3, backgroundColor: 'rgba(6, 182, 212, 0.4)', margin: '0 auto' }} />
                             </div>
 
-                            <div className="modal-header border-0 pb-0">
-                                <h6 className="modal-title fw-bold text-white d-flex align-items-center">
-                                    <i className="bi bi-eye-fill text-info me-2 fs-5"></i>
-                                    Eye Retina / Face ID Authentication
-                                </h6>
+                            {/* Header */}
+                            <div className="modal-header border-0 pb-1 px-4 pt-3 d-flex justify-content-between align-items-center">
+                                <div className="d-flex align-items-center gap-2">
+                                    <div className="rounded-circle d-flex align-items-center justify-content-center"
+                                        style={{ width: 36, height: 36, background: 'rgba(6, 182, 212, 0.15)', border: '1px solid rgba(6, 182, 212, 0.4)' }}>
+                                        <i className="bi bi-shield-lock-fill text-info fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <h6 className="modal-title fw-bold text-white mb-0" style={{ letterSpacing: '0.5px' }}>
+                                            Biometric Security Sign-In
+                                        </h6>
+                                        <small className="text-info font-monospace" style={{ fontSize: '0.68rem', letterSpacing: '0.08em' }}>
+                                            ⚡ 95.0% STRICT MATCH PROTOCOL
+                                        </small>
+                                    </div>
+                                </div>
                                 <button type="button" className="btn-close btn-close-white" onClick={closeLoginCameraModal}></button>
                             </div>
-                            <div className="modal-body text-center p-3 p-md-4">
-                                <div className="position-relative mx-auto rounded-circle overflow-hidden mb-3"
-                                    style={{
-                                        width: 210, height: 210,
-                                        border: '3px solid #38bdf8',
-                                        boxShadow: '0 0 30px rgba(56,189,248,0.5)',
-                                        background: '#000'
-                                    }}>
-                                    <video
-                                        ref={loginVideoRef}
-                                        autoPlay
-                                        playsInline
-                                        muted
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                                    />
-                                    {/* Futuristic Retina Targeting Overlay */}
-                                    <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center pointer-events-none">
-                                        <div style={{
-                                            width: 130, height: 130, borderRadius: '50%',
-                                            border: '2px dashed rgba(56,189,248,0.8)',
-                                            animation: 'spin 6s linear infinite'
-                                        }} />
-                                    </div>
-                                    <div className="position-absolute top-50 start-0 w-100" style={{ height: 2, background: 'linear-gradient(90deg, transparent, #38bdf8, transparent)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                                </div>
 
-                                <h6 className="fw-bold text-white mb-1">Align Face &amp; Eyes with Sensor</h6>
-                                <p className="text-white-50 small mb-3">
-                                    {username.trim() ? `Verifying face biometric against account @${username.trim()}` : 'Verifying face biometric against registered account'}
-                                </p>
-                                <button
-                                    type="button"
-                                    className="btn btn-info text-dark fw-bold rounded-pill px-4 py-2.5 w-100 shadow-sm mb-2"
-                                    style={{ maxWidth: 300 }}
-                                    onClick={handleConfirmCameraLogin}
-                                    disabled={!cameraScanning}
-                                >
-                                    <i className="bi bi-shield-check me-2"></i> Scan &amp; Verify Identity
-                                </button>
+                            {/* Dual Mode Switcher */}
+                            <div className="px-4 pt-2">
+                                <div className="d-flex p-1 rounded-3" style={{ background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm w-50 fw-bold rounded-2 transition-all ${loginBioMode === 'retina_face' ? 'text-white' : 'text-white-50'}`}
+                                        style={{
+                                            background: loginBioMode === 'retina_face' ? 'linear-gradient(135deg, #0284c7, #06b6d4)' : 'transparent',
+                                            fontSize: '0.78rem',
+                                            boxShadow: loginBioMode === 'retina_face' ? '0 2px 10px rgba(6, 182, 212, 0.4)' : 'none'
+                                        }}
+                                        onClick={() => { setLoginBioMode('retina_face'); handleStartCameraRetinaLogin(); }}
+                                    >
+                                        <i className="bi bi-eye-fill me-1.5" />Retina &amp; Face ID
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`btn btn-sm w-50 fw-bold rounded-2 transition-all ${loginBioMode === 'fingerprint' ? 'text-white' : 'text-white-50'}`}
+                                        style={{
+                                            background: loginBioMode === 'fingerprint' ? 'linear-gradient(135deg, #059669, #10b981)' : 'transparent',
+                                            fontSize: '0.78rem',
+                                            boxShadow: loginBioMode === 'fingerprint' ? '0 2px 10px rgba(16, 185, 129, 0.4)' : 'none'
+                                        }}
+                                        onClick={() => { setLoginBioMode('fingerprint'); handleNativeFingerprintLogin(); }}
+                                    >
+                                        <i className="bi bi-fingerprint me-1.5" />Fingerprint Sensor
+                                    </button>
+                                </div>
                             </div>
-                            <div className="modal-footer border-0 pt-0 justify-content-center pb-4">
-                                <button type="button" className="btn btn-outline-light rounded-pill px-4 btn-sm" onClick={closeLoginCameraModal}>
-                                    Cancel
+
+                            {/* Modal Body */}
+                            <div className="modal-body text-center px-4 py-3">
+                                {loginBioMode === 'retina_face' ? (
+                                    <>
+                                        {/* Cyber Holographic HUD Scanner */}
+                                        <div className="position-relative mx-auto rounded-4 overflow-hidden mb-3"
+                                            style={{
+                                                width: '100%',
+                                                maxWidth: 320,
+                                                height: 240,
+                                                border: '2px solid rgba(6, 182, 212, 0.6)',
+                                                boxShadow: '0 0 30px rgba(6, 182, 212, 0.35), inset 0 0 20px rgba(6, 182, 212, 0.2)',
+                                                background: '#000'
+                                            }}>
+                                            <video
+                                                ref={loginVideoRef}
+                                                autoPlay
+                                                playsInline
+                                                muted
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                                            />
+                                            {/* Cybernetic Reticle HUD */}
+                                            <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center pointer-events-none">
+                                                {/* 4 Corner Crosshairs */}
+                                                <div className="position-absolute top-0 start-0 m-2" style={{ width: 18, height: 18, borderTop: '3px solid #06b6d4', borderLeft: '3px solid #06b6d4' }} />
+                                                <div className="position-absolute top-0 end-0 m-2" style={{ width: 18, height: 18, borderTop: '3px solid #06b6d4', borderRight: '3px solid #06b6d4' }} />
+                                                <div className="position-absolute bottom-0 start-0 m-2" style={{ width: 18, height: 18, borderBottom: '3px solid #06b6d4', borderLeft: '3px solid #06b6d4' }} />
+                                                <div className="position-absolute bottom-0 end-0 m-2" style={{ width: 18, height: 18, borderBottom: '3px solid #06b6d4', borderRight: '3px solid #06b6d4' }} />
+                                                
+                                                {/* Target Ring */}
+                                                <div className="rounded-circle" style={{
+                                                    width: 140, height: 140,
+                                                    border: '2px dashed rgba(6, 182, 212, 0.85)',
+                                                    animation: 'spin 8s linear infinite'
+                                                }} />
+
+                                                {/* Laser Sweep Line */}
+                                                <div className="position-absolute w-100" 
+                                                    style={{ 
+                                                        height: 2, 
+                                                        background: 'linear-gradient(90deg, transparent, #22d3ee, #38bdf8, transparent)', 
+                                                        boxShadow: '0 0 12px #22d3ee',
+                                                        animation: 'laserSweep 2s ease-in-out infinite' 
+                                                    }} 
+                                                />
+                                            </div>
+
+                                            {/* Status Badge on Video */}
+                                            <div className="position-absolute bottom-0 start-50 translate-middle-x mb-2 pointer-events-none">
+                                                <span className="badge px-2.5 py-1 text-info font-monospace fw-bold" 
+                                                    style={{ background: 'rgba(2, 6, 23, 0.85)', border: '1px solid rgba(6, 182, 212, 0.5)', fontSize: '0.68rem' }}>
+                                                    <i className="bi bi-cpu-fill me-1" />AI Descriptor Tracking
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-white-50 small mb-3" style={{ fontSize: '0.82rem' }}>
+                                            {username.trim() ? `Matching facial landmarks for @${username.trim()}` : 'Align face inside circular targeting reticle'}
+                                        </p>
+
+                                        <button
+                                            type="button"
+                                            className="btn fw-bold rounded-pill py-2.5 w-100 shadow-md mb-2 text-white"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)',
+                                                border: 'none',
+                                                fontSize: '0.9rem',
+                                                boxShadow: '0 4px 18px rgba(6, 182, 212, 0.4)'
+                                            }}
+                                            onClick={handleConfirmCameraLogin}
+                                            disabled={!cameraScanning}
+                                        >
+                                            <i className="bi bi-shield-check me-1.5"></i> Match &amp; Sign In (95% Threshold)
+                                        </button>
+                                    </>
+                                ) : (
+                                    /* Fingerprint Mode Content */
+                                    <div className="py-4 my-2">
+                                        <div
+                                            className="rounded-circle mx-auto d-flex align-items-center justify-content-center shadow-lg mb-3"
+                                            style={{
+                                                width: 120,
+                                                height: 120,
+                                                background: bioLoggingIn ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 6, 23, 0.7)',
+                                                border: `3px solid ${bioLoggingIn ? '#10b981' : 'rgba(16, 185, 129, 0.4)'}`,
+                                                boxShadow: '0 0 35px rgba(16, 185, 129, 0.3)',
+                                                transition: 'all 0.3s'
+                                            }}
+                                        >
+                                            <i
+                                                className={`bi bi-fingerprint ${bioLoggingIn ? 'text-success animate__animated animate__pulse animate__infinite' : 'text-info'}`}
+                                                style={{ fontSize: '3.8rem' }}
+                                            />
+                                        </div>
+                                        <h6 className="fw-bold text-white mb-1">Touch Device Fingerprint Sensor</h6>
+                                        <p className="text-white-50 small mb-3" style={{ fontSize: '0.82rem' }}>
+                                            Native hardware sensor &amp; WebAuthn secure biometric authentication
+                                        </p>
+                                        <button
+                                            type="button"
+                                            className="btn fw-bold rounded-pill py-2.5 px-4 text-white shadow-md"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                                                border: 'none',
+                                                fontSize: '0.88rem',
+                                                boxShadow: '0 4px 18px rgba(16, 185, 129, 0.4)'
+                                            }}
+                                            onClick={handleNativeFingerprintLogin}
+                                            disabled={bioLoggingIn}
+                                        >
+                                            {bioLoggingIn ? (
+                                                <><span className="spinner-border spinner-border-sm me-2" />Verifying Sensor...</>
+                                            ) : (
+                                                <><i className="bi bi-fingerprint me-1.5" />Prompt Fingerprint Sensor</>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="modal-footer border-0 pt-0 justify-content-center pb-3">
+                                <button type="button" className="btn btn-sm btn-outline-secondary text-white-50 rounded-pill px-4" onClick={closeLoginCameraModal}>
+                                    Use Standard Password
                                 </button>
                             </div>
                         </div>
@@ -830,6 +1030,11 @@ export default function LoginPage() {
                 }
                 @keyframes spin {
                     to { transform: rotate(360deg); }
+                }
+                @keyframes laserSweep {
+                    0% { top: 5%; opacity: 0.7; }
+                    50% { top: 92%; opacity: 1; }
+                    100% { top: 5%; opacity: 0.7; }
                 }
 
                 /* Page Root Layout */
