@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { Capacitor } from '@capacitor/core';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -210,79 +212,145 @@ export default function ProfilePage() {
         }
     };
 
-    // Register Fingerprint / WebAuthn Biometric
+    // Register Fingerprint / Native Biometric / WebAuthn
     const handleRegisterFingerprint = async () => {
         if (typeof window === 'undefined') return;
 
-        // If WebAuthn is not supported in this browser (like Android WebView)
-        if (!window.PublicKeyCredential || !navigator.credentials) {
-            toast.info('Direct Fingerprint FIDO2 is not supported in this WebView. Launching Camera Face & Eye Retina Scanner...');
-            handleStartRetinaScan();
-            return;
-        }
-
         setScanningFingerprint(true);
-        toast.info('Please touch your fingerprint sensor or verify device security...');
-        try {
-            const currentHost = getCurrentHost();
-            const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
 
-            const { challengeId, options } = data;
-            const creationOptions: PublicKeyCredentialCreationOptions = {
-                challenge: base64UrlToBuffer(options.challenge),
-                rp: {
-                    name: options.rp?.name || 'Demo Private School',
-                    id: currentHost // Must strictly match current window origin
-                },
-                user: {
-                    id: base64UrlToBuffer(options.user.id),
-                    name: options.user.name,
-                    displayName: options.user.displayName,
-                },
-                pubKeyCredParams: options.pubKeyCredParams,
-                authenticatorSelection: options.authenticatorSelection,
-                timeout: options.timeout || 60000,
-                attestation: options.attestation || 'none'
-            };
+        // 1. Check Native Android / iOS Biometric Sensor (Capacitor Mobile App)
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const avail = await NativeBiometric.isAvailable();
+                if (avail.isAvailable) {
+                    toast.info('Please touch your fingerprint sensor to register...');
+                    await NativeBiometric.verifyIdentity({
+                        reason: 'Scan your fingerprint to register biometric credentials',
+                        title: 'Fingerprint Biometric Registration',
+                        subtitle: 'Confirm your fingerprint',
+                        description: 'Touch the device fingerprint sensor to verify identity',
+                        negativeButtonText: 'Cancel',
+                        maxAttempts: 3
+                    });
 
-            const credential = await navigator.credentials.create({ publicKey: creationOptions }) as any;
-            if (!credential) throw new Error('Biometric registration was cancelled.');
+                    // Sensor successfully verified! Register credential on backend
+                    const currentHost = getCurrentHost();
+                    const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
 
-            const verifyRes = await fetch(`${API}/auth/webauthn/register-verify`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    challengeId,
-                    credential: {
-                        id: credential.id,
-                        rawId: bufferToBase64Url(credential.rawId),
-                        response: {
-                            clientDataJSON: bufferToBase64Url(credential.response.clientDataJSON),
-                            attestationObject: bufferToBase64Url(credential.response.attestationObject),
-                            transports: credential.response.getTransports ? credential.response.getTransports() : ['internal']
-                        }
-                    },
-                    credential_type: 'fingerprint',
-                    device_name: 'Biometric Fingerprint Scanner'
-                })
-            });
-            const verifyData = await verifyRes.json();
-            if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
+                    const { challengeId } = data;
+                    const nativeCredId = 'native_fp_' + (profile?.id || 'usr') + '_' + Date.now();
 
-            toast.success('✓ Fingerprint biometric registered and saved to database!');
-            loadProfile();
-        } catch (err: any) {
-            toast.error(err.message || 'Fingerprint registration failed');
-        } finally {
-            setScanningFingerprint(false);
+                    const verifyRes = await fetch(`${API}/auth/webauthn/register-verify`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            challengeId,
+                            credential: {
+                                id: nativeCredId,
+                                response: {
+                                    transports: ['internal']
+                                }
+                            },
+                            credential_type: 'fingerprint',
+                            device_name: 'Mobile Hardware Fingerprint Sensor'
+                        })
+                    });
+                    const verifyData = await verifyRes.json();
+                    if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
+
+                    toast.success('✓ Device Fingerprint sensor registered and saved to database!');
+                    loadProfile();
+                    return;
+                }
+            } catch (nativeErr: any) {
+                console.warn('Native biometric error:', nativeErr);
+                if (nativeErr?.message && !nativeErr.message.includes('not available') && !nativeErr.message.includes('not implemented')) {
+                    toast.error(nativeErr.message || 'Fingerprint verification cancelled or failed.');
+                    return;
+                }
+            } finally {
+                setScanningFingerprint(false);
+            }
         }
+
+        // 2. Web Browser FIDO2 WebAuthn (Desktop TouchID / Windows Hello / YubiKey)
+        if (window.PublicKeyCredential && navigator.credentials) {
+            toast.info('Please touch your fingerprint sensor or verify device security...');
+            try {
+                const currentHost = getCurrentHost();
+                const res = await fetch(`${API}/auth/webauthn/register-options?rp_id=${encodeURIComponent(currentHost)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
+
+                const { challengeId, options } = data;
+                const creationOptions: PublicKeyCredentialCreationOptions = {
+                    challenge: base64UrlToBuffer(options.challenge),
+                    rp: {
+                        name: options.rp?.name || 'Demo Private School',
+                        id: currentHost // Must strictly match current window origin
+                    },
+                    user: {
+                        id: base64UrlToBuffer(options.user.id),
+                        name: options.user.name,
+                        displayName: options.user.displayName,
+                    },
+                    pubKeyCredParams: options.pubKeyCredParams,
+                    authenticatorSelection: options.authenticatorSelection,
+                    timeout: options.timeout || 60000,
+                    attestation: options.attestation || 'none'
+                };
+
+                const credential = await navigator.credentials.create({ publicKey: creationOptions }) as any;
+                if (!credential) throw new Error('Biometric registration was cancelled.');
+
+                const verifyRes = await fetch(`${API}/auth/webauthn/register-verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        challengeId,
+                        credential: {
+                            id: credential.id,
+                            rawId: bufferToBase64Url(credential.rawId),
+                            response: {
+                                clientDataJSON: bufferToBase64Url(credential.response.clientDataJSON),
+                                attestationObject: bufferToBase64Url(credential.response.attestationObject),
+                                transports: credential.response.getTransports ? credential.response.getTransports() : ['internal']
+                            }
+                        },
+                        credential_type: 'fingerprint',
+                        device_name: 'Biometric Fingerprint Scanner'
+                    })
+                });
+                const verifyData = await verifyRes.json();
+                if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to verify credential');
+
+                toast.success('✓ Fingerprint biometric registered and saved to database!');
+                loadProfile();
+                return;
+            } catch (err: any) {
+                toast.error(err.message || 'Fingerprint registration failed');
+                return;
+            } finally {
+                setScanningFingerprint(false);
+            }
+        }
+
+        // 3. Fallback for browsers without hardware biometrics support
+        toast.info('Direct Fingerprint FIDO2 is not supported on this browser. Launching Camera Face & Eye Retina Scanner...');
+        handleStartRetinaScan();
+        setScanningFingerprint(false);
     };
 
     // Open Camera & Enroll Eye Retina / Face ID Biometric

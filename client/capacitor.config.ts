@@ -4,6 +4,9 @@ const config: CapacitorConfig = {
   appId: 'com.smartschool.app',
   appName: 'Demo Smart School',
   webDir: 'public',
+  android: {
+    path: 'android [D_P_School]'
+  },
   server: {
     url: 'https://demo-private-school.vercel.app',
     cleartext: true
