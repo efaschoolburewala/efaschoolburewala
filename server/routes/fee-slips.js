@@ -653,28 +653,15 @@ router.get('/', async (req, res) => {
                        ay.year_name, ay.is_active
             ORDER BY mfs.month ASC, s.first_name ASC`, params);
 
-        // Force trusted category to satteled
-        result.rows.forEach(r => {
-            if (r.category && r.category.trim().toLowerCase() === 'trusted') r.status = 'satteled';
-        });
-
-        const stats = {
-            total_students: result.rows.length,
-            total_amount: result.rows.reduce((s, r) => s + parseFloat(r.total_amount), 0),
-            paid_amount: result.rows.reduce((s, r) => s + parseFloat(r.paid_amount), 0),
-            paid_count: result.rows.filter(r => ['paid', 'satteled'].includes(r.status)).length,
-            unpaid_count: result.rows.filter(r => r.status === 'unpaid').length,
-            partial_count: result.rows.filter(r => r.status === 'partial').length,
-        };
-
         // For family slips, attach all active students in this class that share the family_id
         const familySlipIds = result.rows
             .filter(r => r.is_family_slip && r.family_id)
             .map(r => r.family_id);
+        const membersMap = {};
         if (familySlipIds.length > 0) {
             const membersResult = await pool.query(
                 `SELECT s.student_id, s.first_name, s.last_name, s.admission_no, s.family_id, s.father_name,
-                        c.class_name, c.class_id, sec.section_name
+                        c.class_name, c.class_id, sec.section_name, s.category
                  FROM students s
                  LEFT JOIN classes c ON s.class_id = c.class_id
                  LEFT JOIN sections sec ON s.section_id = sec.section_id
@@ -682,19 +669,35 @@ router.get('/', async (req, res) => {
                  ORDER BY c.class_id DESC NULLS LAST, s.first_name`,
                 [familySlipIds]
             );
-            const membersMap = {};
             for (const m of membersResult.rows) {
                 if (!membersMap[m.family_id]) membersMap[m.family_id] = [];
                 membersMap[m.family_id].push(m);
             }
-            for (const row of result.rows) {
-                if (row.is_family_slip && row.family_id) {
-                    row.family_members = membersMap[row.family_id] || [];
-                } else {
-                    row.family_members = [];
-                }
-            }
         }
+
+        // Force trusted category and all-trusted families to satteled
+        result.rows.forEach(r => {
+            if (r.is_family_slip && r.family_id) {
+                r.family_members = membersMap[r.family_id] || [];
+            } else {
+                r.family_members = [];
+            }
+            const isSingleTrusted = r.category && r.category.trim().toLowerCase() === 'trusted';
+            const isFamilyAllTrusted = r.family_members.length > 0 && r.family_members.every(m => m.category && m.category.trim().toLowerCase() === 'trusted');
+            if (isSingleTrusted || isFamilyAllTrusted) {
+                r.status = 'satteled';
+            }
+        });
+
+        const payableRows = result.rows.filter(r => !['satteled', 'settled'].includes((r.status || '').toLowerCase()));
+        const stats = {
+            total_students: result.rows.length,
+            total_amount: payableRows.reduce((s, r) => s + parseFloat(r.total_amount || 0), 0),
+            paid_amount: payableRows.reduce((s, r) => s + parseFloat(r.paid_amount || 0), 0),
+            paid_count: result.rows.filter(r => ['paid', 'satteled', 'settled'].includes((r.status || '').toLowerCase())).length,
+            unpaid_count: result.rows.filter(r => (r.status || '').toLowerCase() === 'unpaid').length,
+            partial_count: result.rows.filter(r => (r.status || '').toLowerCase() === 'partial').length,
+        };
 
         res.json({ slips: result.rows, stats, active_year: activeYear, years: yearsRes.rows });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1745,7 +1748,7 @@ router.get('/family-summary/:student_id', async (req, res) => {
         const query = `
             SELECT 
                 mfs.slip_id, mfs.month, mfs.year, mfs.total_amount, mfs.paid_amount, mfs.status,
-                s.first_name, s.last_name, s.admission_no,
+                s.first_name, s.last_name, s.admission_no, s.category,
                 (
                     SELECT MAX(fp.payment_date) FROM fee_payments fp WHERE fp.slip_id = mfs.slip_id
                 ) as last_payment_date,
@@ -1775,8 +1778,14 @@ router.get('/family-summary/:student_id', async (req, res) => {
                     students: []
                 };
             }
-            summary[myKey].family_total_billed += Number(row.total_amount);
-            summary[myKey].family_total_paid += Number(row.paid_amount);
+
+            const isTrusted = row.category && row.category.trim().toLowerCase() === 'trusted';
+            const studentStatus = isTrusted ? 'satteled' : row.status;
+
+            if (!isTrusted) {
+                summary[myKey].family_total_billed += Number(row.total_amount || 0);
+                summary[myKey].family_total_paid += Number(row.paid_amount || 0);
+            }
 
             if (row.last_payment_date) {
                 if (!summary[myKey].last_submission_date || new Date(row.last_payment_date) > new Date(summary[myKey].last_submission_date)) {
@@ -1788,18 +1797,30 @@ router.get('/family-summary/:student_id', async (req, res) => {
                 slip_id: row.slip_id,
                 name: row.first_name + ' ' + row.last_name,
                 admission_no: row.admission_no,
-                billed: Number(row.total_amount),
-                paid: Number(row.paid_amount),
-                status: row.status,
+                category: row.category || 'Normal',
+                is_trusted: isTrusted,
+                billed: isTrusted ? 0 : Number(row.total_amount || 0),
+                raw_billed: Number(row.total_amount || 0),
+                paid: Number(row.paid_amount || 0),
+                status: studentStatus,
                 last_payment_date: row.last_payment_date,
                 heads: row.heads || []
             });
         });
 
         Object.values(summary).forEach(m => {
-            if (m.family_total_paid === 0) m.status = 'unpaid';
-            else if (m.family_total_paid >= m.family_total_billed) m.status = 'paid';
-            else m.status = 'partial';
+            const allTrusted = m.students.length > 0 && m.students.every(st => st.is_trusted || st.status === 'satteled');
+            if (allTrusted) {
+                m.status = 'satteled';
+                m.family_total_billed = 0;
+                m.family_total_paid = 0;
+            } else if (m.family_total_paid === 0) {
+                m.status = 'unpaid';
+            } else if (m.family_total_paid >= m.family_total_billed) {
+                m.status = 'paid';
+            } else {
+                m.status = 'partial';
+            }
         });
 
         const slips = Object.values(summary).sort((a, b) => {

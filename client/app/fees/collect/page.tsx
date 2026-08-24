@@ -747,19 +747,40 @@ export default function CollectFeePage() {
         map.forEach(g => {
             // slips ordered by month ASC from server; pick last unpaid/partial
             const unpaid = g.slips
-                .filter(s => !['paid', 'satteled'].includes(s.status))
+                .filter(s => !['paid', 'satteled', 'settled'].includes((s.status || '').toLowerCase()))
                 .sort((a, b) => (b.year - a.year) || (b.month - a.month));
-            g.latest_unpaid = unpaid[0] || g.latest_slip;
-            const tot = parseFloat(g.latest_unpaid.total_amount as any);
-            const paid = parseFloat(g.latest_unpaid.paid_amount as any);
-            g.balance = Math.max(0, tot - paid);
-            g.status = g.latest_unpaid.status === 'satteled' ? 'satteled' : g.balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+            
+            const isGroupSettled = (g.slips.length > 0 && g.slips.every(s => ['satteled', 'settled'].includes((s.status || '').toLowerCase()))) ||
+                ['satteled', 'settled'].includes((g.latest_slip.status || '').toLowerCase()) ||
+                Boolean(g.family_members && g.family_members.length > 0 && g.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'));
+
+            if (isGroupSettled) {
+                g.latest_unpaid = g.latest_slip;
+                g.balance = 0;
+                g.status = 'satteled';
+            } else {
+                g.latest_unpaid = unpaid[0] || g.latest_slip;
+                const tot = parseFloat(g.latest_unpaid.total_amount as any || 0);
+                const paid = parseFloat(g.latest_unpaid.paid_amount as any || 0);
+                const isLatestSettled = ['satteled', 'settled'].includes((g.latest_unpaid.status || '').toLowerCase());
+                g.balance = isLatestSettled ? 0 : Math.max(0, tot - paid);
+                g.status = isLatestSettled
+                    ? 'satteled'
+                    : g.balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+            }
         });
         return Array.from(map.values());
     })();
 
     const totalDue = stats ? stats.total_amount - stats.paid_amount : 0;
     const collectionPct = stats && stats.total_amount > 0 ? Math.round((stats.paid_amount / stats.total_amount) * 100) : 0;
+
+    const isModalSlipSettled = activeSlip ? (
+        ['satteled', 'settled'].includes((activeSlip.status || '').toLowerCase()) ||
+        Boolean(activeSlip.category && activeSlip.category.trim().toLowerCase() === 'trusted') ||
+        Boolean(activeSlip.family_members && activeSlip.family_members.length > 0 && activeSlip.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'))
+    ) : false;
+    const modalSlipBalance = isModalSlipSettled ? 0 : (activeSlip ? Math.max(0, parseFloat(activeSlip.total_amount as any || 0) - parseFloat(activeSlip.paid_amount as any || 0)) : 0);
 
     return (
         <div className="page-wrap" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
@@ -1033,8 +1054,16 @@ export default function CollectFeePage() {
                                                             ? fmt(parseFloat(g.latest_unpaid.paid_amount as any))
                                                             : <span className="text-muted">—</span>}
                                                     </td>
-                                                    <td className="px-2 text-end fw-bold" style={{ color: g.balance > 0 ? '#dc3545' : '#198754' }}>
-                                                        {g.balance > 0 ? fmt(g.balance) : <span className="text-success">✓ Clear</span>}
+                                                    <td className="px-2 text-end fw-bold" style={{ color: ['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? '#0891b2' : g.balance > 0 ? '#dc3545' : '#198754' }}>
+                                                        {['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? (
+                                                            <span className="badge rounded-pill px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.72rem' }}>
+                                                                ✓ Settled (Nill)
+                                                            </span>
+                                                        ) : g.balance > 0 ? (
+                                                            fmt(g.balance)
+                                                        ) : (
+                                                            <span className="text-success">✓ Clear</span>
+                                                        )}
                                                     </td>
                                                     <td className="px-2 text-center">
                                                         <div className="d-flex flex-column align-items-center gap-1">
@@ -1327,7 +1356,7 @@ export default function CollectFeePage() {
                                         {[
                                             { label: 'Total Amount', value: fmt(parseFloat(activeSlip.total_amount as any)), color: 'var(--primary-dark)' },
                                             { label: 'Paid So Far', value: fmt(parseFloat(activeSlip.paid_amount as any)), color: '#198754' },
-                                            { label: 'Balance Due', value: fmt(parseFloat(activeSlip.total_amount as any) - parseFloat(activeSlip.paid_amount as any)), color: '#dc3545' },
+                                            { label: 'Balance Due', value: isModalSlipSettled ? 'PKR 0 (Settled)' : fmt(modalSlipBalance), color: isModalSlipSettled ? '#0891b2' : (modalSlipBalance > 0 ? '#dc3545' : '#198754') },
                                         ].map((s, i) => (
                                             <div className="col-4" key={i}>
                                                 <div className="text-center py-2 px-1 rounded" style={{ backgroundColor: '#f8f9fa', border: '1px solid #e9ecef' }}>
@@ -1477,7 +1506,7 @@ export default function CollectFeePage() {
                                     </div>
 
                                     {/* Payment Form */}
-                                    {activeSlip.status !== 'paid' && activeSlip.is_active_year !== false && (
+                                    {!isModalSlipSettled && activeSlip.status !== 'paid' && activeSlip.is_active_year !== false && (
                                         <div className="rounded p-3" style={{ backgroundColor: '#fffbf5', border: '1px solid #ffe5cc' }}>
                                             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-orange)', marginBottom: 10 }}>
                                                 <i className="bi bi-plus-circle me-1"></i>Record New Payment
@@ -1792,7 +1821,17 @@ export default function CollectFeePage() {
                                         </div>
                                     )}
 
-                                    {['paid', 'satteled'].includes(activeSlip.status) && (
+                                    {isModalSlipSettled ? (
+                                        <div className="text-center py-2">
+                                            <div className="rounded-3 p-3 border" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }}>
+                                                <i className="bi bi-shield-check text-info d-block mb-1" style={{ fontSize: 30 }}></i>
+                                                <div className="fw-bold fs-6 mb-1" style={{ color: '#0369a1' }}>Voucher Settled (Trusted Category)</div>
+                                                <div className="text-muted small">
+                                                    Yeh voucher trusted category ka hai aur settled consider kiya gaya hai. Is voucher par new payment entry locked hai.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : activeSlip.status === 'paid' ? (
                                         <div className="text-center py-2">
                                             <div className="rounded p-3" style={{ backgroundColor: '#e8f5e9', border: '1px solid #c3e6cb' }}>
                                                 <i className="bi bi-patch-check-fill text-success d-block mb-1" style={{ fontSize: 28 }}></i>
@@ -1812,7 +1851,7 @@ export default function CollectFeePage() {
                                                 </button>
                                             </div>
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 <div className="modal-footer border-0 px-4 py-3">

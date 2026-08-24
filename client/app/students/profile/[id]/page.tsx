@@ -1323,7 +1323,8 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                         </thead>
                                                         <tbody>
                                                             {familySlips.map((monthSlip, idx) => {
-                                                                const remainingBalance = Math.max(0, Number(monthSlip.family_total_billed || 0) - Number(monthSlip.family_total_paid || 0));
+                                                                const isMonthSettled = ['satteled', 'settled'].includes((monthSlip.status || '').toLowerCase());
+                                                                const remainingBalance = isMonthSettled ? 0 : Math.max(0, Number(monthSlip.family_total_billed || 0) - Number(monthSlip.family_total_paid || 0));
                                                                 const subDate = monthSlip.last_submission_date
                                                                     ? new Date(monthSlip.last_submission_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                                                                     : '—';
@@ -1336,7 +1337,8 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                         <td>
                                                                             <div className="d-flex flex-column gap-2 py-2" style={{ minWidth: '280px' }}>
                                                                                 {monthSlip.students.map((st: any, i: number) => {
-                                                                                    const stRemaining = Math.max(0, Number(st.billed || 0) - Number(st.paid || 0));
+                                                                                    const isStTrusted = Boolean(st.is_trusted || (st.category || '').toLowerCase() === 'trusted');
+                                                                                    const stRemaining = isStTrusted ? 0 : Math.max(0, Number(st.billed || 0) - Number(st.paid || 0));
                                                                                     const stSubDate = st.last_payment_date
                                                                                         ? new Date(st.last_payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                                                                                         : '';
@@ -1350,6 +1352,11 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                                     <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>
                                                                                                         {st.name}
                                                                                                     </span>
+                                                                                                    {isStTrusted && (
+                                                                                                        <span className="badge rounded-pill px-1.5 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd', fontSize: '0.68rem', fontWeight: 600 }}>
+                                                                                                            <i className="bi bi-shield-check me-1"></i>Trusted
+                                                                                                        </span>
+                                                                                                    )}
                                                                                                     {st.class_name && (
                                                                                                         <span className="badge bg-secondary-subtle text-secondary small">
                                                                                                             {st.class_name} {st.section_name ? `- ${st.section_name}` : ''}
@@ -1363,7 +1370,9 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                                     <span className="badge bg-success-subtle text-success border border-success-subtle">
                                                                                                         Paid: <strong>{fmt(st.paid)}</strong>
                                                                                                     </span>
-                                                                                                    {stRemaining > 0 ? (
+                                                                                                    {isStTrusted ? (
+                                                                                                        <span className="badge rounded-pill" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>Rem: 0 (Settled)</span>
+                                                                                                    ) : stRemaining > 0 ? (
                                                                                                         <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">
                                                                                                             Rem: {fmt(stRemaining)}
                                                                                                         </span>
@@ -1403,8 +1412,14 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                         </td>
                                                                         <td className="text-end fw-semibold" style={{ color: 'var(--primary-dark)' }}>{fmt(monthSlip.family_total_billed)}</td>
                                                                         <td className="text-end fw-bold" style={{ color: '#0d9e6e' }}>{fmt(monthSlip.family_total_paid)}</td>
-                                                                        <td className="text-end fw-bold" style={{ color: remainingBalance > 0 ? '#dc3545' : '#6c757d' }}>
-                                                                            {fmt(remainingBalance)}
+                                                                        <td className="text-end fw-bold" style={{ color: isMonthSettled ? '#0891b2' : remainingBalance > 0 ? '#dc3545' : '#6c757d' }}>
+                                                                            {isMonthSettled ? (
+                                                                                <span className="badge rounded-pill px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.74rem' }}>
+                                                                                    Settled (PKR 0)
+                                                                                </span>
+                                                                            ) : (
+                                                                                fmt(remainingBalance)
+                                                                            )}
                                                                         </td>
                                                                         <td className="text-center small">
                                                                             {subDate !== '—' ? (
@@ -1416,9 +1431,15 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                             )}
                                                                         </td>
                                                                         <td className="text-center pe-4">
-                                                                            <span className={`badge px-3 py-2 rounded-pill ${monthSlip.status === 'paid' ? 'bg-success bg-opacity-10 text-success border border-success' : monthSlip.status === 'partial' ? 'bg-warning bg-opacity-10 text-warning border border-warning' : 'bg-danger bg-opacity-10 text-danger border border-danger'}`}>
-                                                                                {monthSlip.status.toUpperCase()}
-                                                                            </span>
+                                                                            {isMonthSettled ? (
+                                                                                <span className="badge px-3 py-2 rounded-pill" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontWeight: 600 }}>
+                                                                                    <i className="bi bi-shield-check me-1"></i>SETTLED
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className={`badge px-3 py-2 rounded-pill ${monthSlip.status === 'paid' ? 'bg-success bg-opacity-10 text-success border border-success' : monthSlip.status === 'partial' ? 'bg-warning bg-opacity-10 text-warning border border-warning' : 'bg-danger bg-opacity-10 text-danger border border-danger'}`}>
+                                                                                    {monthSlip.status.toUpperCase()}
+                                                                                </span>
+                                                                            )}
                                                                         </td>
                                                                     </tr>
                                                                 );
