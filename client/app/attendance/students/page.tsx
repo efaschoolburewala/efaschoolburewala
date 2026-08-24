@@ -87,7 +87,7 @@ export default function StudentAttendancePage() {
           const data = await res.json();
           if (Array.isArray(data.classes)) setClasses(data.classes);
           if (Array.isArray(data.sections)) setSections(data.sections);
-        } catch {}
+        } catch { }
       }
     };
 
@@ -451,7 +451,7 @@ export default function StudentAttendancePage() {
                     {saving
                       ? <><span className="spinner-border spinner-border-sm me-2" />Saving…</>
                       : holidayInfo?.is_holiday
-                        ? <><i className="bi bi-calendar-check-fill me-2" />Holiday — Attendance Exempt</>
+                        ? <><i className="bi bi-calendar-check-fill me-2" />Holiday Attendance Exempt</>
                         : isLocked ? <><i className="bi bi-lock-fill me-2" />Locked</> : <><i className="bi bi-cloud-check-fill me-2" />Save Attendance</>}
                   </button>
                 )}

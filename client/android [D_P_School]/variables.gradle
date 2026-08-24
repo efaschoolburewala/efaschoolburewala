@@ -1,7 +1,7 @@
 ext {
-    minSdkVersion = 23           // Android 6.0 — minimum for USE_BIOMETRIC + fingerprint APIs
-    compileSdkVersion = 35       // Android 15 — latest stable compile target
-    targetSdkVersion = 35        // Android 15 — required for Play Store (2025 policy)
+    minSdkVersion = 23           // Android 6.0 minimum for USE_BIOMETRIC + fingerprint APIs
+    compileSdkVersion = 35       // Android 15 latest stable compile target
+    targetSdkVersion = 35        // Android 15 required for Play Store (2025 policy)
     androidxActivityVersion = '1.9.3'
     androidxAppCompatVersion = '1.7.0'
     androidxCoordinatorLayoutVersion = '1.2.0'

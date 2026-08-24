@@ -1,7 +1,7 @@
 /**
  * generate-icon.js
  * Reads scripts/appicon.png and generates all Android launcher icons + PWA icons.
- * Zero external dependencies — uses only Node.js built-ins (fs, path, zlib).
+ * Zero external dependencies uses only Node.js built-ins (fs, path, zlib).
  *
  * Usage:
  *   node scripts/generate-icon.js
@@ -243,7 +243,7 @@ console.log('📷  Reading source: scripts/appicon.png');
 const { width: srcW, height: srcH, rgba: srcRgba } = readPng(SOURCE);
 console.log(`   Dimensions: ${srcW} × ${srcH} px`);
 if (srcW !== srcH) {
-  console.warn('⚠️   Warning: appicon.png is not square — icons may appear stretched.');
+  console.warn('⚠️   Warning: appicon.png is not square icons may appear stretched.');
 }
 console.log('');
 console.log('🤖  Generating Android launcher icons for target res directories...');
@@ -261,7 +261,7 @@ for (const targetResDir of resDirs) {
     fs.writeFileSync(path.join(folder, 'ic_launcher_round.png'), writePng(rounded, size, size));
     fs.writeFileSync(path.join(folder, 'ic_launcher_foreground.png'), writePng(scaled, size, size));
 
-    console.log(`      ✓  ${dir} — ${size}×${size}px`);
+    console.log(`      ✓  ${dir} ${size}×${size}px`);
   }
 }
 
@@ -278,8 +278,8 @@ fs.writeFileSync(path.join(PUBLIC_DIR, 'favicon.ico'), writePng(fav64, 64, 64));
 
 console.log('');
 console.log('🌐  Web PWA icons:');
-console.log('   ✓  public/icon.png    — 512×512px');
-console.log('   ✓  public/favicon.ico — 64×64px');
+console.log('   ✓  public/icon.png    512×512px');
+console.log('   ✓  public/favicon.ico 64×64px');
 console.log('');
 console.log('✅  All icons generated from scripts/appicon.png!');
 console.log('   Run "npx cap sync android" to apply icons to the Android build.');

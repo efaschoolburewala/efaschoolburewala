@@ -243,9 +243,9 @@
 
   <script>
     /* =========================================================
-       DATA — replace this block with your real data source.
+       DATA replace this block with your real data source.
        Add/remove entries in `students` and `feeItems` and both
-       tables grow or shrink automatically — 1 student = 1 row,
+       tables grow or shrink automatically 1 student = 1 row,
        9 students = 9 rows. Same for fee items. The whole voucher
        also grows/shrinks with them (no fixed height anywhere).
        Set school.logo_url to your logo image path/URL, or leave
@@ -258,7 +258,7 @@
 
     var school = {
       school_name: "Falcon School System\nVehari",
-      logo_url: "",              // e.g. "logo.png" — leave blank for empty box
+      logo_url: "",              // e.g. "logo.png" leave blank for empty box
       school_address: "83/M Madina Colony Vehari",
       phone1: "0300-7730141",
       phone2: "0308-7696430",
@@ -271,7 +271,7 @@
       submission_date: new Date()
     };
 
-    // DEMO: 9 students — table below will show 9 rows automatically
+    // DEMO: 9 students table below will show 9 rows automatically
     var students = [
       { name: "Kamran Yousaf", father_name: "Yousaf Iqbal", class: "8th (A)" },
       { name: "Ali Raza", father_name: "Ahmed Raza", class: "5th (B)" },
@@ -282,15 +282,15 @@
       { name: "Iqra Fatima", father_name: "Shahid Bashir", class: "4th (B)" },
       { name: "Usman Ali", father_name: "Ali Hassan", class: "1st (A)" },
       { name: "Zainab Malik", father_name: "Malik Waseem", class: "8th (B)" }
-      // add more students here — table grows automatically
+      // add more students here table grows automatically
     ];
 
-    // DEMO: Exam Fee added as a new fee head — table below will add its own row
+    // DEMO: Exam Fee added as a new fee head table below will add its own row
     var feeItems = [
       { desc: "Monthly Fee", amount: 8000 },
       { desc: "Previous Dues", amount: 1200 },
       { desc: "Exam Fee", amount: 1500 }
-      // add/remove fee heads here — table adjusts automatically
+      // add/remove fee heads here table adjusts automatically
     ];
 
     // Amount actually received in this transaction
@@ -329,7 +329,7 @@
         '</div>' +
         '<div class="info-row2">Fee Submission Date: <strong><u>' + fmtD(slip.submission_date) + '</u></strong></div>';
 
-      // Students Details — exactly one <tr> per student, no blank filler rows
+      // Students Details exactly one <tr> per student, no blank filler rows
       var studentRows = "";
       students.forEach(function (stu) {
         studentRows +=
@@ -341,9 +341,9 @@
       });
       document.getElementById("studentBody").innerHTML = studentRows;
 
-      // Fee Details — one row per fee head (with Sr.#), then Total Payable (still
+      // Fee Details one row per fee head (with Sr.#), then Total Payable (still
       // numbered, above the bold divider), then Receiving Amount / Remaining
-      // Balance below the divider with NO Sr.# — those two cells are merged.
+      // Balance below the divider with NO Sr.# those two cells are merged.
       var feeRows = "";
       var totalPayable = 0;
       var srNo = 0;

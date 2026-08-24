@@ -346,13 +346,13 @@ Demo_Private_School/
 
 For in-depth technical references, consult the dedicated guides inside the `doc/` directory:
 
-- 📄 [PROJECT_OVERVIEW.md](file:///d:/peronal/Demo_Private_School/doc/PROJECT_OVERVIEW.md) — System Architecture & Feature Checklist
-- 📄 [CLIENT_MODULES_AND_PAGES.md](file:///d:/peronal/Demo_Private_School/doc/CLIENT_MODULES_AND_PAGES.md) — Frontend App Router Navigation & Page Specs
-- 📄 [SERVER_API_AND_MODULES.md](file:///d:/peronal/Demo_Private_School/doc/SERVER_API_AND_MODULES.md) — REST API Endpoints & Route Definitions
-- 📄 [FEATURES_AND_WORKFLOWS_COMPLETE.md](file:///d:/peronal/Demo_Private_School/doc/FEATURES_AND_WORKFLOWS_COMPLETE.md) — Complete User Journey & Business Workflows
-- 📄 [FAMILY_FEE_SYSTEM_IMPLEMENTATION.md](file:///d:/peronal/Demo_Private_School/doc/FAMILY_FEE_SYSTEM_IMPLEMENTATION.md) — Deep-dive into Family Billing & Waterfall Payment Engine
-- 📄 [MULTIUSER_SHARED_PORTAL_SYSTEM.md](file:///d:/peronal/Demo_Private_School/doc/MULTIUSER_SHARED_PORTAL_SYSTEM.md) — Single-Portal RBAC Architecture & Dynamic UI Routing
-- 📄 [SOFTWARE_TESTING_CHECKLIST.md](file:///d:/peronal/Demo_Private_School/SOFTWARE_TESTING_CHECKLIST.md) — QA Audit & Database Column Integrity Checklist
+- 📄 [PROJECT_OVERVIEW.md](file:///d:/peronal/Demo_Private_School/doc/PROJECT_OVERVIEW.md) System Architecture & Feature Checklist
+- 📄 [CLIENT_MODULES_AND_PAGES.md](file:///d:/peronal/Demo_Private_School/doc/CLIENT_MODULES_AND_PAGES.md) Frontend App Router Navigation & Page Specs
+- 📄 [SERVER_API_AND_MODULES.md](file:///d:/peronal/Demo_Private_School/doc/SERVER_API_AND_MODULES.md) REST API Endpoints & Route Definitions
+- 📄 [FEATURES_AND_WORKFLOWS_COMPLETE.md](file:///d:/peronal/Demo_Private_School/doc/FEATURES_AND_WORKFLOWS_COMPLETE.md) Complete User Journey & Business Workflows
+- 📄 [FAMILY_FEE_SYSTEM_IMPLEMENTATION.md](file:///d:/peronal/Demo_Private_School/doc/FAMILY_FEE_SYSTEM_IMPLEMENTATION.md) Deep-dive into Family Billing & Waterfall Payment Engine
+- 📄 [MULTIUSER_SHARED_PORTAL_SYSTEM.md](file:///d:/peronal/Demo_Private_School/doc/MULTIUSER_SHARED_PORTAL_SYSTEM.md) Single-Portal RBAC Architecture & Dynamic UI Routing
+- 📄 [SOFTWARE_TESTING_CHECKLIST.md](file:///d:/peronal/Demo_Private_School/SOFTWARE_TESTING_CHECKLIST.md) QA Audit & Database Column Integrity Checklist
 
 ---
 

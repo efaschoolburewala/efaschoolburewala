@@ -624,7 +624,7 @@ export default function RolesPage() {
                                             style={{ border: '1.5px solid #0f766e', height: 42, color: '#0f766e' }}>
                                             {DASHBOARD_OPTIONS.map(dash => (
                                                 <option key={dash.value} value={dash.value}>
-                                                    {dash.label} — ({dash.desc})
+                                                    {dash.label} ({dash.desc})
                                                 </option>
                                             ))}
                                         </select>

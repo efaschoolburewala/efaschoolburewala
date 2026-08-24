@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 
-interface Department { 
-    department_id: number; 
-    department_name: string; 
+interface Department {
+    department_id: number;
+    department_name: string;
 }
 
 interface DailyAttendanceDetail {
@@ -20,43 +20,43 @@ interface DailyAttendanceDetail {
 }
 
 interface StaffHistory {
-    employee_id: number; 
-    first_name: string; 
+    employee_id: number;
+    first_name: string;
     last_name: string;
-    designation: string; 
+    designation: string;
     department_name: string;
-    present: number; 
-    absent: number; 
+    present: number;
+    absent: number;
     late_in: number;
     early_out: number;
-    leave: number; 
+    leave: number;
     holiday?: number;
-    total_days: number; 
+    total_days: number;
     daily: Record<string, DailyAttendanceDetail | string>;
 }
 
-const S_COLOR: Record<string, string> = { 
-    Present: '#0d9e6e', 
-    Absent: '#e13232', 
-    Late: '#e6860a', 
-    Leave: '#1a6fd4', 
-    Holiday: '#7c3aed' 
+const S_COLOR: Record<string, string> = {
+    Present: '#0d9e6e',
+    Absent: '#e13232',
+    Late: '#e6860a',
+    Leave: '#1a6fd4',
+    Holiday: '#7c3aed'
 };
 
-const S_ABBR: Record<string, string> = { 
-    Present: 'P', 
-    Absent: 'A', 
-    Late: 'L', 
-    Leave: 'V', 
-    Holiday: 'H' 
+const S_ABBR: Record<string, string> = {
+    Present: 'P',
+    Absent: 'A',
+    Late: 'L',
+    Leave: 'V',
+    Holiday: 'H'
 };
 
-const S_BG: Record<string, string> = { 
-    Present: '#e6f9f3', 
-    Absent: '#fde8e8', 
-    Late: '#fef6e4', 
-    Leave: '#e8f0fd', 
-    Holiday: '#f3e8ff' 
+const S_BG: Record<string, string> = {
+    Present: '#e6f9f3',
+    Absent: '#fde8e8',
+    Late: '#fef6e4',
+    Leave: '#e8f0fd',
+    Holiday: '#f3e8ff'
 };
 
 function formatTime(timeStr: string | null | undefined): string | null {
@@ -86,17 +86,17 @@ function AttBadge({ detail, dateStr }: { detail: DailyAttendanceDetail | string;
 
     return (
         <div className="d-flex flex-column align-items-center justify-content-center py-1" title={tooltipText}>
-            <span 
+            <span
                 style={{
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
+                    display: 'inline-flex',
+                    alignItems: 'center',
                     justifyContent: 'center',
-                    width: 26, 
-                    height: 26, 
-                    borderRadius: '50%', 
-                    fontSize: '0.68rem', 
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    fontSize: '0.68rem',
                     fontWeight: 700,
-                    background: S_BG[status] ?? '#f1f3f5', 
+                    background: S_BG[status] ?? '#f1f3f5',
                     color: S_COLOR[status] ?? '#6c757d',
                     border: `1.5px solid ${(S_COLOR[status] ?? '#6c757d')}44`,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
@@ -126,9 +126,9 @@ export default function StaffAttendanceHistoryPage() {
     const [deptId, setDeptId] = useState('');
     const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
     const [year, setYear] = useState(String(now.getFullYear()));
-    const [data, setData] = useState<{ 
-        staff: StaffHistory[]; 
-        working_dates: string[]; 
+    const [data, setData] = useState<{
+        staff: StaffHistory[];
+        working_dates: string[];
         holidays?: Record<string, string>;
         settings?: any;
     } | null>(null);
@@ -147,7 +147,7 @@ export default function StaffAttendanceHistoryPage() {
         fetch(`${API}/attendance/departments`)
             .then(r => r.json())
             .then(d => Array.isArray(d) && setDepartments(d))
-            .catch(() => {});
+            .catch(() => { });
     }, [API]);
 
     const loadHistory = useCallback(async () => {
@@ -194,16 +194,16 @@ export default function StaffAttendanceHistoryPage() {
             .includes(search.toLowerCase())
     );
 
-    const avgPct = allStaff.length 
-        ? Math.round(allStaff.reduce((a, s) => a + (s.total_days ? ((s.present + (s.late_in || 0)) / s.total_days) * 100 : 0), 0) / allStaff.length) 
+    const avgPct = allStaff.length
+        ? Math.round(allStaff.reduce((a, s) => a + (s.total_days ? ((s.present + (s.late_in || 0)) / s.total_days) * 100 : 0), 0) / allStaff.length)
         : 0;
 
-    const fmtDate = (d: string) => { 
-        const dt = new Date(d + 'T00:00:00'); 
-        return { 
-            day: dt.getDate(), 
-            dow: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][dt.getDay()] 
-        }; 
+    const fmtDate = (d: string) => {
+        const dt = new Date(d + 'T00:00:00');
+        return {
+            day: dt.getDate(),
+            dow: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][dt.getDay()]
+        };
     };
 
     const dept = departments.find(d => String(d.department_id) === deptId);
@@ -235,7 +235,7 @@ export default function StaffAttendanceHistoryPage() {
             <div className="card border-0 shadow-sm rounded-4 mb-4">
                 <div className="card-body p-3 p-md-4">
                     <div className="row g-3 align-items-end">
-                        
+
                         {/* Department */}
                         <div className="col-12 col-md-3">
                             <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
@@ -275,19 +275,19 @@ export default function StaffAttendanceHistoryPage() {
                                 <i className="bi bi-calendar-day me-1" style={{ color: 'var(--primary-teal)' }} />Filter Day
                             </label>
                             <div className="input-group">
-                                <input 
-                                    type="date" 
-                                    className="form-control rounded-start-3" 
+                                <input
+                                    type="date"
+                                    className="form-control rounded-start-3"
                                     value={filterDate}
-                                    onChange={e => { 
-                                        setFilterDate(e.target.value); 
-                                        if (e.target.value) { 
-                                            const d = new Date(e.target.value); 
-                                            setMonth(String(d.getMonth() + 1).padStart(2, '0')); 
-                                            setYear(String(d.getFullYear())); 
-                                        } 
+                                    onChange={e => {
+                                        setFilterDate(e.target.value);
+                                        if (e.target.value) {
+                                            const d = new Date(e.target.value);
+                                            setMonth(String(d.getMonth() + 1).padStart(2, '0'));
+                                            setYear(String(d.getFullYear()));
+                                        }
                                     }}
-                                    style={{ border: '1.5px solid #dee2e6', height: 42 }} 
+                                    style={{ border: '1.5px solid #dee2e6', height: 42 }}
                                 />
                                 {filterDate && (
                                     <button className="btn btn-outline-secondary" style={{ height: 42 }} onClick={() => setFilterDate('')}>
@@ -415,18 +415,18 @@ export default function StaffAttendanceHistoryPage() {
                         </div>
                         <div className="input-group" style={{ maxWidth: 260 }}>
                             <span className="input-group-text bg-white border-end-0"><i className="bi bi-search text-muted" style={{ fontSize: '0.8rem' }} /></span>
-                            <input 
-                                type="text" 
-                                className="form-control border-start-0" 
+                            <input
+                                type="text"
+                                className="form-control border-start-0"
                                 placeholder="Search staff name or role…"
-                                value={search} 
-                                onChange={e => setSearch(e.target.value)} 
-                                style={{ fontSize: '0.85rem' }} 
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                style={{ fontSize: '0.85rem' }}
                             />
                         </div>
                     </div>
 
-                    {/* MAIN TIMESHEET TABLE — visible on md+ screens */}
+                    {/* MAIN TIMESHEET TABLE visible on md+ screens */}
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-none d-md-block">
                         <div className="table-responsive" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
                             <table className="table table-hover align-middle mb-0" style={{ minWidth: 780 }}>
@@ -435,20 +435,20 @@ export default function StaffAttendanceHistoryPage() {
                                         <th className="border-0 fw-semibold text-white ps-3 py-3" style={{ fontSize: '0.72rem', textTransform: 'uppercase', minWidth: 220 }}>Staff Member</th>
                                         <th className="border-0 fw-semibold text-white d-none d-md-table-cell py-3" style={{ fontSize: '0.72rem', textTransform: 'uppercase', minWidth: 120 }}>Department</th>
                                         <th className="border-0 fw-semibold text-white text-center py-3" style={{ fontSize: '0.72rem', textTransform: 'uppercase', minWidth: 60 }}>Att%</th>
-                                        
+
                                         {/* Date Headers */}
                                         {visibleDates.map(d => {
                                             const { day, dow } = fmtDate(d);
                                             const holidayTitle = data?.holidays?.[d];
                                             return (
-                                                <th 
-                                                    key={d} 
+                                                <th
+                                                    key={d}
                                                     className="border-0 text-center py-2"
                                                     title={holidayTitle ? `Holiday: ${holidayTitle}` : d}
                                                     style={{
                                                         color: holidayTitle ? '#c4b5fd' : filterDate ? '#ffd700' : 'rgba(255,255,255,0.85)',
-                                                        fontSize: '0.64rem', 
-                                                        minWidth: 42, 
+                                                        fontSize: '0.64rem',
+                                                        minWidth: 42,
                                                         lineHeight: 1.1,
                                                         background: holidayTitle ? 'rgba(124,58,237,0.35)' : undefined
                                                     }}
@@ -471,8 +471,8 @@ export default function StaffAttendanceHistoryPage() {
                                     {filtered.map((s, idx) => {
                                         const pct = s.total_days ? Math.round(((s.present + (s.late_in || 0)) / s.total_days) * 100) : 0;
                                         return (
-                                            <tr 
-                                                key={s.employee_id} 
+                                            <tr
+                                                key={s.employee_id}
                                                 onClick={() => setSelectedEmployee(s)}
                                                 style={{ background: idx % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}
                                                 title="Click to view detailed employee monthly timesheet"
@@ -537,7 +537,7 @@ export default function StaffAttendanceHistoryPage() {
                             </table>
                         </div>
                     </div>
-                    {/* MOBILE CARD VIEW — visible on xs/sm screens only */}
+                    {/* MOBILE CARD VIEW visible on xs/sm screens only */}
                     <div className="d-md-none mb-4">
                         {filtered.length === 0 && (
                             <div className="text-center text-muted py-4">
@@ -604,7 +604,7 @@ export default function StaffAttendanceHistoryPage() {
                 <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" style={{ margin: '0.5rem auto', padding: '0 0.5rem' }}>
                         <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                            
+
                             {/* Modal Header */}
                             <div className="modal-header border-0 text-white px-3 px-md-4 py-3" style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
                                 <div className="d-flex align-items-center gap-3">
@@ -651,10 +651,10 @@ export default function StaffAttendanceHistoryPage() {
                                         <tbody>
                                             {dates.map(d => {
                                                 const raw = selectedEmployee.daily[d];
-                                                const detail: DailyAttendanceDetail = typeof raw === 'object' 
-                                                    ? raw 
+                                                const detail: DailyAttendanceDetail = typeof raw === 'object'
+                                                    ? raw
                                                     : { status: raw || 'Present', check_in_time: null, check_out_time: null };
-                                                
+
                                                 const inFmt = formatTime(detail.check_in_time);
                                                 const outFmt = formatTime(detail.check_out_time);
                                                 const dt = new Date(d + 'T00:00:00');

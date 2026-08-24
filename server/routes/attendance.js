@@ -614,7 +614,7 @@ router.post('/staff/verify-biometric', async (req, res) => {
             staff_biometric_mode: 'both'
         };
 
-        // 3. Strict Biometric Verification — NO ghost verification allowed
+        // 3. Strict Biometric Verification NO ghost verification allowed
         // Applies to both retina_face and fingerprint modes when biometric_data is provided
         if (!manual_override && Array.isArray(biometric_data) && biometric_data.length > 0) {
             // 3a. Resolve the app_user_id for this employee
@@ -680,7 +680,7 @@ router.post('/staff/verify-biometric', async (req, res) => {
 
             // 3h. Compute similarity score
             const similarity = computeBiometricSimilarity(biometric_data, storedDescriptor);
-            const THRESHOLD = 0.90; // 95% required for both fingerprint and retina_face — strict, no exceptions
+            const THRESHOLD = 0.90; // 95% required for both fingerprint and retina_face strict, no exceptions
 
             console.log(`[Biometric] Employee ${empId} | Mode: ${credType} | Score: ${(similarity * 100).toFixed(2)}% | Threshold: ${(THRESHOLD * 100).toFixed(0)}%`);
 
@@ -693,7 +693,7 @@ router.post('/staff/verify-biometric', async (req, res) => {
                 });
             }
 
-            // 3j. Verified — log match confidence
+            // 3j. Verified log match confidence
             console.log(`[Biometric] ✅ Employee ${empId} verified successfully. Score: ${(similarity * 100).toFixed(2)}%`);
         }
 

@@ -613,7 +613,7 @@ export default function FamilyFeeReportPage() {
                                     )}
                                 </div>
                                 <div style={{ fontSize: 17, fontWeight: 800 }}>
-                                    Fee Collection Report — {monthLabel} {year} {classLabel && ` | ${classLabel} ${secLabel && '› ' + secLabel}`}
+                                    Fee Collection Report {monthLabel} {year} {classLabel && ` | ${classLabel} ${secLabel && '› ' + secLabel}`}
                                 </div>
                                 <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
                                     {slips.length} student slips tracked • Recovery Pace: <strong>{collective.collection_rate}%</strong>

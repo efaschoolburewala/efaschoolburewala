@@ -5,20 +5,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { notify } from '@/app/utils/notify';
 import { captureMultiFrameDescriptor } from '@/utils/biometrics';
 
-interface Department { 
-    department_id: number; 
-    department_name: string; 
+interface Department {
+    department_id: number;
+    department_name: string;
 }
 
 interface StaffRow {
-    employee_id: number; 
-    first_name: string; 
+    employee_id: number;
+    first_name: string;
     last_name: string;
-    designation: string; 
-    department_name: string; 
+    designation: string;
+    department_name: string;
     department_id: number;
     app_user_id?: number | null;
-    attendance_id: number | null; 
+    attendance_id: number | null;
     status: string | null;
     check_in_time: string | null;
     check_out_time: string | null;
@@ -49,28 +49,28 @@ interface AttendanceSettings {
 const STATUS_OPTS = ['Present', 'Absent', 'Late', 'Leave'] as const;
 type StatusType = typeof STATUS_OPTS[number];
 
-const S_COLOR: Record<StatusType | 'Holiday', string> = { 
-    Present: '#0d9e6e', 
-    Absent: '#e13232', 
-    Late: '#e6860a', 
-    Leave: '#1a6fd4', 
-    Holiday: '#7c3aed' 
+const S_COLOR: Record<StatusType | 'Holiday', string> = {
+    Present: '#0d9e6e',
+    Absent: '#e13232',
+    Late: '#e6860a',
+    Leave: '#1a6fd4',
+    Holiday: '#7c3aed'
 };
 
-const S_BG: Record<StatusType | 'Holiday', string> = { 
-    Present: '#e6f9f3', 
-    Absent: '#fde8e8', 
-    Late: '#fef6e4', 
-    Leave: '#e8f0fd', 
-    Holiday: '#f3e8ff' 
+const S_BG: Record<StatusType | 'Holiday', string> = {
+    Present: '#e6f9f3',
+    Absent: '#fde8e8',
+    Late: '#fef6e4',
+    Leave: '#e8f0fd',
+    Holiday: '#f3e8ff'
 };
 
-const S_ICON: Record<StatusType | 'Holiday', string> = { 
-    Present: 'bi-check-circle-fill', 
-    Absent: 'bi-x-circle-fill', 
-    Late: 'bi-clock-fill', 
-    Leave: 'bi-calendar2-x-fill', 
-    Holiday: 'bi-calendar-heart-fill' 
+const S_ICON: Record<StatusType | 'Holiday', string> = {
+    Present: 'bi-check-circle-fill',
+    Absent: 'bi-x-circle-fill',
+    Late: 'bi-clock-fill',
+    Leave: 'bi-calendar2-x-fill',
+    Holiday: 'bi-calendar-heart-fill'
 };
 
 export default function StaffAttendancePage() {
@@ -79,7 +79,7 @@ export default function StaffAttendancePage() {
     const [deptId, setDeptId] = useState('');
     const [date, setDate] = useState(today);
     const [sessionType, setSessionType] = useState<'in' | 'out'>('in');
-    
+
     const [staff, setStaff] = useState<StaffRow[]>([]);
     const [statuses, setStatuses] = useState<Record<number, StatusType>>({});
     const [lockedIds, setLockedIds] = useState<Set<number>>(new Set());
@@ -115,7 +115,7 @@ export default function StaffAttendancePage() {
         fetch(`${API}/attendance/departments`)
             .then(r => r.json())
             .then(d => Array.isArray(d) && setDepartments(d))
-            .catch(() => {});
+            .catch(() => { });
 
         fetch(`${API}/attendance/settings`)
             .then(r => r.json())
@@ -129,7 +129,7 @@ export default function StaffAttendancePage() {
                     });
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, [API]);
 
     // 2. Load Attendance Records
@@ -165,9 +165,9 @@ export default function StaffAttendancePage() {
 
             records.forEach((e: StaffRow) => {
                 st[e.employee_id] = (e.status as StatusType) || 'Present';
-                
+
                 // If this session is already verified or locked
-                const isSessionVerified = sessionType === 'in' 
+                const isSessionVerified = sessionType === 'in'
                     ? (e.in_verified || (e.attendance_id !== null && e.status === 'Absent'))
                     : (e.out_verified || (e.attendance_id !== null && e.status === 'Absent'));
 
@@ -185,7 +185,7 @@ export default function StaffAttendancePage() {
                     records,
                     timestamp: new Date().toISOString()
                 }));
-            } catch {}
+            } catch { }
 
         } catch (err) {
             console.error('Failed to load attendance:', err);
@@ -251,7 +251,7 @@ export default function StaffAttendancePage() {
         setScanMode(preferredMode);
         setScanningInProgress(false);
         setScanProgress(0);
-        // Always start camera — both fingerprint & retina_face use camera-based descriptor
+        // Always start camera both fingerprint & retina_face use camera-based descriptor
         startCamera();
     };
 
@@ -267,7 +267,7 @@ export default function StaffAttendancePage() {
             }
         } catch (err) {
             console.error('Camera access error:', err);
-            // Don't switch mode — just notify. Both modes need camera.
+            // Don't switch mode just notify. Both modes need camera.
             notify.error('Camera access denied. Please grant camera permission in your browser settings and try again.');
         }
     };
@@ -359,7 +359,7 @@ export default function StaffAttendancePage() {
 
             setStaff(prev => prev.map(m => m.employee_id === verifyingMember.employee_id ? updatedRec : m));
             setStatuses(prev => ({ ...prev, [verifyingMember.employee_id]: (data.record.status as StatusType) || 'Present' }));
-            
+
             // Auto Lock Row on Successful Verification
             setLockedIds(prev => new Set(prev).add(verifyingMember.employee_id));
 
@@ -464,7 +464,7 @@ export default function StaffAttendancePage() {
     };
 
     // Filter by search query
-    const filteredStaff = staff.filter(e => 
+    const filteredStaff = staff.filter(e =>
         `${e.first_name} ${e.last_name} ${e.designation} ${e.department_name}`
             .toLowerCase()
             .includes(searchQuery.toLowerCase())
@@ -488,11 +488,11 @@ export default function StaffAttendancePage() {
     const pct = total ? Math.round((verifiedCount / total) * 100) : 0;
     const unlockedCount = staff.filter(e => !lockedIds.has(e.employee_id)).length;
 
-    const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-PK', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
+    const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-PK', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
     });
 
     const formatTimeDisplay = (timeStr: string | null) => {
@@ -761,7 +761,7 @@ export default function StaffAttendancePage() {
                     {/* DEPARTMENT GROUPED TABLES */}
                     {Object.entries(groups).map(([deptName, members], gi) => (
                         <div key={deptName} className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 animate__animated animate__fadeInUp" style={{ animationDelay: `${gi * 0.05}s` }}>
-                            
+
                             {/* Card Header */}
                             <div className="card-header border-0 d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 px-md-4 py-3"
                                 style={{ background: 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))' }}>
@@ -812,12 +812,12 @@ export default function StaffAttendancePage() {
                                             const timeRecorded = sessionType === 'in' ? e.check_in_time : e.check_out_time;
 
                                             // Row Styling: Verified & Locked rows turn elegant grey
-                                            const rowBg = holidayInfo?.is_holiday 
-                                                ? '#fbf8ff' 
+                                            const rowBg = holidayInfo?.is_holiday
+                                                ? '#fbf8ff'
                                                 : isSessionVerified || isLocked
-                                                    ? '#f8fafc' 
-                                                    : curStatus === 'Absent' 
-                                                        ? '#fff8f8' 
+                                                    ? '#f8fafc'
+                                                    : curStatus === 'Absent'
+                                                        ? '#fff8f8'
                                                         : curStatus === 'Late'
                                                             ? '#fffdfa'
                                                             : '#ffffff';
@@ -827,13 +827,12 @@ export default function StaffAttendancePage() {
                                                     key={e.employee_id}
                                                     style={{
                                                         background: rowBg,
-                                                        borderLeft: `4px solid ${
-                                                            holidayInfo?.is_holiday 
-                                                                ? '#7c3aed' 
-                                                                : isSessionVerified 
-                                                                    ? '#0d9e6e' 
+                                                        borderLeft: `4px solid ${holidayInfo?.is_holiday
+                                                                ? '#7c3aed'
+                                                                : isSessionVerified
+                                                                    ? '#0d9e6e'
                                                                     : S_COLOR[curStatus]
-                                                        }`,
+                                                            }`,
                                                         transition: 'all 0.2s ease',
                                                         opacity: (isSessionVerified && isLocked) ? 0.92 : 1
                                                     }}
@@ -850,8 +849,8 @@ export default function StaffAttendancePage() {
                                                                 style={{
                                                                     width: 36,
                                                                     height: 36,
-                                                                    background: isSessionVerified 
-                                                                        ? 'linear-gradient(135deg, #0d9e6e, #059669)' 
+                                                                    background: isSessionVerified
+                                                                        ? 'linear-gradient(135deg, #0d9e6e, #059669)'
                                                                         : 'linear-gradient(135deg, var(--primary-dark), var(--primary-teal))',
                                                                     fontSize: '0.76rem',
                                                                     flexShrink: 0
@@ -988,9 +987,8 @@ export default function StaffAttendancePage() {
                                                             onClick={() => !holidayInfo?.is_holiday && toggleLock(e.employee_id)}
                                                             disabled={holidayInfo?.is_holiday}
                                                             title={holidayInfo?.is_holiday ? 'Holiday Locked' : isLocked ? 'Locked (Click to unlock)' : 'Unlocked'}
-                                                            className={`btn btn-sm d-inline-flex align-items-center justify-content-center rounded-3 ${
-                                                                isLocked ? 'btn-success text-white' : 'btn-light border text-muted'
-                                                            }`}
+                                                            className={`btn btn-sm d-inline-flex align-items-center justify-content-center rounded-3 ${isLocked ? 'btn-success text-white' : 'btn-light border text-muted'
+                                                                }`}
                                                             style={{ width: 32, height: 32, padding: 0 }}
                                                         >
                                                             <i className={`bi ${isLocked ? 'bi-lock-fill' : 'bi-unlock'}`} />
@@ -1074,7 +1072,7 @@ export default function StaffAttendancePage() {
                             {/* Modal Body */}
                             <div className="modal-body p-4 text-center">
 
-                                {/* Mode Switcher — shown only when both modes allowed */}
+                                {/* Mode Switcher shown only when both modes allowed */}
                                 {settings.staff_biometric_mode === 'both' && (
                                     <div className="btn-group w-100 mb-4 p-1 bg-light rounded-3 border">
                                         <button
@@ -1098,7 +1096,7 @@ export default function StaffAttendancePage() {
                                 {/* 
                                     IMPORTANT: The <video> element is ALWAYS rendered (never conditionally removed)
                                     so that videoRef.current is always available for captureMultiFrameDescriptor.
-                                    In 'fingerprint' mode it is hidden via CSS — the camera still runs and captures.
+                                    In 'fingerprint' mode it is hidden via CSS the camera still runs and captures.
                                 */}
                                 <div
                                     className="position-relative mx-auto rounded-4 overflow-hidden mb-3 shadow-sm border"
@@ -1120,7 +1118,7 @@ export default function StaffAttendancePage() {
                                         className="w-100 h-100"
                                         style={{ objectFit: 'cover' }}
                                     />
-                                    {/* Scanner HUD Overlay — only visible in retina_face mode */}
+                                    {/* Scanner HUD Overlay only visible in retina_face mode */}
                                     {scanMode === 'retina_face' && (
                                         <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center"
                                             style={{ border: '3px solid #22c55e', pointerEvents: 'none' }}>
@@ -1132,7 +1130,7 @@ export default function StaffAttendancePage() {
                                     )}
                                 </div>
 
-                                {/* Fingerprint mode UI — shown on top when in fingerprint mode */}
+                                {/* Fingerprint mode UI shown on top when in fingerprint mode */}
                                 {scanMode === 'fingerprint' && (
                                     <div className="py-4 my-2">
                                         <div
