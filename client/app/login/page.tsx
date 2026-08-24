@@ -63,62 +63,6 @@ export default function LoginPage() {
         setBioLoggingIn(false);
     };
 
-    const handleNativeFingerprintLogin = async () => {
-        setBioLoggingIn(true);
-        setError('');
-        try {
-            if (Capacitor.isNativePlatform()) {
-                const avail = await NativeBiometric.isAvailable();
-                if (avail.isAvailable) {
-                    await NativeBiometric.verifyIdentity({
-                        reason: 'Scan your fingerprint to log in to Falcon School System',
-                        title: 'Biometric Sign In',
-                        subtitle: 'Confirm your fingerprint',
-                        description: 'Touch device fingerprint sensor to verify identity',
-                        negativeButtonText: 'Cancel'
-                    });
-
-                    // Hardware identity verified!
-                    const userToAuth = username.trim() || undefined;
-                    const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: userToAuth, rp_id: getCurrentHost() })
-                    });
-                    const optData = await optRes.json();
-                    if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric login');
-
-                    const { challengeId } = optData;
-                    const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            challengeId,
-                            username: userToAuth,
-                            credential: {
-                                id: 'native_fp_login_' + Date.now(),
-                                response: { transports: ['internal'] }
-                            }
-                        })
-                    });
-
-                    const verifyData = await verifyRes.json();
-                    if (!verifyRes.ok) throw new Error(verifyData.error || verifyData.message || 'Fingerprint verification failed');
-
-                    closeLoginCameraModal();
-                    loginWithUserData(verifyData);
-                    router.replace('/');
-                    return;
-                }
-            }
-        } catch (err: any) {
-            console.warn('Native fingerprint error:', err);
-            setError(err.message || 'Fingerprint authentication cancelled or failed.');
-        } finally {
-            setBioLoggingIn(false);
-        }
-    };
-
     const handleConfirmCameraLogin = async () => {
         setCameraScanning(true);
         setError('');
@@ -173,6 +117,74 @@ export default function LoginPage() {
         } catch (err: any) {
             setError(err.message || 'Eye Retina verification failed');
             closeLoginCameraModal();
+        }
+    };
+
+    const handleNativeFingerprintLogin = async () => {
+        if (typeof window === 'undefined') return;
+
+        const userToAuth = username.trim();
+        if (!userToAuth) {
+            setError('Please enter your username first to authenticate with Fingerprint');
+            return;
+        }
+
+        setBioLoggingIn(true);
+        setError('');
+
+        try {
+            // 1. Prompt Native Biometric on Device
+            await NativeBiometric.verifyIdentity({
+                reason: 'Scan your fingerprint to sign in',
+                title: 'Fingerprint Biometric Sign-In',
+                subtitle: `Account: @${userToAuth}`,
+                description: 'Touch the device fingerprint sensor to verify identity',
+                negativeButtonText: 'Cancel',
+                maxAttempts: 3
+            });
+
+            // 2. Fetch challenge from server
+            const currentHost = getCurrentHost();
+            const optRes = await fetch(`${API_URL}/auth/webauthn/login-options`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: userToAuth, rp_id: currentHost })
+            });
+            const optData = await optRes.json();
+            if (!optRes.ok) throw new Error(optData.error || 'Failed to initialize biometric challenge');
+
+            const { challengeId, options } = optData;
+
+            // 3. Verify on server
+            const verifyRes = await fetch(`${API_URL}/auth/webauthn/login-verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    challengeId,
+                    username: userToAuth,
+                    credential: {
+                        id: options?.allowCredentials?.[0]?.id || ('native_fp_' + userToAuth),
+                        credential_type: 'fingerprint',
+                        response: {
+                            transports: ['internal']
+                        }
+                    }
+                })
+            });
+
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) {
+                throw new Error(verifyData.error || verifyData.message || 'Biometric authentication failed');
+            }
+
+            closeLoginCameraModal();
+            loginWithUserData(verifyData);
+            router.replace('/');
+        } catch (err: any) {
+            console.warn('Native fingerprint error:', err);
+            setError(err.message || 'Fingerprint verification cancelled or failed');
+        } finally {
+            setBioLoggingIn(false);
         }
     };
 

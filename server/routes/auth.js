@@ -669,16 +669,36 @@ router.post('/webauthn/login-verify', async (req, res) => {
         if (credential.face_descriptor && targetUserId) {
             credQuery += ` WHERE c.user_id = $1 AND c.credential_type = 'retina_face'`;
             credParams = [targetUserId];
-        } else {
+        } else if (targetUserId && (credential.credential_type === 'fingerprint' || credential.type === 'fingerprint')) {
+            credQuery += ` WHERE c.user_id = $1 AND c.credential_type = 'fingerprint'`;
+            credParams = [targetUserId];
+        } else if (credential.id) {
             credQuery += ` WHERE c.credential_id = $1`;
             credParams = [credential.id];
+        } else if (targetUserId) {
+            credQuery += ` WHERE c.user_id = $1`;
+            credParams = [targetUserId];
         }
 
-        const credRes = await pool.query(credQuery, credParams);
+        let credRes = await pool.query(credQuery, credParams);
+
+        // Fallback: If not found by exact query but username/targetUserId is provided, find any enrolled biometric for this user
+        if (credRes.rows.length === 0 && targetUserId) {
+            credRes = await pool.query(`
+                SELECT c.*, u.id as u_id, u.username, u.full_name, u.email, u.is_active, u.role_id,
+                       r.role_name, r.role_level, r.dashboard_access
+                FROM user_webauthn_credentials c
+                JOIN app_users u ON c.user_id = u.id
+                LEFT JOIN app_roles r ON u.role_id = r.id
+                WHERE c.user_id = $1
+                ORDER BY c.created_at DESC
+                LIMIT 1
+            `, [targetUserId]);
+        }
 
         if (credRes.rows.length === 0) {
             if (targetUserId) {
-                return res.status(401).json({ error: 'No Eye Retina / Biometric registered for this user. Please register first.' });
+                return res.status(401).json({ error: 'No Biometric credential registered for this user. Please register first in Profile.' });
             }
             return res.status(401).json({ error: 'Biometric credential not recognized on this account.' });
         }
