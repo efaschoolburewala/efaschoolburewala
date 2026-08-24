@@ -297,30 +297,45 @@ export default function StaffAttendancePage() {
             // For 'retina_face' mode: matched against credential_type = 'retina_face'.
             setScanProgress(30);
             if (videoRef.current) {
-                biometricDescriptor = await captureMultiFrameDescriptor(videoRef.current, 6);
+                biometricDescriptor = await captureMultiFrameDescriptor(videoRef.current, 2);
             }
 
             if (!biometricDescriptor || biometricDescriptor.length === 0) {
                 throw new Error('Could not capture biometric data. Ensure your face is clearly visible in the camera and try again.');
             }
 
-            setScanProgress(65);
+            setScanProgress(60);
 
-            // Call Backend Real-Time Verification Endpoint
-            const res = await fetch(`${API}/attendance/staff/verify-biometric`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    employee_id: verifyingMember.employee_id,
-                    date,
-                    session_type: sessionType,
-                    verification_mode: scanMode,
-                    biometric_data: biometricDescriptor,
-                    user_id: user?.id,
-                    manual_override: false
-                })
-            });
+            // Call Backend Real-Time Verification Endpoint with timeout guard
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000);
 
+            let res: Response;
+            try {
+                res = await fetch(`${API}/attendance/staff/verify-biometric`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        employee_id: verifyingMember.employee_id,
+                        date,
+                        session_type: sessionType,
+                        verification_mode: scanMode,
+                        biometric_data: biometricDescriptor,
+                        user_id: user?.id,
+                        manual_override: false
+                    })
+                });
+            } catch (fetchErr: any) {
+                if (fetchErr.name === 'AbortError') {
+                    throw new Error('Verification request timed out. Please check your network and try again.');
+                }
+                throw fetchErr;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+
+            setScanProgress(85);
             const data = await res.json();
 
             if (!res.ok) {

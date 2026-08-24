@@ -150,7 +150,7 @@ export function extractFaceDescriptor(video: HTMLVideoElement | null): number[] 
  */
 export async function captureMultiFrameDescriptor(
     video: HTMLVideoElement | null,
-    frameCount: number = 4
+    frameCount: number = 2
 ): Promise<number[]> {
     if (!video) return [];
 
@@ -160,7 +160,9 @@ export async function captureMultiFrameDescriptor(
         if (vec.length > 0) {
             vectors.push(vec);
         }
-        await new Promise(r => setTimeout(r, 80));
+        if (frameCount > 1 && i < frameCount - 1) {
+            await new Promise(r => setTimeout(r, 30));
+        }
     }
 
     if (vectors.length === 0) return [];
