@@ -105,6 +105,11 @@ export default function ResultsReportPage() {
         <div className="p-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
             <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
                 <div>
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span className="badge rounded-pill bg-light text-dark border">
+                            Academic Year: {years.find(y => String(y.id) === yearId)?.year_name || years.find(y => y.status === 'active')?.year_name || '—'}
+                        </span>
+                    </div>
                     <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-bar-chart-fill me-2" style={{ color: 'var(--accent-orange)' }} />
                         Results Report

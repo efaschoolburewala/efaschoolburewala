@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
+type AcademicYear = { id: number; year_name: string; is_active: boolean; status: string; start_date?: string; end_date?: string };
 type Class = { class_id: number; class_name: string };
 type Section = { section_id: number; section_name: string; class_id: number };
 type Student = {
@@ -12,6 +13,8 @@ type Student = {
 type Summary = { total: number; active: number; inactive: number };
 
 export default function StudentReportPage() {
+    const [years, setYears] = useState<AcademicYear[]>([]);
+    const [academicYearId, setAcademicYearId] = useState<string>('');
     const [classes, setClasses] = useState<Class[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
     const [filteredSections, setFilteredSections] = useState<Section[]>([]);
@@ -24,6 +27,18 @@ export default function StudentReportPage() {
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        // Fetch academic years
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`)
+            .then(r => r.json())
+            .then((data: AcademicYear[]) => {
+                if (Array.isArray(data) && data.length > 0) {
+                    setYears(data);
+                    const active = data.find(y => y.is_active || y.status === 'active') || data[0];
+                    if (active) setAcademicYearId(String(active.id));
+                }
+            })
+            .catch(console.error);
+
         fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
         fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
     }, []);
@@ -38,6 +53,7 @@ export default function StudentReportPage() {
         setLoading(true); setError('');
         try {
             const params = new URLSearchParams();
+            if (academicYearId) params.append('academic_year_id', academicYearId);
             if (classId) params.append('class_id', classId);
             if (sectionId) params.append('section_id', sectionId);
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/students?${params}`);
@@ -82,6 +98,11 @@ export default function StudentReportPage() {
             {/* Header */}
             <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
                 <div>
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span className="badge rounded-pill bg-light text-dark border">
+                            Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
+                        </span>
+                    </div>
                     <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-people-fill me-2" style={{ color: 'var(--accent-orange)' }} />
                         Student Report
@@ -97,21 +118,33 @@ export default function StudentReportPage() {
                 </div>
                 <div className="card-body">
                     <div className="row g-3 align-items-end">
-                        <div className="col-12 col-md-3">
+                        <div className="col-12 col-sm-6 col-md-3">
+                            <label className="form-label fw-semibold small mb-1">
+                                <i className="bi bi-mortarboard-fill me-1 text-primary"></i>Academic Year
+                            </label>
+                            <select className="form-select form-select-sm" value={academicYearId} onChange={e => setAcademicYearId(e.target.value)}>
+                                {years.map(y => (
+                                    <option key={y.id} value={y.id}>
+                                        {y.year_name} {y.is_active || y.status === 'active' ? '(Active)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-12 col-sm-6 col-md-3">
                             <label className="form-label fw-semibold small mb-1">Class</label>
                             <select className="form-select form-select-sm" value={classId} onChange={e => setClassId(e.target.value)}>
                                 <option value="">All Classes</option>
                                 {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-12 col-md-3">
+                        <div className="col-12 col-sm-6 col-md-3">
                             <label className="form-label fw-semibold small mb-1">Section</label>
                             <select className="form-select form-select-sm" value={sectionId} onChange={e => setSectionId(e.target.value)} disabled={!classId}>
                                 <option value="">All Sections</option>
                                 {filteredSections.map(s => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
                             </select>
                         </div>
-                        <div className="col-12 col-md-4 d-flex gap-2">
+                        <div className="col-12 col-sm-6 col-md-3 d-flex gap-2">
                             <button className="btn btn-sm fw-bold px-4 flex-grow-1" style={{ background: 'var(--primary-teal)', color: '#fff', height: 34 }} onClick={loadReport} disabled={loading}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-search me-2" />}
                                 Generate

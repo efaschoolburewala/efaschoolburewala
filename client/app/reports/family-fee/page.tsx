@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
+type AcademicYear = { id: number; year_name: string; is_active: boolean; status: string; start_date?: string; end_date?: string };
 type Class = { class_id: number; class_name: string };
 type Section = { section_id: number; section_name: string; class_id: number };
 type FeeHead = { head_id: number; head_name: string };
@@ -25,6 +26,8 @@ interface AvailableMonth {
 
 export default function FamilyFeeReportPage() {
     const now = new Date();
+    const [years, setYears] = useState<AcademicYear[]>([]);
+    const [academicYearId, setAcademicYearId] = useState<string>('');
     const [classes, setClasses] = useState<Class[]>([]);
     const [sections, setSections] = useState<Section[]>([]);
     const [filteredSections, setFilteredSections] = useState<Section[]>([]);
@@ -51,14 +54,31 @@ export default function FamilyFeeReportPage() {
 
     // Load dropdowns on mount
     useEffect(() => {
+        // Fetch academic years
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`)
+            .then(r => r.json())
+            .then((data: AcademicYear[]) => {
+                if (Array.isArray(data) && data.length > 0) {
+                    setYears(data);
+                    const active = data.find(y => y.is_active || y.status === 'active') || data[0];
+                    if (active) setAcademicYearId(String(active.id));
+                }
+            })
+            .catch(console.error);
+
         fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
         fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
         fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/fee-heads`).then(r => r.json()).then(setFeeHeads).catch(console.error);
     }, []);
 
     useEffect(() => {
+        if (!academicYearId) return;
         setLoadingMonths(true);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?year=${year}`)
+        const selYear = years.find(y => String(y.id) === academicYearId);
+        const yParam = selYear?.start_date ? new Date(selYear.start_date).getFullYear().toString() : year;
+        if (yParam) setYear(yParam);
+
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?academic_year_id=${academicYearId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.months) {
@@ -84,7 +104,7 @@ export default function FamilyFeeReportPage() {
                 setMonth('');
             })
             .finally(() => setLoadingMonths(false));
-    }, [year]);
+    }, [academicYearId, years]);
 
     useEffect(() => {
         setSectionId('');
@@ -99,6 +119,7 @@ export default function FamilyFeeReportPage() {
         setLoading(true); setError('');
         try {
             const params = new URLSearchParams({ month, year });
+            if (academicYearId) params.append('academic_year_id', academicYearId);
             if (classId) params.append('class_id', classId);
             if (sectionId) params.append('section_id', sectionId);
             if (statusFilter) params.append('status', statusFilter);
@@ -278,6 +299,11 @@ export default function FamilyFeeReportPage() {
             {/* ── Page Header ── */}
             <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
                 <div>
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span className="badge rounded-pill bg-light text-dark border">
+                            Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
+                        </span>
+                    </div>
                     <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-wallet2 me-2" style={{ color: 'var(--accent-orange)' }} />
                         Family Fee Report
@@ -293,6 +319,22 @@ export default function FamilyFeeReportPage() {
                 </div>
                 <div className="card-body">
                     <div className="row g-3 align-items-end">
+                        <div className="col-12 col-sm-6 col-md-3">
+                            <label className="form-label fw-semibold small mb-1">
+                                <i className="bi bi-mortarboard-fill me-1 text-primary"></i>Academic Year
+                            </label>
+                            <select
+                                className="form-select form-select-sm"
+                                value={academicYearId}
+                                onChange={e => setAcademicYearId(e.target.value)}
+                            >
+                                {years.map(y => (
+                                    <option key={y.id} value={y.id}>
+                                        {y.year_name} {y.is_active || y.status === 'active' ? '(Active)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="col-6 col-md-2">
                             <label className="form-label fw-semibold small mb-1">Month <span className="text-danger">*</span></label>
                             <select className="form-select form-select-sm"
@@ -306,12 +348,6 @@ export default function FamilyFeeReportPage() {
                                 ) : (
                                     <option value="">{loadingMonths ? 'Loading...' : 'No Fee Slips Created'}</option>
                                 )}
-                            </select>
-                        </div>
-                        <div className="col-6 col-md-1">
-                            <label className="form-label fw-semibold small mb-1">Year <span className="text-danger">*</span></label>
-                            <select className="form-select form-select-sm" value={year} onChange={e => setYear(e.target.value)}>
-                                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
                         <div className="col-6 col-md-2">

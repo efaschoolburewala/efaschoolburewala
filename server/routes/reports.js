@@ -116,7 +116,7 @@ router.get('/results', async (req, res) => {
 // ─── 3. Expense Report ───────────────────────────────────────────────────────
 router.get('/expenses', async (req, res) => {
     try {
-        const { from_date, to_date, category_id } = req.query;
+        const { from_date, to_date, category_id, academic_year_id } = req.query;
 
         let query = `
             SELECT
@@ -127,7 +127,8 @@ router.get('/expenses', async (req, res) => {
                 e.payment_method,
                 e.paid_to,
                 e.status,
-                ec.category_name
+                ec.category_name,
+                e.academic_year_id
             FROM expenses e
             LEFT JOIN expense_categories ec ON e.category_id = ec.category_id
             WHERE 1=1
@@ -138,6 +139,10 @@ router.get('/expenses', async (req, res) => {
         if (from_date) { query += ` AND e.expense_date >= $${idx++}`; params.push(from_date); }
         if (to_date)   { query += ` AND e.expense_date <= $${idx++}`; params.push(to_date); }
         if (category_id) { query += ` AND e.category_id = $${idx++}`; params.push(category_id); }
+        if (academic_year_id && academic_year_id !== 'all') {
+            query += ` AND (e.academic_year_id = $${idx++} OR e.academic_year_id IS NULL)`;
+            params.push(parseInt(academic_year_id, 10));
+        }
 
         query += ` ORDER BY e.expense_date DESC`;
 
@@ -187,17 +192,11 @@ router.get('/expense-categories', async (req, res) => {
 // ─── 6. Family Fee Report (monthly, head-wise & collective) ──────────────────
 router.get('/family-fee', async (req, res) => {
     try {
-        const { month, year, class_id, section_id, status, head_id } = req.query;
+        const { month, year, class_id, section_id, status, head_id, academic_year_id } = req.query;
 
-        const monthArr = month.toString().split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
-        const yearNum = parseInt(year.toString(), 10);
+        const monthArr = month ? month.toString().split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n)) : [];
+        const yearNum = year ? parseInt(year.toString(), 10) : null;
 
-        if (monthArr.length === 0) {
-            return res.status(400).json({ error: 'valid month is required' });
-        }
-
-        // Get slips with student/family info
-        // If head_id filter applied, only return slips that have that fee head
         let slipQuery = `
             SELECT DISTINCT
                 ms.slip_id,
@@ -209,6 +208,7 @@ router.get('/family-fee', async (req, res) => {
                 ms.paid_amount,
                 ms.status,
                 ms.due_date,
+                ms.academic_year_id,
                 CONCAT(s.first_name, ' ', s.last_name) AS student_name,
                 s.admission_no,
                 f.family_name,
@@ -219,12 +219,23 @@ router.get('/family-fee', async (req, res) => {
             LEFT JOIN families f ON ms.family_id = f.family_id
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
-            WHERE (ms.month = ANY($1::int[]) OR (ms.months_list IS NOT NULL AND ms.months_list && $1::int[])) AND ms.year = $2
-              AND (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
+            WHERE (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
         `;
-        const params = [monthArr, yearNum];
-        let idx = 3;
+        const params = [];
+        let idx = 1;
 
+        if (monthArr.length > 0) {
+            slipQuery += ` AND (ms.month = ANY($${idx++}::int[]) OR (ms.months_list IS NOT NULL AND ms.months_list && $${idx - 1}::int[]))`;
+            params.push(monthArr);
+        }
+        if (yearNum) {
+            slipQuery += ` AND ms.year = $${idx++}`;
+            params.push(yearNum);
+        }
+        if (academic_year_id && academic_year_id !== 'all') {
+            slipQuery += ` AND (ms.academic_year_id = $${idx++} OR ms.academic_year_id IS NULL)`;
+            params.push(parseInt(academic_year_id, 10));
+        }
         if (class_id)  { slipQuery += ` AND s.class_id = $${idx++}`;   params.push(class_id); }
         if (section_id){ slipQuery += ` AND s.section_id = $${idx++}`; params.push(section_id); }
         if (status)    { slipQuery += ` AND ms.status = $${idx++}`;    params.push(status); }
@@ -293,7 +304,7 @@ router.get('/family-fee', async (req, res) => {
 // ─── 7. Admission Fee Report ────────────────────────────────────────────────
 router.get('/admission-fee', async (req, res) => {
     try {
-        const { from_date, to_date, status } = req.query;
+        const { from_date, to_date, status, academic_year_id } = req.query;
 
         let query = `
             SELECT
@@ -304,6 +315,7 @@ router.get('/admission-fee', async (req, res) => {
                 (afl.total_amount - afl.paid_amount - COALESCE(afl.discount_amount, 0)) AS remaining_amount,
                 COALESCE(afl.discount_amount, 0) AS discount_amount,
                 afl.status,
+                afl.academic_year_id,
                 s.admission_no,
                 CONCAT(s.first_name, ' ', s.last_name) AS student_name,      
                 s.admission_date,
@@ -321,6 +333,10 @@ router.get('/admission-fee', async (req, res) => {
         if (from_date) { query += ` AND s.admission_date >= $${idx++}`; params.push(from_date); }
         if (to_date)   { query += ` AND s.admission_date <= $${idx++}`; params.push(to_date); }
         if (status)    { query += ` AND afl.status = $${idx++}`; params.push(status); }
+        if (academic_year_id && academic_year_id !== 'all') {
+            query += ` AND (afl.academic_year_id = $${idx++} OR afl.academic_year_id IS NULL)`;
+            params.push(parseInt(academic_year_id, 10));
+        }
 
         query += ` ORDER BY s.admission_date DESC`;
 
@@ -371,7 +387,7 @@ router.get('/admission-fee', async (req, res) => {
 // ─── 8. Monthly Tuition & Financial Summary Report ────────────────────────
 router.get('/monthly-tuition', async (req, res) => {
     try {
-        const { month, year, class_id, section_id, status } = req.query;
+        const { month, year, class_id, section_id, status, academic_year_id } = req.query;
 
         if (!month || !year) {
             return res.status(400).json({ error: 'month and year are required' });
@@ -392,6 +408,7 @@ router.get('/monthly-tuition', async (req, res) => {
                 ms.family_id,
                 ms.month,
                 ms.year,
+                ms.academic_year_id,
                 ms.total_amount AS slip_total_amount,
                 ms.paid_amount AS slip_paid_amount,
                 ms.status AS slip_status,
@@ -430,6 +447,11 @@ router.get('/monthly-tuition', async (req, res) => {
         const params = [monthArr, yearNum];
         let idx = 3;
 
+        if (academic_year_id && academic_year_id !== 'all') {
+            slipQuery += ` AND (ms.academic_year_id = $${idx++} OR ms.academic_year_id IS NULL)`;
+            params.push(parseInt(academic_year_id.toString(), 10));
+        }
+
         if (class_id && class_id !== '') {
             slipQuery += ` AND s.class_id = $${idx++}`;
             params.push(parseInt(class_id.toString(), 10));
@@ -464,14 +486,19 @@ router.get('/monthly-tuition', async (req, res) => {
         }
 
         // 2. Calculate Expenses for selected Month & Year
-        const expenseQuery = `
+        let expenseQuery = `
             SELECT COALESCE(SUM(amount), 0) as total_expense
             FROM expenses
             WHERE EXTRACT(MONTH FROM expense_date) = ANY($1::int[]) 
               AND EXTRACT(YEAR FROM expense_date) = $2
               AND (status IS NULL OR LOWER(status) != 'cancelled')
         `;
-        const expenseRes = await pool.query(expenseQuery, [monthArr, yearNum]);
+        const expParams = [monthArr, yearNum];
+        if (academic_year_id && academic_year_id !== 'all') {
+            expenseQuery += ` AND (academic_year_id = $3 OR academic_year_id IS NULL)`;
+            expParams.push(parseInt(academic_year_id.toString(), 10));
+        }
+        const expenseRes = await pool.query(expenseQuery, expParams);
         const totalExpenses = parseFloat(expenseRes.rows[0]?.total_expense || 0);
 
         // 3. Compute Financial Summary Statistics

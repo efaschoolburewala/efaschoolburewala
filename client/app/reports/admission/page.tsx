@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
+type AcademicYear = { id: number; year_name: string; is_active: boolean; status: string; start_date?: string; end_date?: string };
+
 type AdmissionFee = {
     ledger_id: number;
     student_id: number;
@@ -34,6 +36,8 @@ type Summary = {
 };
 
 export default function AdmissionFeeReportPage() {
+    const [years, setYears] = useState<AcademicYear[]>([]);
+    const [academicYearId, setAcademicYearId] = useState<string>('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [status, setStatus] = useState('');
@@ -51,18 +55,40 @@ export default function AdmissionFeeReportPage() {
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Default: Current Year Start to Current Date
-        const now = new Date();
-        const y = now.getFullYear();
-        setFromDate(`${y}-01-01`);
-        setToDate(`${y}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
+        // Fetch academic years
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`)
+            .then(r => r.json())
+            .then((data: AcademicYear[]) => {
+                if (Array.isArray(data) && data.length > 0) {
+                    setYears(data);
+                    const active = data.find(y => y.is_active || y.status === 'active') || data[0];
+                    if (active) {
+                        setAcademicYearId(String(active.id));
+                        if (active.start_date && active.end_date) {
+                            setFromDate(active.start_date.slice(0, 10));
+                            setToDate(active.end_date.slice(0, 10));
+                        }
+                    }
+                }
+            })
+            .catch(console.error);
     }, []);
+
+    const handleYearChange = (id: string) => {
+        setAcademicYearId(id);
+        const sel = years.find(y => String(y.id) === id);
+        if (sel && sel.start_date && sel.end_date) {
+            setFromDate(sel.start_date.slice(0, 10));
+            setToDate(sel.end_date.slice(0, 10));
+        }
+    };
 
     const loadReport = async () => {
         setLoading(true);
         setError('');
         try {
             const params = new URLSearchParams();
+            if (academicYearId) params.append('academic_year_id', academicYearId);
             if (fromDate) params.append('from_date', fromDate);
             if (toDate) params.append('to_date', toDate);
             if (status) params.append('status', status);
@@ -116,6 +142,11 @@ export default function AdmissionFeeReportPage() {
         <div className="p-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
             <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-4">
                 <div>
+                    <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span className="badge rounded-pill bg-light text-dark border">
+                            Academic Year: {years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '—'}
+                        </span>
+                    </div>
                     <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
                         <i className="bi bi-person-lines-fill me-2" style={{ color: 'var(--accent-orange)' }} />
                         Admission Fee Report
@@ -131,14 +162,26 @@ export default function AdmissionFeeReportPage() {
                 <div className="card-body">
                     <div className="row g-3 align-items-end">
                         <div className="col-12 col-sm-6 col-md-3">
-                            <label className="form-label fw-semibold small mb-1">From Date (Admission)</label>
+                            <label className="form-label fw-semibold small mb-1">
+                                <i className="bi bi-mortarboard-fill me-1 text-primary"></i>Academic Year
+                            </label>
+                            <select className="form-select form-select-sm" value={academicYearId} onChange={e => handleYearChange(e.target.value)}>
+                                {years.map(y => (
+                                    <option key={y.id} value={y.id}>
+                                        {y.year_name} {y.is_active || y.status === 'active' ? '(Active)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-12 col-sm-6 col-md-2">
+                            <label className="form-label fw-semibold small mb-1">From Date</label>
                             <input type="date" className="form-control form-control-sm" value={fromDate} onChange={e => setFromDate(e.target.value)} />
                         </div>
-                        <div className="col-12 col-sm-6 col-md-3">
-                            <label className="form-label fw-semibold small mb-1">To Date (Admission)</label>
+                        <div className="col-12 col-sm-6 col-md-2">
+                            <label className="form-label fw-semibold small mb-1">To Date</label>
                             <input type="date" className="form-control form-control-sm" value={toDate} onChange={e => setToDate(e.target.value)} />
                         </div>
-                        <div className="col-12 col-sm-6 col-md-3">
+                        <div className="col-12 col-sm-6 col-md-2">
                             <label className="form-label fw-semibold small mb-1">Status</label>
                             <select className="form-select form-select-sm" value={status} onChange={e => setStatus(e.target.value)}>
                                 <option value="">All Status</option>
@@ -147,8 +190,8 @@ export default function AdmissionFeeReportPage() {
                                 <option value="Partial">Partial</option>
                             </select>
                         </div>
-                        <div className="col-12 col-sm-12 col-md-3 mt-4 mt-md-0 d-flex gap-2">
-                            <button className="btn btn-sm btn-primary w-100" onClick={loadReport} disabled={loading}>
+                        <div className="col-12 col-sm-12 col-md-3 d-flex gap-2">
+                            <button className="btn btn-sm btn-primary flex-grow-1" onClick={loadReport} disabled={loading}>
                                 {loading ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="bi bi-search me-2" />}
                                 Generate
                             </button>
