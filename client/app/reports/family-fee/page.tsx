@@ -91,11 +91,40 @@ interface AvailableMonth {
     months: number[];
 }
 
-const PALETTE = [
-    '#0f766e', '#f59e0b', '#6366f1', '#10b981', '#f43f5e',
-    '#06b6d4', '#8b5cf6', '#3b82f6', '#ec4899', '#14b8a6',
-    '#84cc16', '#e11d48'
+const BRAND = {
+    dark: '#233D4D',
+    teal: '#215E61',
+    orange: '#FE7F2D',
+    green: '#16a34a',
+    red: '#dc2626',
+    amber: '#d97706',
+    purple: '#7c3aed',
+    indigo: '#4f46e5',
+    cyan: '#0891b2',
+    pink: '#db2777'
+};
+
+const CHART_PALETTE = [
+    BRAND.teal,
+    BRAND.orange,
+    BRAND.dark,
+    BRAND.indigo,
+    BRAND.green,
+    BRAND.amber,
+    BRAND.purple,
+    BRAND.cyan,
+    BRAND.pink
 ];
+
+function fmtPKR(n: number) {
+    return 'Rs. ' + Number(n || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+}
+
+function fmtShort(n: number) {
+    if (n >= 1_000_000) return 'Rs. ' + (n / 1_000_000).toFixed(1) + 'M';
+    if (n >= 1_000) return 'Rs. ' + (n / 1_000).toFixed(0) + 'k';
+    return 'Rs. ' + n;
+}
 
 export default function FamilyFeeReportPage() {
     const now = new Date();
@@ -117,7 +146,7 @@ export default function FamilyFeeReportPage() {
     const [asOfDate, setAsOfDate] = useState('');
     const [searchKeyword, setSearchKeyword] = useState('');
 
-    const [timelineView, setTimelineView] = useState<'daily' | 'weekly'>('daily');
+    const [timelineView, setTimelineView] = useState<'cumulative' | 'daily' | 'weekly'>('cumulative');
 
     const [slips, setSlips] = useState<FeeSlip[]>([]);
     const [headSummary, setHeadSummary] = useState<HeadSummary[]>([]);
@@ -267,9 +296,9 @@ export default function FamilyFeeReportPage() {
     const activeYearName = years.find(y => String(y.id) === academicYearId)?.year_name || years.find(y => y.is_active)?.year_name || '';
 
     const statusBadge = (s: string) => {
-        if (s === 'paid') return { bg: '#198754', label: 'Paid' };
-        if (s === 'partial') return { bg: '#fd7e14', label: 'Partial' };
-        return { bg: '#dc3545', label: 'Unpaid' };
+        if (s === 'paid') return { bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', label: 'Paid' };
+        if (s === 'partial') return { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', label: 'Partial' };
+        return { bg: '#fee2e2', text: '#b91c1c', border: '#fca5a5', label: 'Unpaid' };
     };
 
     const headTotals: Record<string, number> = {};
@@ -307,26 +336,25 @@ export default function FamilyFeeReportPage() {
         if (active && payload && payload.length) {
             const data: HeadSummary = payload[0].payload;
             return (
-                <div className="card shadow-lg border-0 p-2.5 rounded-3" style={{ background: '#1e293b', color: '#fff', fontSize: '11.5px', minWidth: 190 }}>
-                    <div className="fw-bold mb-1 border-bottom pb-1 text-info d-flex justify-content-between align-items-center">
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '10px 16px', boxShadow: '0 10px 28px rgba(0,0,0,0.12)', minWidth: 200 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
                         <span>{data.head_name}</span>
-                        <span className="badge bg-secondary" style={{ fontSize: 9 }}>{data.percentage}%</span>
+                        <span style={{ color: BRAND.orange }}>{data.percentage}%</span>
                     </div>
-                    <div className="d-flex justify-content-between py-0.5">
-                        <span className="text-white-50">Total Billed:</span>
-                        <strong className="text-white">Rs. {data.total.toLocaleString()}</strong>
+                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span>Billed Total:</span>
+                        <strong style={{ color: '#1e293b' }}>{fmtPKR(data.total)}</strong>
                     </div>
-                    <div className="d-flex justify-content-between py-0.5">
-                        <span className="text-success-emphasis">Collected:</span>
-                        <strong className="text-success">Rs. {data.collected.toLocaleString()}</strong>
+                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span>Collected:</span>
+                        <strong style={{ color: BRAND.green }}>{fmtPKR(data.collected)}</strong>
                     </div>
-                    <div className="d-flex justify-content-between py-0.5">
-                        <span className="text-danger-emphasis">Pending Dues:</span>
-                        <strong className="text-danger">Rs. {data.pending.toLocaleString()}</strong>
+                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span>Pending Dues:</span>
+                        <strong style={{ color: BRAND.red }}>{fmtPKR(data.pending)}</strong>
                     </div>
-                    <div className="d-flex justify-content-between pt-1 mt-1 border-top border-secondary text-warning" style={{ fontSize: '10.5px' }}>
-                        <span>Recovery Rate:</span>
-                        <strong>{data.collection_rate}%</strong>
+                    <div style={{ fontSize: 11, color: BRAND.teal, fontWeight: 700, marginTop: 4, borderTop: '1px solid #f1f5f9', paddingTop: 4 }}>
+                        Recovery Rate: {data.collection_rate}%
                     </div>
                 </div>
             );
@@ -338,26 +366,25 @@ export default function FamilyFeeReportPage() {
         if (active && payload && payload.length) {
             const data: TimelinePoint = payload[0].payload;
             return (
-                <div className="card shadow-lg border-0 p-2.5 rounded-3" style={{ background: '#0f172a', color: '#fff', fontSize: '11.5px', minWidth: 210 }}>
-                    <div className="fw-bold mb-1 border-bottom pb-1 text-teal d-flex justify-content-between" style={{ color: '#2dd4bf' }}>
-                        <span><i className="bi bi-calendar-event me-1"></i>{data.date}</span>
-                        <span className="badge bg-dark-subtle text-light" style={{ fontSize: 9 }}>Day {data.day_num}</span>
+                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '10px 16px', boxShadow: '0 10px 28px rgba(0,0,0,0.12)', minWidth: 220 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                        <span><i className="bi bi-calendar-event me-1 text-primary"></i>{data.date}</span>
+                        <span className="badge bg-light text-dark border">Day {data.day_num}</span>
                     </div>
-                    <div className="d-flex justify-content-between py-0.5">
-                        <span className="text-white-50">Day Collected:</span>
-                        <strong style={{ color: '#38bdf8' }}>Rs. {data.daily_collected.toLocaleString()}</strong>
+                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span>Day Inflow:</span>
+                        <strong style={{ color: BRAND.orange }}>{fmtPKR(data.daily_collected)}</strong>
                     </div>
-                    <div className="d-flex justify-content-between py-0.5">
-                        <span className="text-white-50">Cumulative To-Date:</span>
-                        <strong style={{ color: '#4ade80' }}>Rs. {data.cumulative_collected.toLocaleString()}</strong>
+                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span>Cumulative Recovered:</span>
+                        <strong style={{ color: BRAND.green }}>{fmtPKR(data.cumulative_collected)}</strong>
                     </div>
-                    <div className="d-flex justify-content-between py-0.5">
-                        <span className="text-white-50">Remaining Unpaid:</span>
-                        <strong style={{ color: '#f87171' }}>Rs. {data.remaining_dues.toLocaleString()}</strong>
+                    <div style={{ fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span>Remaining Dues:</span>
+                        <strong style={{ color: BRAND.red }}>{fmtPKR(data.remaining_dues)}</strong>
                     </div>
-                    <div className="d-flex justify-content-between pt-1 mt-1 border-top border-secondary" style={{ fontSize: '10.5px', color: '#facc15' }}>
-                        <span>Month Recovery Pace:</span>
-                        <strong>{data.collection_rate}%</strong>
+                    <div style={{ fontSize: 11, color: BRAND.teal, fontWeight: 700, marginTop: 4, borderTop: '1px solid #f1f5f9', paddingTop: 4 }}>
+                        Pace: {data.collection_rate}% of Month Target
                     </div>
                 </div>
             );
@@ -366,503 +393,682 @@ export default function FamilyFeeReportPage() {
     };
 
     return (
-        <div className="p-3 p-md-4" style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
-            <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-4">
-                <div>
-                    <h4 className="mb-1 fw-bold" style={{ color: 'var(--primary-dark)' }}>
-                        <i className="bi bi-wallet2 me-2" style={{ color: 'var(--accent-orange)' }} />
-                        Family Fee &amp; Head Analytics Report
-                    </h4>
-                    <div className="text-muted small">
-                        Fee collection head-wise per student, interactive recovery charts &amp; daily revenue velocity
-                    </div>
-                </div>
-                <div>
-                    <span className="badge rounded-pill bg-light text-dark border px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 600 }}>
-                        <i className="bi bi-mortarboard-fill text-primary"></i>
-                        Academic Year: {activeYearName || '—'}
-                    </span>
-                </div>
-            </div>
-
-            <div className="card border-0 shadow-sm mb-4 rounded-3" style={{ background: '#ffffff', borderLeft: '4px solid var(--primary-teal)' }}>
-                <div className="card-header bg-white border-bottom py-2.5 d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0 fw-bold"><i className="bi bi-funnel me-2 text-primary" />Analytics Filters</h6>
-                    {headId && (
-                        <span className="badge bg-warning text-dark px-2.5 py-1 rounded-pill" style={{ fontSize: '11px' }}>
-                            <i className="bi bi-filter-circle-fill me-1"></i>
-                            Filtered by: {feeHeads.find(h => String(h.head_id) === headId)?.head_name}
-                            <button className="btn-close ms-2" style={{ fontSize: '8px' }} onClick={() => setHeadId('')}></button>
-                        </span>
-                    )}
-                </div>
-                <div className="card-body p-3">
-                    <div className="row g-2 g-md-3 align-items-end">
-                        <div className="col-12 col-sm-6 col-md-2">
-                            <label className="form-label fw-semibold small mb-1" style={{ fontSize: '11px' }}>
-                                <i className="bi bi-mortarboard me-1 text-primary"></i>Academic Year
-                            </label>
-                            <select
-                                className="form-select form-select-sm fw-bold border-1"
-                                value={academicYearId}
-                                onChange={e => setAcademicYearId(e.target.value)}
-                            >
-                                {years.map(y => (
-                                    <option key={y.id} value={y.id}>
-                                        {y.year_name} {y.is_active || y.status === 'active' ? '(Active)' : ''}
-                                    </option>
-                                ))}
-                            </select>
+        <div style={{ minHeight: '100vh', background: '#f4f7f6', padding: '0 0 48px' }}>
+            <div style={{
+                background: 'linear-gradient(135deg, #1e3644 0%, #195053 100%)',
+                padding: '24px 28px',
+                borderRadius: '0 0 24px 24px',
+                boxShadow: '0 6px 20px rgba(33,94,97,0.18)',
+                position: 'relative',
+                color: '#fff',
+                marginBottom: 24
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{
+                            width: 50, height: 50, borderRadius: 14,
+                            background: 'rgba(255,255,255,0.15)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: '1.5px solid rgba(255,255,255,0.25)',
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.15)'
+                        }}>
+                            <i className="bi bi-wallet2" style={{ fontSize: 24, color: BRAND.orange }} />
                         </div>
-                        <div className="col-6 col-sm-4 col-md-2">
-                            <label className="form-label fw-semibold small mb-1" style={{ fontSize: '11px' }}>
-                                <i className="bi bi-calendar3 me-1 text-primary"></i>Month <span className="text-danger">*</span>
-                            </label>
-                            <select className="form-select form-select-sm"
-                                value={month}
-                                onChange={e => setMonth(e.target.value)}
-                                disabled={availableMonths.length === 0 || loadingMonths}>
-                                {availableMonths.length > 0 ? (
-                                    availableMonths.map(m => (
-                                        <option key={m.value} value={m.value}>{m.label}</option>
-                                    ))
-                                ) : (
-                                    <option value="">{loadingMonths ? 'Loading...' : 'No Fee Slips Created'}</option>
-                                )}
-                            </select>
-                        </div>
-                        <div className="col-6 col-sm-4 col-md-2">
-                            <label className="form-label fw-semibold small mb-1 d-flex justify-content-between align-items-center" style={{ fontSize: '11px' }}>
-                                <span><i className="bi bi-clock-history me-1 text-primary"></i>As of Date</span>
-                                {asOfDate && <span className="badge bg-light text-danger p-0" style={{ cursor: 'pointer', fontSize: 9 }} onClick={() => setAsOfDate('')}>Clear</span>}
-                            </label>
-                            <input
-                                type="date"
-                                className="form-control form-control-sm"
-                                value={asOfDate}
-                                min={dateRange.start}
-                                max={dateRange.end}
-                                onChange={e => setAsOfDate(e.target.value)}
-                                title={dateRange.start ? `Must be between ${dateRange.start} and ${dateRange.end}` : ''}
-                            />
-                        </div>
-                        <div className="col-6 col-sm-4 col-md-2">
-                            <label className="form-label fw-semibold small mb-1" style={{ fontSize: '11px' }}>
-                                <i className="bi bi-tags me-1 text-primary"></i>Fee Head
-                            </label>
-                            <select className="form-select form-select-sm fw-semibold" value={headId} onChange={e => setHeadId(e.target.value)}>
-                                <option value="">All Fee Heads</option>
-                                {feeHeads.map(h => <option key={h.head_id} value={h.head_id}>{h.head_name}</option>)}
-                            </select>
-                        </div>
-                        <div className="col-6 col-sm-4 col-md-1.5" style={{ flex: '1 1 120px' }}>
-                            <label className="form-label fw-semibold small mb-1" style={{ fontSize: '11px' }}>Class</label>
-                            <select className="form-select form-select-sm" value={classId} onChange={e => setClassId(e.target.value)}>
-                                <option value="">All</option>
-                                {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
-                            </select>
-                        </div>
-                        <div className="col-6 col-sm-4 col-md-1.5" style={{ flex: '1 1 110px' }}>
-                            <label className="form-label fw-semibold small mb-1" style={{ fontSize: '11px' }}>Section</label>
-                            <select className="form-select form-select-sm" value={sectionId} onChange={e => setSectionId(e.target.value)} disabled={!classId}>
-                                <option value="">All</option>
-                                {filteredSections.map(s => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
-                            </select>
-                        </div>
-                        <div className="col-6 col-sm-4 col-md-1.5" style={{ flex: '1 1 100px' }}>
-                            <label className="form-label fw-semibold small mb-1" style={{ fontSize: '11px' }}>Status</label>
-                            <select className="form-select form-select-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                                <option value="">All</option>
-                                <option value="paid">Paid</option>
-                                <option value="partial">Partial</option>
-                                <option value="unpaid">Unpaid</option>
-                            </select>
-                        </div>
-                        <div className="col-12 col-sm-6 col-md-2 d-flex gap-2">
-                            <button
-                                className="btn btn-sm fw-bold px-3 w-100 shadow-sm"
-                                style={{ background: 'var(--primary-teal)', color: '#fff', height: 34 }}
-                                onClick={loadReport}
-                                disabled={loading}
-                            >
-                                {loading
-                                    ? <span className="spinner-border spinner-border-sm me-1" />
-                                    : <i className="bi bi-search me-1" />}
-                                Generate
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {error && <div className="alert alert-danger py-2"><i className="bi bi-exclamation-triangle me-2" />{error}</div>}
-
-            {!loading && !collective && (
-                <div className="card border-0 shadow-sm">
-                    <div className="card-body text-center py-5 text-muted">
-                        <i className="bi bi-wallet2 fs-1 d-block mb-3 opacity-25" />
-                        <div className="fw-semibold">Select filters and click <strong>Generate</strong> to load reports</div>
-                        <div className="small mt-1 text-muted">Supports head-wise segmentation, recovery velocity curves &amp; daily tracking</div>
-                    </div>
-                </div>
-            )}
-
-            {!loading && collective && slips.length === 0 && (
-                <div className="alert alert-info shadow-sm">
-                    <i className="bi bi-info-circle me-2" />
-                    No fee slips found for <strong>{monthLabel} {year}</strong> with selected filters.
-                </div>
-            )}
-
-            {collective && slips.length > 0 && (
-                <div ref={printRef}>
-                    <div className="card border-0 shadow-sm mb-4" style={{ background: 'linear-gradient(135deg, #1b2e3b 0%, #0f766e 100%)', borderRadius: 12 }}>
-                        <div className="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 py-3 px-3 px-md-4 text-white">
-                            <div>
-                                <div className="d-flex align-items-center gap-2 mb-1">
-                                    <span className="badge px-2.5 py-1 rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 700 }}>
-                                        {selectedHeadInfo ? `FEE HEAD: ${selectedHeadInfo.head_name.toUpperCase()}` : 'ALL FEE HEADS'}
-                                    </span>
-                                    {asOfDate && (
-                                        <span className="badge bg-warning text-dark px-2.5 py-1 rounded-pill" style={{ fontSize: 10, fontWeight: 700 }}>
-                                            <i className="bi bi-pin-angle-fill me-1"></i>POSITION AS OF: {asOfDate}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="fw-bold fs-5 text-white">
-                                    Fee Collection Report — {monthLabel} {year}
-                                    {classLabel && <span className="ms-2 opacity-75 fs-6">| {classLabel}{secLabel && ` › ${secLabel}`}</span>}
-                                </div>
-                                <div className="text-white-50 small mt-0.5">
-                                    {slips.length} student slips tracked • Recovery Rate: <strong>{collective.collection_rate}%</strong>
-                                </div>
+                        <div>
+                            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                                Family Fee &amp; Head Analytics Report
+                            </h1>
+                            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <i className="bi bi-bar-chart-fill" style={{ color: '#5eead4' }} />
+                                Head-wise fee collection, recovery tracking &amp; daily revenue velocity
                             </div>
-                            <div className="d-flex gap-2">
-                                <button className="btn btn-light btn-sm fw-bold px-3 shadow-sm d-flex align-items-center gap-1.5" onClick={handlePrint}>
-                                    <i className="bi bi-printer me-1" /> Print Report
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span className="badge rounded-pill bg-white text-dark px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5" style={{ fontSize: '13px', fontWeight: 700 }}>
+                            <i className="bi bi-mortarboard-fill" style={{ color: BRAND.teal }}></i>
+                            Academic Year: {activeYearName || '—'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div style={{ padding: '0 28px' }}>
+                <div style={{
+                    background: '#fff', borderRadius: 18,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
+                    border: '1px solid #f1f5f9', overflow: 'hidden', marginBottom: 24
+                }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '14px 22px', borderBottom: '1px solid #f1f5f9',
+                        background: 'linear-gradient(135deg, #fafcff 0%, #f8fdf7 100%)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                            <div style={{
+                                width: 28, height: 28, borderRadius: 8, background: 'rgba(254,127,45,0.12)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <i className="bi bi-funnel-fill" style={{ fontSize: 13, color: BRAND.orange }} />
+                            </div>
+                            <span style={{ fontWeight: 700, fontSize: 14, color: '#1a2e3b' }}>Report Filters &amp; Controls</span>
+                        </div>
+                        {headId && (
+                            <span className="badge bg-warning text-dark px-2.5 py-1 rounded-pill" style={{ fontSize: '11px', fontWeight: 600 }}>
+                                Filtered: {feeHeads.find(h => String(h.head_id) === headId)?.head_name}
+                                <button className="btn-close ms-2" style={{ fontSize: '8px' }} onClick={() => setHeadId('')}></button>
+                            </span>
+                        )}
+                    </div>
+                    <div style={{ padding: '18px 22px' }}>
+                        <div className="row g-2 g-md-3 align-items-end">
+                            <div className="col-12 col-sm-6 col-md-2">
+                                <label className="form-label fw-bold text-muted small mb-1" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                    Academic Year
+                                </label>
+                                <select
+                                    className="form-select form-select-sm fw-bold"
+                                    value={academicYearId}
+                                    onChange={e => setAcademicYearId(e.target.value)}
+                                    style={{ borderRadius: 10, borderColor: '#cbd5e1' }}
+                                >
+                                    {years.map(y => (
+                                        <option key={y.id} value={y.id}>
+                                            {y.year_name} {y.is_active || y.status === 'active' ? '(Active)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="col-6 col-sm-4 col-md-2">
+                                <label className="form-label fw-bold text-muted small mb-1" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                    Month <span className="text-danger">*</span>
+                                </label>
+                                <select className="form-select form-select-sm fw-semibold"
+                                    value={month}
+                                    onChange={e => setMonth(e.target.value)}
+                                    disabled={availableMonths.length === 0 || loadingMonths}
+                                    style={{ borderRadius: 10, borderColor: '#cbd5e1' }}>
+                                    {availableMonths.length > 0 ? (
+                                        availableMonths.map(m => (
+                                            <option key={m.value} value={m.value}>{m.label}</option>
+                                        ))
+                                    ) : (
+                                        <option value="">{loadingMonths ? 'Loading...' : 'No Fee Slips'}</option>
+                                    )}
+                                </select>
+                            </div>
+                            <div className="col-6 col-sm-4 col-md-2">
+                                <label className="form-label fw-bold text-muted small mb-1 d-flex justify-content-between" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                    <span>As of Date</span>
+                                    {asOfDate && <span className="text-danger" style={{ cursor: 'pointer', fontSize: 9 }} onClick={() => setAsOfDate('')}>Clear</span>}
+                                </label>
+                                <input
+                                    type="date"
+                                    className="form-control form-control-sm"
+                                    value={asOfDate}
+                                    min={dateRange.start}
+                                    max={dateRange.end}
+                                    onChange={e => setAsOfDate(e.target.value)}
+                                    style={{ borderRadius: 10, borderColor: '#cbd5e1' }}
+                                />
+                            </div>
+                            <div className="col-6 col-sm-4 col-md-2">
+                                <label className="form-label fw-bold text-muted small mb-1" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                    Fee Head
+                                </label>
+                                <select className="form-select form-select-sm fw-semibold" value={headId} onChange={e => setHeadId(e.target.value)} style={{ borderRadius: 10, borderColor: '#cbd5e1' }}>
+                                    <option value="">All Fee Heads</option>
+                                    {feeHeads.map(h => <option key={h.head_id} value={h.head_id}>{h.head_name}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-6 col-sm-4 col-md-1.5" style={{ flex: '1 1 110px' }}>
+                                <label className="form-label fw-bold text-muted small mb-1" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Class</label>
+                                <select className="form-select form-select-sm" value={classId} onChange={e => setClassId(e.target.value)} style={{ borderRadius: 10, borderColor: '#cbd5e1' }}>
+                                    <option value="">All</option>
+                                    {classes.map(c => <option key={c.class_id} value={c.class_id}>{c.class_name}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-6 col-sm-4 col-md-1.5" style={{ flex: '1 1 100px' }}>
+                                <label className="form-label fw-bold text-muted small mb-1" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Section</label>
+                                <select className="form-select form-select-sm" value={sectionId} onChange={e => setSectionId(e.target.value)} disabled={!classId} style={{ borderRadius: 10, borderColor: '#cbd5e1' }}>
+                                    <option value="">All</option>
+                                    {filteredSections.map(s => <option key={s.section_id} value={s.section_id}>{s.section_name}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-6 col-sm-4 col-md-1.5" style={{ flex: '1 1 90px' }}>
+                                <label className="form-label fw-bold text-muted small mb-1" style={{ fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Status</label>
+                                <select className="form-select form-select-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ borderRadius: 10, borderColor: '#cbd5e1' }}>
+                                    <option value="">All</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="partial">Partial</option>
+                                    <option value="unpaid">Unpaid</option>
+                                </select>
+                            </div>
+                            <div className="col-12 col-sm-6 col-md-2">
+                                <button
+                                    className="btn btn-sm w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-1.5"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #FE7F2D 0%, #f97316 100%)',
+                                        color: '#fff',
+                                        borderRadius: 10,
+                                        height: 33,
+                                        border: 'none',
+                                        boxShadow: '0 4px 12px rgba(254,127,45,0.3)'
+                                    }}
+                                    onClick={loadReport}
+                                    disabled={loading}
+                                >
+                                    {loading ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-search" />}
+                                    Generate
                                 </button>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div className="row g-2 g-md-3 mb-4">
-                        {[
-                            { label: headId ? `${selectedHeadInfo?.head_name || 'Head'} Billed` : 'Total Billed', val: `Rs. ${collective.total_billed.toLocaleString()}`, color: '#233D4D', bg: '#eaf0f6', icon: 'bi-receipt', sub: `${slips.length} Students` },
-                            { label: 'Collected', val: `Rs. ${collective.total_collected.toLocaleString()}`, color: '#198754', bg: '#e8f5ee', icon: 'bi-check-circle-fill', sub: `${collective.collection_rate}% recovered` },
-                            { label: 'Pending', val: `Rs. ${collective.total_pending.toLocaleString()}`, color: '#dc3545', bg: '#fdecea', icon: 'bi-exclamation-circle-fill', sub: 'Outstanding' },
-                            { label: 'Total Students', val: slips.length, color: '#0d6efd', bg: '#e8eefb', icon: 'bi-people-fill', sub: 'In Filter' },
-                            { label: 'Fully Paid', val: collective.paid_count, color: '#198754', bg: '#e8f5ee', icon: 'bi-check2-all', sub: `${slips.length > 0 ? Math.round((collective.paid_count / slips.length) * 100) : 0}% of slips` },
-                            { label: 'Partial', val: collective.partial_count, color: '#fd7e14', bg: '#fff3e0', icon: 'bi-clock-history', sub: 'Partially settled' },
-                            { label: 'Unpaid', val: collective.unpaid_count, color: '#dc3545', bg: '#fdecea', icon: 'bi-x-circle-fill', sub: 'Zero payment' },
-                        ].map(item => (
-                            <div key={item.label} className="col-6 col-sm-4 col-md">
-                                <div className="card border-0 shadow-sm text-center py-2.5 px-2 h-100 rounded-3"
-                                    style={{ background: item.bg, borderTop: `3.5px solid ${item.color}` }}>
-                                    <i className={`bi ${item.icon} mb-1`} style={{ color: item.color, fontSize: 20 }} />
-                                    <div style={{ fontSize: typeof item.val === 'number' ? 24 : 16, fontWeight: 800, color: item.color, lineHeight: 1.2 }}>
-                                        {item.val}
-                                    </div>
-                                    <div className="fw-semibold text-truncate" style={{ fontSize: 11, marginTop: 2, color: '#475569' }}>{item.label}</div>
-                                    <div className="text-muted" style={{ fontSize: 9.5 }}>{item.sub}</div>
+                {error && <div className="alert alert-danger py-2 rounded-3 mb-4"><i className="bi bi-exclamation-triangle me-2" />{error}</div>}
+
+                {!loading && !collective && (
+                    <div style={{
+                        background: '#fff', borderRadius: 18, padding: '60px 20px', textAlign: 'center',
+                        border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(35,61,77,0.06)'
+                    }}>
+                        <div style={{
+                            width: 64, height: 64, borderRadius: '50%', background: 'rgba(33,94,97,0.08)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'
+                        }}>
+                            <i className="bi bi-wallet2 fs-2" style={{ color: BRAND.teal }} />
+                        </div>
+                        <h5 style={{ fontWeight: 800, color: '#1a2e3b' }}>Generate Family Fee &amp; Head Report</h5>
+                        <p style={{ color: '#64748b', fontSize: 13, maxWidth: 450, margin: '0 auto' }}>
+                            Select the academic year, month, and optional fee head filters above to generate full cash flow analytics and ledger details.
+                        </p>
+                    </div>
+                )}
+
+                {!loading && collective && slips.length === 0 && (
+                    <div className="alert alert-info rounded-3 shadow-sm">
+                        <i className="bi bi-info-circle me-2" />
+                        No fee slips found for <strong>{monthLabel} {year}</strong> with selected filters.
+                    </div>
+                )}
+
+                {collective && slips.length > 0 && (
+                    <div ref={printRef}>
+                        <div style={{
+                            background: 'linear-gradient(135deg, #1e3644 0%, #195053 100%)',
+                            borderRadius: 16, padding: '16px 24px', color: '#fff',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+                            boxShadow: '0 4px 16px rgba(33,94,97,0.15)', marginBottom: 20
+                        }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                    <span style={{ background: 'rgba(255,255,255,0.15)', color: '#5eead4', fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20, letterSpacing: '0.05em' }}>
+                                        {selectedHeadInfo ? `FEE HEAD: ${selectedHeadInfo.head_name.toUpperCase()}` : 'ALL FEE HEADS'}
+                                    </span>
+                                    {asOfDate && (
+                                        <span style={{ background: '#fef08a', color: '#854d0e', fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>
+                                            <i className="bi bi-pin-angle-fill me-1" />AS OF: {asOfDate}
+                                        </span>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: 17, fontWeight: 800 }}>
+                                    Fee Collection Report — {monthLabel} {year} {classLabel && ` | ${classLabel} ${secLabel && '› ' + secLabel}`}
+                                </div>
+                                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+                                    {slips.length} student slips tracked • Recovery Pace: <strong>{collective.collection_rate}%</strong>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                            <button className="btn btn-light btn-sm fw-bold px-3 shadow-sm d-flex align-items-center gap-1.5" onClick={handlePrint} style={{ borderRadius: 10 }}>
+                                <i className="bi bi-printer text-dark" /> Print Report
+                            </button>
+                        </div>
 
-                    <div className="row g-3 mb-4">
-                        <div className="col-12 col-lg-5">
-                            <div className="card border-0 shadow-sm h-100 rounded-3">
-                                <div className="card-header bg-white border-bottom py-2.5 d-flex justify-content-between align-items-center"
-                                    style={{ borderLeft: '4px solid var(--primary-teal)' }}>
-                                    <h6 className="mb-0 fw-bold">
-                                        <i className="bi bi-pie-chart-fill me-2 text-teal" style={{ color: '#0f766e' }} />
-                                        Fee Heads Revenue Composition
-                                    </h6>
-                                    <span className="badge bg-light text-muted border" style={{ fontSize: 10 }}>Interactive Chart</span>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                            gap: 14,
+                            marginBottom: 24
+                        }}>
+                            {[
+                                { label: headId ? `${selectedHeadInfo?.head_name || 'Head'} Billed` : 'Total Billed', val: fmtPKR(collective.total_billed), icon: 'bi-receipt', accent: BRAND.teal, sub: `${slips.length} Students` },
+                                { label: 'Collected', val: fmtPKR(collective.total_collected), icon: 'bi-check-circle-fill', accent: BRAND.green, sub: `${collective.collection_rate}% recovered` },
+                                { label: 'Pending Dues', val: fmtPKR(collective.total_pending), icon: 'bi-exclamation-circle-fill', accent: BRAND.red, sub: 'Outstanding' },
+                                { label: 'Total Students', val: slips.length, icon: 'bi-people-fill', accent: BRAND.dark, sub: 'In Filter' },
+                                { label: 'Fully Paid', val: collective.paid_count, icon: 'bi-check2-all', accent: BRAND.green, sub: `${slips.length > 0 ? Math.round((collective.paid_count / slips.length) * 100) : 0}% of slips` },
+                                { label: 'Partial Paid', val: collective.partial_count, icon: 'bi-clock-history', accent: BRAND.orange, sub: 'Partially settled' },
+                                { label: 'Unpaid', val: collective.unpaid_count, icon: 'bi-x-circle-fill', accent: BRAND.red, sub: 'Zero payment' },
+                            ].map(card => (
+                                <div key={card.label} style={{
+                                    background: '#fff',
+                                    borderRadius: 16,
+                                    padding: '16px 18px',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
+                                    border: '1px solid #f1f5f9',
+                                    borderLeft: '4px solid ' + card.accent,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between',
+                                    transition: 'transform 0.2s, box-shadow 0.2s'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <span style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</span>
+                                        <div style={{
+                                            width: 32, height: 32, borderRadius: 8,
+                                            background: card.accent + '15',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                        }}>
+                                            <i className={'bi ' + card.icon} style={{ fontSize: 15, color: card.accent }} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: typeof card.val === 'number' ? 24 : 18, fontWeight: 800, color: '#1a2e3b', lineHeight: 1.15 }}>
+                                            {card.val}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontWeight: 500 }}>{card.sub}</div>
+                                    </div>
                                 </div>
-                                <div className="card-body p-2 d-flex flex-column justify-content-center align-items-center">
-                                    {headSummary.length > 0 ? (
+                            ))}
+                        </div>
+
+                        <div className="row g-3 mb-4">
+                            <div className="col-12 col-lg-5">
+                                <div style={{
+                                    background: '#fff', borderRadius: 18,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
+                                    border: '1px solid #f1f5f9', overflow: 'hidden', height: '100%',
+                                    display: 'flex', flexDirection: 'column'
+                                }}>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: '14px 20px', borderBottom: '1px solid #f1f5f9',
+                                        background: 'linear-gradient(135deg, #fafcff 0%, #f8fdf7 100%)'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(254,127,45,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <i className="bi bi-pie-chart-fill" style={{ fontSize: 13, color: BRAND.orange }} />
+                                            </div>
+                                            <span style={{ fontWeight: 700, fontSize: 14, color: '#1a2e3b' }}>Fee Heads Composition</span>
+                                        </div>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: BRAND.teal, background: 'rgba(33,94,97,0.1)', padding: '2px 8px', borderRadius: 12 }}>
+                                            {headSummary.length} Heads
+                                        </span>
+                                    </div>
+                                    <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                        {headSummary.length > 0 ? (
+                                            <>
+                                                <div style={{ position: 'relative', width: 220, height: 220 }}>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <PieChart>
+                                                            <Pie
+                                                                data={headSummary}
+                                                                dataKey="total"
+                                                                nameKey="head_name"
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                innerRadius={68}
+                                                                outerRadius={98}
+                                                                paddingAngle={3}
+                                                                cornerRadius={5}
+                                                                animationDuration={900}
+                                                            >
+                                                                {headSummary.map((entry, index) => (
+                                                                    <Cell key={`cell-${index}`} fill={CHART_PALETTE[index % CHART_PALETTE.length]} stroke="#ffffff" strokeWidth={2} />
+                                                                ))}
+                                                            </Pie>
+                                                            <RechartsTooltip content={<CustomPieTooltip />} />
+                                                        </PieChart>
+                                                    </ResponsiveContainer>
+                                                    <div style={{
+                                                        position: 'absolute', inset: 0,
+                                                        display: 'flex', flexDirection: 'column',
+                                                        alignItems: 'center', justifyContent: 'center',
+                                                        pointerEvents: 'none'
+                                                    }}>
+                                                        <span style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>
+                                                            {fmtShort(collective.total_billed)}
+                                                        </span>
+                                                        <span style={{ fontSize: 9.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 }}>
+                                                            Total Billed
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div style={{
+                                                    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                                                    gap: 6, width: '100%', marginTop: 12, borderTop: '1px solid #f1f5f9', paddingTop: 12
+                                                }}>
+                                                    {headSummary.map((h, idx) => (
+                                                        <div key={h.head_name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#475569' }}>
+                                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: CHART_PALETTE[idx % CHART_PALETTE.length], flexShrink: 0 }} />
+                                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{h.head_name}</span>
+                                                            <span style={{ marginLeft: 'auto', fontWeight: 700, color: '#1e293b' }}>{h.percentage}%</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="text-muted p-4 text-center">No fee heads data</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-12 col-lg-7">
+                                <div style={{
+                                    background: '#fff', borderRadius: 18,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
+                                    border: '1px solid #f1f5f9', overflow: 'hidden', height: '100%',
+                                    display: 'flex', flexDirection: 'column'
+                                }}>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: '14px 20px', borderBottom: '1px solid #f1f5f9',
+                                        background: 'linear-gradient(135deg, #fafcff 0%, #f8fdf7 100%)'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(33,94,97,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <i className="bi bi-bar-chart-steps" style={{ fontSize: 13, color: BRAND.teal }} />
+                                            </div>
+                                            <span style={{ fontWeight: 700, fontSize: 14, color: '#1a2e3b' }}>Head-wise Recovery Matrix</span>
+                                        </div>
+                                        <span style={{ fontSize: 11, color: '#94a3b8' }}>Click row to filter</span>
+                                    </div>
+                                    <div style={{ padding: 0, flex: 1 }}>
+                                        <div className="table-responsive" style={{ maxHeight: 310, overflowY: 'auto' }}>
+                                            <table className="table table-hover align-middle mb-0" style={{ fontSize: 12 }}>
+                                                <thead className="sticky-top bg-light">
+                                                    <tr>
+                                                        <th style={{ background: '#f8fafc', color: '#64748b', padding: '9px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Fee Head</th>
+                                                        <th style={{ background: '#f8fafc', color: '#64748b', padding: '9px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Billed</th>
+                                                        <th style={{ background: '#f8fafc', color: '#64748b', padding: '9px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Collected</th>
+                                                        <th style={{ background: '#f8fafc', color: '#64748b', padding: '9px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pending</th>
+                                                        <th style={{ background: '#f8fafc', color: '#64748b', padding: '9px 14px', width: 140, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Recovery</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {headSummary.map((h, idx) => (
+                                                        <tr key={h.head_name} style={{ cursor: 'pointer' }} onClick={() => setHeadId(String(h.head_id || ''))} title="Click to filter by this head">
+                                                            <td style={{ padding: '10px 14px', fontWeight: 600 }}>
+                                                                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: CHART_PALETTE[idx % CHART_PALETTE.length], marginRight: 8 }} />
+                                                                {h.head_name}
+                                                            </td>
+                                                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600 }}>{fmtPKR(h.total)}</td>
+                                                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: BRAND.green }}>{fmtPKR(h.collected)}</td>
+                                                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: h.pending > 0 ? BRAND.red : BRAND.green }}>
+                                                                {fmtPKR(h.pending)}
+                                                            </td>
+                                                            <td style={{ padding: '10px 14px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                    <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 10, height: 6, overflow: 'hidden' }}>
+                                                                        <div style={{
+                                                                            width: `${Math.min(100, h.collection_rate)}%`,
+                                                                            height: '100%',
+                                                                            background: h.collection_rate > 50 ? BRAND.green : BRAND.orange,
+                                                                            borderRadius: 10
+                                                                        }} />
+                                                                    </div>
+                                                                    <span style={{ fontSize: 11, fontWeight: 700, minWidth: 30, color: '#334155' }}>{h.collection_rate}%</span>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {timeline.length > 0 && (
+                            <div style={{
+                                background: '#fff', borderRadius: 18,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
+                                border: '1px solid #f1f5f9', overflow: 'hidden', marginBottom: 24
+                            }}>
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '14px 22px', borderBottom: '1px solid #f1f5f9',
+                                    background: 'linear-gradient(135deg, #fafcff 0%, #f8fdf7 100%)',
+                                    flexWrap: 'wrap', gap: 10
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                                        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(22,163,74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <i className="bi bi-graph-up-arrow" style={{ fontSize: 13, color: BRAND.green }} />
+                                        </div>
+                                        <div>
+                                            <span style={{ fontWeight: 700, fontSize: 14, color: '#1a2e3b' }}>
+                                                Collection Velocity &amp; Financial Position Curve ({monthLabel} {year})
+                                            </span>
+                                            <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                                                Track daily cash receipts, cumulative velocity vs remaining month target dues
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        {(['cumulative', 'daily', 'weekly'] as const).map(t => (
+                                            <button key={t} onClick={() => setTimelineView(t)} style={{
+                                                padding: '5px 14px', borderRadius: 20, border: 'none', fontSize: 12,
+                                                fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                                                background: timelineView === t ? BRAND.dark : '#f1f5f9',
+                                                color: timelineView === t ? '#fff' : '#64748b',
+                                                boxShadow: timelineView === t ? '0 2px 8px rgba(35,61,77,0.25)' : 'none',
+                                            }}>
+                                                {t === 'cumulative' ? 'Cumulative Recovery' : t === 'daily' ? 'Daily Cash Inflow' : 'Weekly Breakdown'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={{
+                                    display: 'flex', gap: 16, padding: '12px 24px', background: '#f8fafc',
+                                    borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap', fontSize: 12
+                                }}>
+                                    <div><span style={{ color: '#64748b' }}>Month Target:</span> <strong style={{ color: '#1e293b' }}>{fmtPKR(collective.total_billed)}</strong></div>
+                                    <div><span style={{ color: '#64748b' }}>Collected To-Date:</span> <strong style={{ color: BRAND.green }}>{fmtPKR(collective.total_collected)}</strong></div>
+                                    <div><span style={{ color: '#64748b' }}>Remaining Unpaid:</span> <strong style={{ color: BRAND.red }}>{fmtPKR(collective.total_pending)}</strong></div>
+                                    <div><span style={{ color: '#64748b' }}>Recovery Pace:</span> <strong style={{ color: BRAND.orange }}>{collective.collection_rate}%</strong></div>
+                                </div>
+                                <div style={{ padding: '18px 20px' }}>
+                                    {timelineView === 'cumulative' && (
                                         <div style={{ width: '100%', height: 260 }}>
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <PieChart>
-                                                    <Pie
-                                                        data={headSummary}
-                                                        dataKey="total"
-                                                        nameKey="head_name"
-                                                        cx="50%"
-                                                        cy="50%"
-                                                        innerRadius={55}
-                                                        outerRadius={95}
-                                                        paddingAngle={3}
-                                                        animationDuration={900}
-                                                    >
-                                                        {headSummary.map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} stroke="#ffffff" strokeWidth={2} />
-                                                        ))}
-                                                    </Pie>
-                                                    <RechartsTooltip content={<CustomPieTooltip />} />
-                                                    <Legend
-                                                        verticalAlign="bottom"
-                                                        height={36}
-                                                        iconType="circle"
-                                                        formatter={(val, entry: any) => (
-                                                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#334155' }}>
-                                                                {val} ({entry.payload.percentage}%)
-                                                            </span>
-                                                        )}
+                                                <AreaChart data={timeline} margin={{ top: 10, right: 16, left: 10, bottom: 0 }}>
+                                                    <defs>
+                                                        <linearGradient id="gradCum" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor={BRAND.green} stopOpacity={0.3} />
+                                                            <stop offset="100%" stopColor={BRAND.green} stopOpacity={0.0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                    <XAxis dataKey="day" tick={{ fontSize: 10.5, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={2} />
+                                                    <YAxis tickFormatter={fmtShort} tick={{ fontSize: 10.5, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                                    <RechartsTooltip content={<CustomTimelineTooltip />} />
+                                                    <ReferenceLine y={collective.total_billed} stroke="#94a3b8" strokeDasharray="3 3" label={{ value: `Target: ${fmtShort(collective.total_billed)}`, fill: '#64748b', fontSize: 10, position: 'top' }} />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="cumulative_collected"
+                                                        name="Cumulative Collected"
+                                                        stroke={BRAND.green}
+                                                        strokeWidth={2.5}
+                                                        fill="url(#gradCum)"
+                                                        dot={{ r: 3, fill: '#fff', stroke: BRAND.green, strokeWidth: 2 }}
+                                                        activeDot={{ r: 5, fill: BRAND.green, stroke: '#fff', strokeWidth: 2 }}
                                                     />
-                                                </PieChart>
+                                                </AreaChart>
                                             </ResponsiveContainer>
                                         </div>
-                                    ) : (
-                                        <div className="text-muted p-4 text-center">No fee heads data</div>
+                                    )}
+                                    {timelineView === 'daily' && (
+                                        <div style={{ width: '100%', height: 260 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={timeline} margin={{ top: 10, right: 16, left: 10, bottom: 0 }}>
+                                                    <defs>
+                                                        <linearGradient id="gradDaily" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor={BRAND.orange} stopOpacity={0.35} />
+                                                            <stop offset="100%" stopColor={BRAND.orange} stopOpacity={0.0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                    <XAxis dataKey="day" tick={{ fontSize: 10.5, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={2} />
+                                                    <YAxis tickFormatter={fmtShort} tick={{ fontSize: 10.5, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                                    <RechartsTooltip content={<CustomTimelineTooltip />} />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="daily_collected"
+                                                        name="Daily Inflow"
+                                                        stroke={BRAND.orange}
+                                                        strokeWidth={2.5}
+                                                        fill="url(#gradDaily)"
+                                                        dot={{ r: 3, fill: '#fff', stroke: BRAND.orange, strokeWidth: 2 }}
+                                                        activeDot={{ r: 5, fill: BRAND.orange, stroke: '#fff', strokeWidth: 2 }}
+                                                    />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    )}
+                                    {timelineView === 'weekly' && (
+                                        <div style={{ width: '100%', height: 260 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={weeklySummary} margin={{ top: 10, right: 16, left: 10, bottom: 0 }} barCategoryGap="30%">
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                                    <YAxis tickFormatter={fmtShort} tick={{ fontSize: 10.5, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                                    <RechartsTooltip
+                                                        formatter={(val: any) => [fmtPKR(Number(val)), 'Weekly Collected']}
+                                                        contentStyle={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, fontSize: 12, boxShadow: '0 10px 28px rgba(0,0,0,0.12)' }}
+                                                    />
+                                                    <Bar dataKey="collected" fill={BRAND.teal} radius={[6, 6, 0, 0]} maxBarSize={36} name="Weekly Cash Flow" />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div className="col-12 col-lg-7">
-                            <div className="card border-0 shadow-sm h-100 rounded-3">
-                                <div className="card-header bg-white border-bottom py-2.5 d-flex justify-content-between align-items-center"
-                                    style={{ borderLeft: '4px solid var(--primary-teal)' }}>
-                                    <h6 className="mb-0 fw-bold">
-                                        <i className="bi bi-bar-chart-steps me-2 text-primary" />
-                                        Head-wise Collection Recovery Matrix
-                                    </h6>
-                                    <span className="badge bg-light text-muted border" style={{ fontSize: 10 }}>
-                                        {headSummary.length} Active Head{headSummary.length !== 1 ? 's' : ''}
+                        <div style={{
+                            background: '#fff', borderRadius: 18,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 20px rgba(35,61,77,0.06)',
+                            border: '1px solid #f1f5f9', overflow: 'hidden', marginBottom: 24
+                        }}>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '14px 22px', borderBottom: '1px solid #f1f5f9',
+                                background: 'linear-gradient(135deg, #fafcff 0%, #f8fdf7 100%)',
+                                flexWrap: 'wrap', gap: 12
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(35,61,77,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <i className="bi bi-table" style={{ fontSize: 13, color: BRAND.dark }} />
+                                    </div>
+                                    <span style={{ fontWeight: 700, fontSize: 14, color: '#1a2e3b' }}>
+                                        Student-wise Fee Ledger Breakdown
+                                    </span>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: 12 }}>
+                                        {filteredSlips.length} Students
                                     </span>
                                 </div>
-                                <div className="card-body p-0">
-                                    <div className="table-responsive" style={{ maxHeight: 275, overflowY: 'auto' }}>
-                                        <table className="table table-hover align-middle mb-0" style={{ fontSize: 12 }}>
-                                            <thead className="sticky-top bg-light">
-                                                <tr>
-                                                    <th style={{ background: '#f1f5f9', color: '#475569', padding: '8px 12px' }}>Fee Head</th>
-                                                    <th style={{ background: '#f1f5f9', color: '#475569', padding: '8px 12px', textAlign: 'right' }}>Billed</th>
-                                                    <th style={{ background: '#f1f5f9', color: '#475569', padding: '8px 12px', textAlign: 'right' }}>Collected</th>
-                                                    <th style={{ background: '#f1f5f9', color: '#475569', padding: '8px 12px', textAlign: 'right' }}>Pending</th>
-                                                    <th style={{ background: '#f1f5f9', color: '#475569', padding: '8px 12px', width: 140 }}>Recovery %</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {headSummary.map((h, idx) => (
-                                                    <tr key={h.head_name} style={{ cursor: 'pointer' }} onClick={() => setHeadId(String(h.head_id || ''))} title="Click to filter by this head">
-                                                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>
-                                                            <span className="badge rounded-circle p-1 me-1.5 d-inline-block" style={{ background: PALETTE[idx % PALETTE.length], width: 9, height: 9 }}></span>
-                                                            {h.head_name}
-                                                        </td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>Rs. {h.total.toLocaleString()}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>Rs. {h.collected.toLocaleString()}</td>
-                                                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: h.pending > 0 ? '#dc2626' : '#16a34a' }}>
-                                                            Rs. {h.pending.toLocaleString()}
-                                                        </td>
-                                                        <td style={{ padding: '8px 12px' }}>
-                                                            <div className="d-flex align-items-center gap-2">
-                                                                <div className="progress flex-grow-1" style={{ height: 6 }}>
-                                                                    <div
-                                                                        className="progress-bar bg-success"
-                                                                        role="progressbar"
-                                                                        style={{ width: `${Math.min(100, h.collection_rate)}%` }}
-                                                                    />
-                                                                </div>
-                                                                <span className="fw-bold" style={{ fontSize: 10, minWidth: 28 }}>{h.collection_rate}%</span>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {timeline.length > 0 && (
-                        <div className="card border-0 shadow-sm mb-4 rounded-3">
-                            <div className="card-header bg-white border-bottom py-2.5 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2"
-                                style={{ borderLeft: '4px solid var(--primary-teal)' }}>
-                                <div>
-                                    <h6 className="mb-0 fw-bold">
-                                        <i className="bi bi-graph-up-arrow me-2 text-success" />
-                                        Collection Velocity &amp; Daily Financial Position Curve ({monthLabel} {year})
-                                    </h6>
-                                    <div className="text-muted small" style={{ fontSize: 11 }}>
-                                        Track exactly how much cash was recovered day-by-day vs remaining target dues
-                                    </div>
-                                </div>
-                                <div className="btn-group btn-group-sm">
-                                    <button
-                                        className={`btn btn-sm ${timelineView === 'daily' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                                        onClick={() => setTimelineView('daily')}
-                                    >
-                                        Daily Velocity
-                                    </button>
-                                    <button
-                                        className={`btn btn-sm ${timelineView === 'weekly' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                                        onClick={() => setTimelineView('weekly')}
-                                    >
-                                        Weekly Trend
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="card-body p-3">
-                                {timelineView === 'daily' ? (
-                                    <div style={{ width: '100%', height: 260 }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={timeline} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                                                <defs>
-                                                    <linearGradient id="gradDaily" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#0f766e" stopOpacity={0.4} />
-                                                        <stop offset="95%" stopColor="#0f766e" stopOpacity={0.0} />
-                                                    </linearGradient>
-                                                    <linearGradient id="gradCum" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3} />
-                                                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0.0} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#64748b' }} interval={2} />
-                                                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={v => `Rs.${(v / 1000).toFixed(0)}k`} />
-                                                <RechartsTooltip content={<CustomTimelineTooltip />} />
-                                                <ReferenceLine y={collective.total_billed} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Target Billed', fill: '#ef4444', fontSize: 10, position: 'top' }} />
-                                                <Area type="monotone" dataKey="daily_collected" stroke="#0f766e" fillOpacity={1} fill="url(#gradDaily)" strokeWidth={2} name="Daily Collected" />
-                                                <Area type="monotone" dataKey="cumulative_collected" stroke="#16a34a" fillOpacity={1} fill="url(#gradCum)" strokeWidth={2.5} name="Cumulative Collected" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                ) : (
-                                    <div style={{ width: '100%', height: 260 }}>
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={weeklySummary} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                                                <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} />
-                                                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={v => `Rs.${(v / 1000).toFixed(0)}k`} />
-                                                <RechartsTooltip
-                                                    formatter={(val: any) => [`Rs. ${Number(val).toLocaleString()}`, 'Weekly Collected']}
-                                                    contentStyle={{ background: '#1e293b', color: '#fff', borderRadius: 8, fontSize: 12 }}
-                                                />
-                                                <Bar dataKey="collected" fill="#0f766e" radius={[6, 6, 0, 0]} name="Weekly Cash Flow" />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="card border-0 shadow-sm mb-4 rounded-3">
-                        <div className="card-header bg-white border-bottom py-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2"
-                            style={{ borderLeft: '4px solid var(--primary-teal)' }}>
-                            <div className="d-flex align-items-center gap-2">
-                                <h6 className="mb-0 fw-bold">
-                                    <i className="bi bi-table me-2 text-primary" />
-                                    Student-wise Fee Ledger Breakdown
-                                </h6>
-                                <span className="badge bg-light text-dark border">
-                                    {filteredSlips.length} student slips
-                                </span>
-                            </div>
-                            <div className="d-flex align-items-center gap-2">
                                 <div className="input-group input-group-sm" style={{ width: 240 }}>
-                                    <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
+                                    <span className="input-group-text bg-light border-end-0" style={{ borderRadius: '10px 0 0 10px' }}><i className="bi bi-search text-muted"></i></span>
                                     <input
                                         type="text"
                                         className="form-control border-start-0 bg-light"
-                                        placeholder="Search student / father / adm#..."
+                                        placeholder="Search student / father..."
                                         value={searchKeyword}
                                         onChange={e => setSearchKeyword(e.target.value)}
+                                        style={{ borderRadius: '0 10px 10px 0' }}
                                     />
                                     {searchKeyword && (
                                         <button className="btn btn-light border" onClick={() => setSearchKeyword('')}><i className="bi bi-x text-danger"></i></button>
                                     )}
                                 </div>
                             </div>
-                        </div>
-                        <div className="card-body p-0">
-                            <div className="table-responsive">
-                                <table className="table table-hover align-middle mb-0" style={{ fontSize: 12.5, minWidth: 950 }}>
-                                    <thead>
-                                        <tr>
-                                            {['#', 'Adm#', 'Student Name', 'Father', 'Class', 'Section'].map(h => (
-                                                <th key={h} style={{ background: '#233D4D', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap' }}>{h}</th>
-                                            ))}
-                                            {!headId && uniqueHeads.map(h => (
-                                                <th key={h} style={{ background: '#1a4a5e', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>{h}</th>
-                                            ))}
-                                            <th style={{ background: '#233D4D', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                                                {headId ? `${selectedHeadInfo?.head_name || 'Head'} Bill` : 'Total Bill'}
-                                            </th>
-                                            <th style={{ background: '#233D4D', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                                                {headId ? `${selectedHeadInfo?.head_name || 'Head'} Paid` : 'Paid'}
-                                            </th>
-                                            <th style={{ background: '#233D4D', color: '#fff', padding: '10px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>Balance</th>
-                                            <th style={{ background: '#233D4D', color: '#fff', padding: '10px 10px', textAlign: 'center' }}>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredSlips.map((s, i) => {
-                                            const balance = s.balance !== undefined ? s.balance : s.total_amount - s.paid_amount;
-                                            const badge = statusBadge(s.status);
-                                            return (
-                                                <tr key={s.slip_id} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                                    <td style={{ padding: '8px 10px', color: '#94a3b8', fontSize: 11 }}>{i + 1}</td>
-                                                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{s.admission_no}</td>
-                                                    <td style={{ padding: '8px 10px', fontWeight: 700, color: '#1e293b' }}>{s.student_name}</td>
-                                                    <td style={{ padding: '8px 10px', color: '#64748b' }}>{s.father_name || '—'}</td>
-                                                    <td style={{ padding: '8px 10px' }}>{s.class_name}</td>
-                                                    <td style={{ padding: '8px 10px' }}>{s.section_name}</td>
-                                                    {!headId && uniqueHeads.map(h => {
-                                                        const li = s.line_items.find(l => l.head_name === h);
-                                                        return (
-                                                            <td key={h} style={{ padding: '8px 10px', textAlign: 'right', color: li ? '#233D4D' : '#cbd5e1' }}>
-                                                                {li ? `Rs. ${li.amount.toLocaleString()}` : '—'}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>Rs. {s.total_amount.toLocaleString()}</td>
-                                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>Rs. {s.paid_amount.toLocaleString()}</td>
-                                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: balance > 0 ? '#dc2626' : '#16a34a' }}>
-                                                        Rs. {balance.toLocaleString()}
-                                                    </td>
-                                                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                                        <span className="badge" style={{ background: badge.bg, color: '#fff', padding: '4px 10px', borderRadius: 12, fontSize: 10.5 }}>
-                                                            {badge.label}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr style={{ background: '#eef2f7' }}>
-                                            <td colSpan={6} style={{ padding: '10px 10px', fontWeight: 800, fontSize: 13 }}>
-                                                TOTAL ({filteredSlips.length} students)
-                                            </td>
-                                            {!headId && uniqueHeads.map(h => (
-                                                <td key={h} style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 700, color: '#233D4D' }}>
-                                                    Rs. {(headTotals[h] || 0).toLocaleString()}
+                            <div style={{ padding: 0 }}>
+                                <div className="table-responsive">
+                                    <table className="table table-hover align-middle mb-0" style={{ fontSize: 12.5, minWidth: 950 }}>
+                                        <thead>
+                                            <tr>
+                                                {['#', 'Adm#', 'Student Name', 'Father Name', 'Class', 'Section'].map(h => (
+                                                    <th key={h} style={{ background: BRAND.dark, color: '#fff', padding: '10px 12px', whiteSpace: 'nowrap', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
+                                                ))}
+                                                {!headId && uniqueHeads.map(h => (
+                                                    <th key={h} style={{ background: '#1a4a5e', color: '#fff', padding: '10px 12px', whiteSpace: 'nowrap', textAlign: 'right', fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
+                                                ))}
+                                                <th style={{ background: BRAND.dark, color: '#fff', padding: '10px 12px', whiteSpace: 'nowrap', textAlign: 'right', fontSize: 11, textTransform: 'uppercase' }}>
+                                                    {headId ? `${selectedHeadInfo?.head_name || 'Head'} Bill` : 'Total Bill'}
+                                                </th>
+                                                <th style={{ background: BRAND.dark, color: '#fff', padding: '10px 12px', whiteSpace: 'nowrap', textAlign: 'right', fontSize: 11, textTransform: 'uppercase' }}>
+                                                    {headId ? `${selectedHeadInfo?.head_name || 'Head'} Paid` : 'Paid'}
+                                                </th>
+                                                <th style={{ background: BRAND.dark, color: '#fff', padding: '10px 12px', whiteSpace: 'nowrap', textAlign: 'right', fontSize: 11, textTransform: 'uppercase' }}>Balance</th>
+                                                <th style={{ background: BRAND.dark, color: '#fff', padding: '10px 12px', textAlign: 'center', fontSize: 11, textTransform: 'uppercase' }}>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredSlips.map((s, i) => {
+                                                const balance = s.balance !== undefined ? s.balance : s.total_amount - s.paid_amount;
+                                                const badge = statusBadge(s.status);
+                                                return (
+                                                    <tr key={s.slip_id} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                                        <td style={{ padding: '9px 12px', color: '#94a3b8', fontSize: 11 }}>{i + 1}</td>
+                                                        <td style={{ padding: '9px 12px', fontWeight: 600 }}>{s.admission_no}</td>
+                                                        <td style={{ padding: '9px 12px', fontWeight: 700, color: '#1e293b' }}>{s.student_name}</td>
+                                                        <td style={{ padding: '9px 12px', color: '#64748b' }}>{s.father_name || '—'}</td>
+                                                        <td style={{ padding: '9px 12px' }}>{s.class_name}</td>
+                                                        <td style={{ padding: '9px 12px' }}>{s.section_name}</td>
+                                                        {!headId && uniqueHeads.map(h => {
+                                                            const li = s.line_items.find(l => l.head_name === h);
+                                                            return (
+                                                                <td key={h} style={{ padding: '9px 12px', textAlign: 'right', color: li ? '#1e293b' : '#cbd5e1', fontWeight: li ? 600 : 400 }}>
+                                                                    {li ? fmtPKR(li.amount) : '—'}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700 }}>{fmtPKR(s.total_amount)}</td>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: BRAND.green }}>{fmtPKR(s.paid_amount)}</td>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: balance > 0 ? BRAND.red : BRAND.green }}>
+                                                            {fmtPKR(balance)}
+                                                        </td>
+                                                        <td style={{ padding: '9px 12px', textAlign: 'center' }}>
+                                                            <span style={{
+                                                                background: badge.bg, color: badge.text, border: `1px solid ${badge.border}`,
+                                                                padding: '3px 9px', borderRadius: 12, fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase'
+                                                            }}>
+                                                                {badge.label}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style={{ background: '#eef2f7' }}>
+                                                <td colSpan={6} style={{ padding: '11px 12px', fontWeight: 800, fontSize: 13 }}>
+                                                    TOTAL ({filteredSlips.length} students)
                                                 </td>
-                                            ))}
-                                            <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 800, color: '#233D4D' }}>
-                                                Rs. {filteredSlips.reduce((sum, s) => sum + s.total_amount, 0).toLocaleString()}
-                                            </td>
-                                            <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>
-                                                Rs. {filteredSlips.reduce((sum, s) => sum + s.paid_amount, 0).toLocaleString()}
-                                            </td>
-                                            <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 800, color: '#dc3545' }}>
-                                                Rs. {filteredSlips.reduce((sum, s) => sum + (s.balance !== undefined ? s.balance : s.total_amount - s.paid_amount), 0).toLocaleString()}
-                                            </td>
-                                            <td />
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                                                {!headId && uniqueHeads.map(h => (
+                                                    <td key={h} style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 700, color: BRAND.dark }}>
+                                                        {fmtPKR(headTotals[h] || 0)}
+                                                    </td>
+                                                ))}
+                                                <td style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 800, color: BRAND.dark }}>
+                                                    {fmtPKR(filteredSlips.reduce((sum, s) => sum + s.total_amount, 0))}
+                                                </td>
+                                                <td style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 800, color: BRAND.green }}>
+                                                    {fmtPKR(filteredSlips.reduce((sum, s) => sum + s.paid_amount, 0))}
+                                                </td>
+                                                <td style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 800, color: BRAND.red }}>
+                                                    {fmtPKR(filteredSlips.reduce((sum, s) => sum + (s.balance !== undefined ? s.balance : s.total_amount - s.paid_amount), 0))}
+                                                </td>
+                                                <td />
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
