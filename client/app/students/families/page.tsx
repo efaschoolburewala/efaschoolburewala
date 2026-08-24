@@ -11,6 +11,8 @@ interface StudentMember {
     first_name: string;
     last_name: string;
     full_name: string;
+    category?: string;
+    is_trusted?: boolean;
     father_name: string;
     father_phone: string;
     father_cnic: string;
@@ -44,6 +46,8 @@ interface FamilyData {
     guardian_phone: string;
     primary_phone: string;
     is_cousin_family?: boolean;
+    is_trusted_family?: boolean;
+    has_trusted_members?: boolean;
     fathers_list?: FatherInfo[];
     combined_father_names?: string;
     combined_phones?: string;
@@ -56,7 +60,7 @@ interface FamilyData {
     total_billed?: number;
     total_paid?: number;
     total_balance?: number;
-    fee_status?: 'unpaid' | 'partial' | 'paid' | string;
+    fee_status?: 'unpaid' | 'partial' | 'paid' | 'settled' | 'satteled' | string;
     members: StudentMember[];
 }
 
@@ -316,7 +320,9 @@ export default function FamilyListPage() {
         let sr = 1;
 
         filteredFamilies.forEach(f => {
+            const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
             f.activeMembers.forEach(m => {
+                const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
                 const rowObj: any = {
                     "Sr.#": sr,
                     "Family Name": f.is_cousin_family ? (f.combined_father_names || f.family_name || '') : (f.family_name || ''),
@@ -326,13 +332,14 @@ export default function FamilyListPage() {
 
                 // Requirement 5: Fee status only exported if showFeeColumns is enabled
                 if (showFeeColumns) {
-                    rowObj["Fee Status"] = f.fee_status ? f.fee_status.toUpperCase() : "PAID";
-                    rowObj["Total Bill (PKR)"] = f.total_billed || 0;
-                    rowObj["Paid (PKR)"] = f.total_paid || 0;
-                    rowObj["Balance (PKR)"] = f.total_balance || 0;
+                    rowObj["Fee Status"] = isSettled ? "SETTLED" : (f.fee_status ? f.fee_status.toUpperCase() : "PAID");
+                    rowObj["Total Bill (PKR)"] = isSettled ? 0 : (f.total_billed || 0);
+                    rowObj["Paid (PKR)"] = isSettled ? 0 : (f.total_paid || 0);
+                    rowObj["Balance (PKR)"] = isSettled ? 0 : (f.total_balance || 0);
                 }
 
                 rowObj["Student Name"] = m.full_name;
+                rowObj["Category"] = isMemberTrusted ? "Trusted" : (m.category || "Normal");
                 rowObj["Admission No"] = m.admission_no;
                 rowObj["Class"] = m.class_name;
                 rowObj["Section"] = m.section_name;
@@ -366,6 +373,7 @@ export default function FamilyListPage() {
 
         colWidths.push(
             { wch: 25 }, // Student Name
+            { wch: 12 }, // Category
             { wch: 15 }, // Admission No
             { wch: 14 }, // Class
             { wch: 10 }, // Section
@@ -393,13 +401,15 @@ export default function FamilyListPage() {
         if (showFeeColumns) {
             headers.push("Fee Status", "Total Bill", "Paid", "Balance");
         }
-        headers.push("Student Name", "Admission No", "Class", "Section", "Father Name", "Mother Name", "Father Phone", "Mother Phone", "Address");
+        headers.push("Student Name", "Category", "Admission No", "Class", "Section", "Father Name", "Mother Name", "Father Phone", "Mother Phone", "Address");
 
         const rows: string[][] = [];
         let sr = 1;
 
         filteredFamilies.forEach(f => {
+            const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
             f.activeMembers.forEach(m => {
+                const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
                 const row: string[] = [
                     sr.toString(),
                     `"${(f.is_cousin_family ? (f.combined_father_names || f.family_name || '') : (f.family_name || '')).replace(/"/g, '""')}"`,
@@ -409,15 +419,16 @@ export default function FamilyListPage() {
 
                 if (showFeeColumns) {
                     row.push(
-                        `"${(f.fee_status || 'paid').toUpperCase()}"`,
-                        `"${f.total_billed || 0}"`,
-                        `"${f.total_paid || 0}"`,
-                        `"${f.total_balance || 0}"`
+                        `"${isSettled ? 'SETTLED' : (f.fee_status || 'paid').toUpperCase()}"`,
+                        `"${isSettled ? 0 : (f.total_billed || 0)}"`,
+                        `"${isSettled ? 0 : (f.total_paid || 0)}"`,
+                        `"${isSettled ? 0 : (f.total_balance || 0)}"`
                     );
                 }
 
                 row.push(
                     `"${(m.full_name || '').replace(/"/g, '""')}"`,
+                    `"${isMemberTrusted ? 'Trusted' : (m.category || 'Normal')}"`,
                     `"${(m.admission_no || '').replace(/"/g, '""')}"`,
                     `"${(m.class_name || '').replace(/"/g, '""')}"`,
                     `"${(m.section_name || '').replace(/"/g, '""')}"`,
@@ -457,11 +468,13 @@ export default function FamilyListPage() {
 
         const tableRowsHtml = filteredFamilies.map((f, idx) => {
             const M = f.activeMembers.length;
-            const feeStatusStr = f.fee_status ? f.fee_status.toUpperCase() : 'PAID';
-            const statusColor = f.fee_status === 'unpaid' ? '#dc3545' : f.fee_status === 'partial' ? '#fd7e14' : '#198754';
+            const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
+            const feeStatusStr = isSettled ? 'SETTLED' : (f.fee_status ? f.fee_status.toUpperCase() : 'PAID');
+            const statusColor = isSettled ? '#0891b2' : f.fee_status === 'unpaid' ? '#dc3545' : f.fee_status === 'partial' ? '#fd7e14' : '#198754';
             const isCousin = f.is_cousin_family;
 
             return f.activeMembers.map((m, mIdx) => {
+                const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
                 if (mIdx === 0) {
                     return `
                         <tr style="border-top: 2px solid #215E61;">
@@ -471,19 +484,21 @@ export default function FamilyListPage() {
                                 <div style="font-size: 7.5pt; color: ${isCousin ? '#b45309' : '#047857'}; font-weight: 600; margin-top: 2px;">
                                     ${isCousin ? '🧬 SIBLINGS + COUSINS' : '👨‍👩‍👧‍👦 PURE SIBLINGS'}
                                 </div>
-                                <div style="font-size: 8pt; color: #666; font-weight: normal;">
+                                ${isSettled ? `<div style="font-size: 7.5pt; color: #0891b2; font-weight: 700; margin-top: 1px;">🛡️ TRUSTED SETTLED</div>` : ''}
+                                <div style="font-size: 8pt; color: #666; font-weight: normal; margin-top: 2px;">
                                     ${f.isFilteredChildCount ? `Showing ${f.activeMembers.length} of ${f.total_children} Children` : `${f.total_children} Child${f.total_children > 1 ? 'ren' : ''}`}
                                 </div>
                                 ${showFeeColumns ? `<div style="font-size: 7.5pt; font-weight: bold; color: ${statusColor}; margin-top: 2px;">Fee: ${feeStatusStr}</div>` : ''}
                             </td>
                             <td rowspan="${M}" style="text-align: center; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle; background-color: #f8f9fa;">${f.family_id}</td>
                             ${showFeeColumns ? `
-                                <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle;">PKR ${(f.total_billed || 0).toLocaleString('en-PK')}</td>
-                                <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; color: #198754; vertical-align: middle;">PKR ${(f.total_paid || 0).toLocaleString('en-PK')}</td>
-                                <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; color: ${(f.total_balance || 0) > 0 ? '#dc3545' : '#198754'}; vertical-align: middle;">PKR ${(f.total_balance || 0).toLocaleString('en-PK')}</td>
+                                <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle;">PKR ${(isSettled ? 0 : (f.total_billed || 0)).toLocaleString('en-PK')}</td>
+                                <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; color: #198754; vertical-align: middle;">PKR ${(isSettled ? 0 : (f.total_paid || 0)).toLocaleString('en-PK')}</td>
+                                <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; color: ${isSettled ? '#0891b2' : (f.total_balance || 0) > 0 ? '#dc3545' : '#198754'}; vertical-align: middle;">${isSettled ? 'PKR 0 (Settled)' : `PKR ${(f.total_balance || 0).toLocaleString('en-PK')}`}</td>
                             ` : ''}
                             <td style="border: 1px solid #333; padding: 6px; font-weight: bold; color: #111;">
                                 ${m.full_name} <span style="font-size: 8pt; color: #555; font-weight: normal;">(${m.admission_no})</span>
+                                ${isMemberTrusted ? `<span style="font-size: 7.5pt; color: #0891b2; font-weight: bold; margin-left: 4px;">[Trusted]</span>` : ''}
                                 ${isCousin ? `<div style="font-size: 7.5pt; color: #666; font-weight: normal;">Father: <strong>${m.father_name || 'N/A'}</strong></div>` : ''}
                             </td>
                             <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.class_name}</td>
@@ -511,6 +526,7 @@ export default function FamilyListPage() {
                         <tr>
                             <td style="border: 1px solid #333; padding: 6px; font-weight: bold; color: #111;">
                                 ${m.full_name} <span style="font-size: 8pt; color: #555; font-weight: normal;">(${m.admission_no})</span>
+                                ${isMemberTrusted ? `<span style="font-size: 7.5pt; color: #0891b2; font-weight: bold; margin-left: 4px;">[Trusted]</span>` : ''}
                                 ${isCousin ? `<div style="font-size: 7.5pt; color: #666; font-weight: normal;">Father: <strong>${m.father_name || 'N/A'}</strong></div>` : ''}
                             </td>
                             <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.class_name}</td>
@@ -928,13 +944,15 @@ export default function FamilyListPage() {
                                     {filteredFamilies.map((fam, famIdx) => {
                                         const waNumber = formatWhatsAppNumber(fam.primary_phone);
                                         const M = fam.activeMembers.length;
-                                        const feeStatus = fam.fee_status || 'paid';
-                                        const isUnpaid = feeStatus === 'unpaid';
-                                        const isPartial = feeStatus === 'partial';
+                                        const feeStatus = (fam.fee_status || 'paid').toLowerCase();
+                                        const isSettled = fam.is_trusted_family || ['settled', 'satteled'].includes(feeStatus);
+                                        const isUnpaid = !isSettled && feeStatus === 'unpaid';
+                                        const isPartial = !isSettled && feeStatus === 'partial';
                                         const isCousin = fam.is_cousin_family;
 
                                         return fam.activeMembers.map((m, mIdx) => {
                                             const isFirst = mIdx === 0;
+                                            const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
 
                                             return (
                                                 <tr
@@ -957,14 +975,14 @@ export default function FamilyListPage() {
                                                         </td>
                                                     )}
 
-                                                    {/* 2. Family Information (Rowspan) with Cousin / Sibling Badges */}
+                                                    {/* 2. Family Information (Rowspan) with Cousin / Sibling / Trusted Badges */}
                                                     {isFirst && (
                                                         <td rowSpan={M} className="align-middle border-end">
                                                             <div className="d-flex align-items-center gap-1.5 flex-wrap">
                                                                 <span
                                                                     className="fw-bold"
                                                                     style={{
-                                                                        color: isUnpaid ? '#dc2626' : isPartial ? '#d97706' : '#1e293b',
+                                                                        color: isSettled ? '#0891b2' : isUnpaid ? '#dc2626' : isPartial ? '#d97706' : '#1e293b',
                                                                         fontSize: '0.92rem'
                                                                     }}
                                                                 >
@@ -972,8 +990,8 @@ export default function FamilyListPage() {
                                                                 </span>
                                                             </div>
 
-                                                            {/* Household Type Badge (Requirement 3) */}
-                                                            <div className="mt-1">
+                                                            {/* Household Type & Trusted Settled Badges */}
+                                                            <div className="mt-1 d-flex flex-wrap gap-1 align-items-center">
                                                                 {isCousin ? (
                                                                     <span className="badge rounded-pill text-dark border px-2 py-0.5" style={{ backgroundColor: '#fef3c7', borderColor: '#fde68a', fontSize: '0.68rem' }}>
                                                                         <i className="bi bi-diagram-3-fill me-1 text-warning"></i>Siblings + Cousins
@@ -981,6 +999,11 @@ export default function FamilyListPage() {
                                                                 ) : (
                                                                     <span className="badge rounded-pill bg-light text-secondary border px-2 py-0.5" style={{ fontSize: '0.68rem' }}>
                                                                         <i className="bi bi-people-fill me-1 text-teal" style={{ color: 'var(--primary-teal)' }}></i>Pure Siblings
+                                                                    </span>
+                                                                )}
+                                                                {isSettled && (
+                                                                    <span className="badge rounded-pill border px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', borderColor: '#bae6fd', color: '#0369a1', fontSize: '0.68rem', fontWeight: 600 }}>
+                                                                        <i className="bi bi-shield-check me-1 text-info"></i>Settled (Trusted)
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -1012,31 +1035,44 @@ export default function FamilyListPage() {
                                                     {showFeeColumns && isFirst && (
                                                         <>
                                                             <td rowSpan={M} className="align-middle text-end border-end fw-bold text-dark" style={{ backgroundColor: '#f8fafc' }}>
-                                                                PKR {(fam.total_billed || 0).toLocaleString('en-PK')}
+                                                                PKR {(isSettled ? 0 : (fam.total_billed || 0)).toLocaleString('en-PK')}
                                                             </td>
                                                             <td rowSpan={M} className="align-middle text-end border-end fw-bold text-success" style={{ backgroundColor: '#f0fdf4' }}>
-                                                                PKR {(fam.total_paid || 0).toLocaleString('en-PK')}
+                                                                PKR {(isSettled ? 0 : (fam.total_paid || 0)).toLocaleString('en-PK')}
                                                             </td>
-                                                            <td rowSpan={M} className="align-middle text-end border-end fw-bold" style={{ backgroundColor: (fam.total_balance || 0) > 0 ? '#fef2f2' : '#f0fdf4', color: (fam.total_balance || 0) > 0 ? '#dc2626' : '#166534' }}>
-                                                                PKR {(fam.total_balance || 0).toLocaleString('en-PK')}
+                                                            <td rowSpan={M} className="align-middle text-end border-end fw-bold" style={{ backgroundColor: isSettled ? '#f0f9ff' : (fam.total_balance || 0) > 0 ? '#fef2f2' : '#f0fdf4', color: isSettled ? '#0284c7' : (fam.total_balance || 0) > 0 ? '#dc2626' : '#166534' }}>
+                                                                {isSettled ? (
+                                                                    <span className="badge rounded-pill px-2 py-1" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.74rem' }}>
+                                                                        <i className="bi bi-shield-check me-1"></i>Settled (PKR 0)
+                                                                    </span>
+                                                                ) : (
+                                                                    `PKR ${(fam.total_balance || 0).toLocaleString('en-PK')}`
+                                                                )}
                                                             </td>
                                                         </>
                                                     )}
 
-                                                    {/* 4. Student Member Sub-Row Name with Specific Father Tag */}
+                                                    {/* 4. Student Member Sub-Row Name with Specific Father Tag & Trusted Tag */}
                                                     <td>
                                                         <div className="d-flex align-items-center gap-2">
                                                             <i className="bi bi-person-circle" style={{ color: 'var(--primary-teal)', fontSize: '0.95rem' }}></i>
                                                             <div>
-                                                                <span className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
-                                                                    {m.full_name}
-                                                                </span>
-                                                                <span className="badge bg-light text-muted border ms-1" style={{ fontSize: '0.7rem' }}>
-                                                                    {m.admission_no}
-                                                                </span>
+                                                                <div className="d-flex align-items-center flex-wrap gap-1">
+                                                                    <span className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
+                                                                        {m.full_name}
+                                                                    </span>
+                                                                    <span className="badge bg-light text-muted border" style={{ fontSize: '0.7rem' }}>
+                                                                        {m.admission_no}
+                                                                    </span>
+                                                                    {isMemberTrusted && (
+                                                                        <span className="badge rounded-pill px-1.5 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd', fontSize: '0.68rem', fontWeight: 600 }}>
+                                                                            <i className="bi bi-shield-check me-1"></i>Trusted
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 {/* For cousin families, show specific father tag under student name */}
                                                                 {isCousin && m.father_name && (
-                                                                    <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                                    <div className="text-muted mt-0.5" style={{ fontSize: '0.72rem' }}>
                                                                         <i className="bi bi-person-badge me-1"></i>s/d of <strong>{m.father_name}</strong>
                                                                     </div>
                                                                 )}
@@ -1176,6 +1212,8 @@ export default function FamilyListPage() {
                             <div className="row g-3">
                                 {filteredFamilies.map((fam, idx) => {
                                     const waNumber = formatWhatsAppNumber(fam.primary_phone);
+                                    const feeStatus = (fam.fee_status || 'paid').toLowerCase();
+                                    const isSettled = fam.is_trusted_family || ['settled', 'satteled'].includes(feeStatus);
                                     const isCousin = fam.is_cousin_family;
 
                                     return (
@@ -1183,8 +1221,8 @@ export default function FamilyListPage() {
                                             <div className="card h-100 border shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
                                                 {/* Card Header */}
                                                 <div className="card-header bg-light border-bottom p-3 d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <span className="badge rounded-pill text-dark border bg-white me-2">
+                                                    <div className="d-flex flex-wrap gap-1 align-items-center">
+                                                        <span className="badge rounded-pill text-dark border bg-white me-1">
                                                             {fam.family_id}
                                                         </span>
                                                         {isCousin ? (
@@ -1194,6 +1232,11 @@ export default function FamilyListPage() {
                                                         ) : (
                                                             <span className="badge rounded-pill bg-light text-secondary border">
                                                                 Pure Siblings
+                                                            </span>
+                                                        )}
+                                                        {isSettled && (
+                                                            <span className="badge rounded-pill border" style={{ backgroundColor: '#e0f2fe', borderColor: '#bae6fd', color: '#0369a1', fontSize: '0.68rem', fontWeight: 600 }}>
+                                                                <i className="bi bi-shield-check me-1"></i>Settled
                                                             </span>
                                                         )}
                                                     </div>
@@ -1212,7 +1255,7 @@ export default function FamilyListPage() {
 
                                                 {/* Card Body */}
                                                 <div className="card-body p-3">
-                                                    <h6 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
+                                                    <h6 className="fw-bold mb-1" style={{ color: isSettled ? '#0891b2' : 'var(--primary-dark)' }}>
                                                         {isCousin ? (fam.combined_father_names || fam.family_name) : fam.family_name}
                                                     </h6>
 
@@ -1228,29 +1271,39 @@ export default function FamilyListPage() {
                                                             {fam.isFilteredChildCount ? `Filtered Children (${fam.activeMembers.length} of ${fam.total_children}):` : `Children (${fam.activeMembers.length}):`}
                                                         </div>
                                                         <div className="d-flex flex-column gap-2">
-                                                            {fam.activeMembers.map(m => (
-                                                                <div
-                                                                    key={m.student_id}
-                                                                    onClick={() => router.push(`/students/profile/${m.student_id}`)}
-                                                                    className="p-2 rounded-3 bg-light d-flex justify-content-between align-items-center cursor-pointer"
-                                                                    style={{ cursor: 'pointer', transition: 'background 0.2s' }}
-                                                                >
-                                                                    <div>
-                                                                        <div className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>{m.full_name}</div>
-                                                                        <div className="text-muted" style={{ fontSize: '0.72rem' }}>
-                                                                            Adm# {m.admission_no} {isCousin && m.father_name && `• s/d of ${m.father_name}`}
+                                                            {fam.activeMembers.map(m => {
+                                                                const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
+                                                                return (
+                                                                    <div
+                                                                        key={m.student_id}
+                                                                        onClick={() => router.push(`/students/profile/${m.student_id}`)}
+                                                                        className="p-2 rounded-3 bg-light d-flex justify-content-between align-items-center cursor-pointer"
+                                                                        style={{ cursor: 'pointer', transition: 'background 0.2s' }}
+                                                                    >
+                                                                        <div>
+                                                                            <div className="d-flex align-items-center flex-wrap gap-1">
+                                                                                <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>{m.full_name}</span>
+                                                                                {isMemberTrusted && (
+                                                                                    <span className="badge rounded-pill px-1.5 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd', fontSize: '0.65rem' }}>
+                                                                                        <i className="bi bi-shield-check me-1"></i>Trusted
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                                                Adm# {m.admission_no} {isCousin && m.father_name && `• s/d of ${m.father_name}`}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="text-end">
+                                                                            <span className="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle me-1" style={{ fontSize: '0.72rem' }}>
+                                                                                {m.class_name}
+                                                                            </span>
+                                                                            <span className="badge bg-secondary bg-opacity-10 text-dark border" style={{ fontSize: '0.72rem' }}>
+                                                                                {m.section_name}
+                                                                            </span>
                                                                         </div>
                                                                     </div>
-                                                                    <div className="text-end">
-                                                                        <span className="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle me-1" style={{ fontSize: '0.72rem' }}>
-                                                                            {m.class_name}
-                                                                        </span>
-                                                                        <span className="badge bg-secondary bg-opacity-10 text-dark border" style={{ fontSize: '0.72rem' }}>
-                                                                            {m.section_name}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 </div>

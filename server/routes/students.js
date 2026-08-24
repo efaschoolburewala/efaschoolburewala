@@ -698,6 +698,7 @@ router.get('/families-directory', async (req, res) => {
                 s.gender,
                 s.dob,
                 s.status,
+                s.category,
                 c.class_id,
                 c.class_name,
                 sec.section_id,
@@ -724,12 +725,15 @@ router.get('/families-directory', async (req, res) => {
                     members: []
                 };
             }
+            const isTrusted = (s.category || '').trim().toLowerCase() === 'trusted';
             familiesMap[fid].members.push({
                 student_id: s.student_id,
                 admission_no: s.admission_no,
                 first_name: s.first_name || '',
                 last_name: s.last_name || '',
                 full_name: `${s.first_name || ''} ${s.last_name || ''}`.trim(),
+                category: s.category || 'Normal',
+                is_trusted: isTrusted,
                 father_name: (s.father_name || '').trim(),
                 father_phone: (s.father_phone || '').trim(),
                 father_cnic: (s.father_cnic || '').trim(),
@@ -747,15 +751,16 @@ router.get('/families-directory', async (req, res) => {
             });
         }
 
-        // Query overall fee statistics per family across all generated monthly fee slips
+        // Query overall fee statistics per family across all generated monthly fee slips (excluding Trusted category students)
         const feeStatsRes = await pool.query(`
             SELECT 
                 f.family_id,
-                COALESCE(SUM(ms.total_amount), 0) + COALESCE(f.opening_balance, 0) AS total_billed,
-                COALESCE(SUM(ms.paid_amount), 0) AS total_paid,
-                GREATEST(0, (COALESCE(SUM(ms.total_amount), 0) + COALESCE(f.opening_balance, 0)) - COALESCE(SUM(ms.paid_amount), 0)) AS total_balance
+                COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.total_amount ELSE 0 END), 0) + COALESCE(f.opening_balance, 0) AS total_billed,
+                COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.paid_amount ELSE 0 END), 0) AS total_paid,
+                GREATEST(0, (COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.total_amount ELSE 0 END), 0) + COALESCE(f.opening_balance, 0)) - COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.paid_amount ELSE 0 END), 0)) AS total_balance
             FROM families f
             LEFT JOIN monthly_fee_slips ms ON (ms.family_id = f.family_id OR ms.student_id IN (SELECT student_id FROM students WHERE family_id = f.family_id))
+            LEFT JOIN students s ON ms.student_id = s.student_id
             GROUP BY f.family_id, f.opening_balance
         `);
 
@@ -860,7 +865,25 @@ router.get('/families-directory', async (req, res) => {
             const classesList = members.map(m => m.class_name);
             const sectionsList = members.map(m => m.section_name);
 
+            // Trusted category evaluation
+            const isAllTrusted = members.length > 0 && members.every(m => m.is_trusted);
+            const hasTrusted = members.some(m => m.is_trusted);
+
             const feeStat = feeStatsMap[fam.family_id] || { total_billed: 0, total_paid: 0, total_balance: 0, fee_status: 'paid' };
+
+            let finalFeeStatus = feeStat.fee_status;
+            let finalBilled = feeStat.total_billed;
+            let finalPaid = feeStat.total_paid;
+            let finalBalance = feeStat.total_balance;
+
+            if (isAllTrusted) {
+                finalFeeStatus = 'settled';
+                finalBilled = 0;
+                finalPaid = 0;
+                finalBalance = 0;
+            } else if (finalBalance === 0) {
+                finalFeeStatus = 'paid';
+            }
 
             return {
                 family_id: fam.family_id,
@@ -872,6 +895,8 @@ router.get('/families-directory', async (req, res) => {
                 guardian_phone: guardianPhone,
                 primary_phone: primaryPhone,
                 is_cousin_family: isCousinFamily,
+                is_trusted_family: isAllTrusted,
+                has_trusted_members: hasTrusted,
                 fathers_list: fathersList,
                 combined_father_names: combinedFatherNames,
                 combined_phones: combinedPhones,
@@ -881,16 +906,16 @@ router.get('/families-directory', async (req, res) => {
                 sections_list: sectionsList,
                 family_fee: fam.family_fee,
                 opening_balance: fam.opening_balance,
-                total_billed: feeStat.total_billed,
-                total_paid: feeStat.total_paid,
-                total_balance: feeStat.total_balance,
-                fee_status: feeStat.fee_status,
+                total_billed: finalBilled,
+                total_paid: finalPaid,
+                total_balance: finalBalance,
+                fee_status: finalFeeStatus,
                 members: members
             };
         });
 
-        // Sequence Sort: Unpaid (1) -> Partial (2) -> Paid (3)
-        const statusPriority = { unpaid: 1, partial: 2, paid: 3 };
+        // Sequence Sort: Unpaid (1) -> Partial (2) -> Paid (3) -> Settled (4)
+        const statusPriority = { unpaid: 1, partial: 2, paid: 3, settled: 4, satteled: 4 };
 
         familiesList.sort((a, b) => {
             const pA = statusPriority[a.fee_status] || 3;
