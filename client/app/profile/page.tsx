@@ -1114,11 +1114,11 @@ export default function ProfilePage() {
                                             const formatT = (tStr: string | null) => {
                                                 if (!tStr) return null;
                                                 try {
-                                                    const [h, m] = tStr.split(':');
-                                                    const hour = parseInt(h, 10);
-                                                    const ampm = hour >= 12 ? 'PM' : 'AM';
-                                                    const displayH = hour % 12 || 12;
-                                                    return `${displayH}:${m} ${ampm}`;
+                                                    const parts = tStr.trim().split(':');
+                                                    if (parts.length < 2) return tStr;
+                                                    const h = parts[0].padStart(2, '0');
+                                                    const m = parts[1].padStart(2, '0');
+                                                    return `${h}:${m}`; // 24-hour format: HH:mm
                                                 } catch { return tStr; }
                                             };
 

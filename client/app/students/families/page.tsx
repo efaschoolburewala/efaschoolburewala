@@ -505,19 +505,19 @@ export default function FamilyListPage() {
                             <td style="text-align: center; border: 1px solid #333; padding: 6px;">${m.section_name}</td>
                             <td rowspan="${M}" style="border: 1px solid #333; padding: 6px; vertical-align: middle;">
                                 ${isCousin && f.fathers_list && f.fathers_list.length > 0 ? (
-                                    f.fathers_list.map(fa => `<div><strong>${fa.name}</strong></div>`).join('')
-                                ) : (
-                                    `<div><strong>Father:</strong> ${f.father_name || 'N/A'}</div>`
-                                )}
+                            f.fathers_list.map(fa => `<div><strong>${fa.name}</strong></div>`).join('')
+                        ) : (
+                            `<div><strong>Father:</strong> ${f.father_name || 'N/A'}</div>`
+                        )}
                                 ${f.mother_name && !isCousin ? `<div style="font-size: 8pt; color: #555;"><strong>Mother:</strong> ${f.mother_name}</div>` : ''}
                             </td>
                             <td rowspan="${M}" style="border: 1px solid #333; padding: 6px; vertical-align: middle; white-space: nowrap;">
                                 ${isCousin && f.fathers_list && f.fathers_list.length > 0 ? (
-                                    f.fathers_list.map(fa => fa.phone ? `<div>${fa.name.split(' ')[0]}: ${fa.phone}</div>` : '').join('')
-                                ) : (
-                                    `<div>${f.father_phone ? `Father: ${f.father_phone}` : ''}</div>
+                            f.fathers_list.map(fa => fa.phone ? `<div>${fa.name.split(' ')[0]}: ${fa.phone}</div>` : '').join('')
+                        ) : (
+                            `<div>${f.father_phone ? `Father: ${f.father_phone}` : ''}</div>
                                      <div>${f.mother_phone ? `Mother: ${f.mother_phone}` : ''}</div>`
-                                )}
+                        )}
                             </td>
                         </tr>
                     `;
@@ -1003,7 +1003,7 @@ export default function FamilyListPage() {
                                                                 )}
                                                                 {isSettled && (
                                                                     <span className="badge rounded-pill border px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', borderColor: '#bae6fd', color: '#0369a1', fontSize: '0.68rem', fontWeight: 600 }}>
-                                                                        <i className="bi bi-shield-check me-1 text-info"></i>Settled (Trusted)
+                                                                        <i className="bi bi-shield-check me-1 text-info"></i>Settled
                                                                     </span>
                                                                 )}
                                                             </div>

@@ -428,14 +428,30 @@ export default function StaffAttendancePage() {
         if (!date || !staff.length) return;
         setSaving(true);
         try {
-            const records = staff.map(e => ({
-                employee_id: e.employee_id,
-                status: statuses[e.employee_id] || 'Present',
-                check_in_time: e.check_in_time || (statuses[e.employee_id] === 'Present' ? settings.staff_in_time : null),
-                check_out_time: e.check_out_time || (statuses[e.employee_id] === 'Present' ? settings.staff_out_time : null),
-                in_verified: e.in_verified || (sessionType === 'in' && statuses[e.employee_id] === 'Present'),
-                out_verified: e.out_verified || (sessionType === 'out' && statuses[e.employee_id] === 'Present')
-            }));
+            const nowTimeStr = new Date().toTimeString().split(' ')[0]; // actual current timestamp "HH:mm:ss"
+            const records = staff.map(e => {
+                const curStatus = statuses[e.employee_id] || 'Present';
+                const isPresentOrLate = ['Present', 'Late'].includes(curStatus);
+
+                let inTime = e.check_in_time;
+                if (!inTime && sessionType === 'in' && isPresentOrLate) {
+                    inTime = nowTimeStr;
+                }
+
+                let outTime = e.check_out_time;
+                if (!outTime && sessionType === 'out' && isPresentOrLate) {
+                    outTime = nowTimeStr;
+                }
+
+                return {
+                    employee_id: e.employee_id,
+                    status: curStatus,
+                    check_in_time: inTime || null,
+                    check_out_time: outTime || null,
+                    in_verified: e.in_verified || (sessionType === 'in' && isPresentOrLate),
+                    out_verified: e.out_verified || (sessionType === 'out' && isPresentOrLate)
+                };
+            });
 
             const res = await fetch(`${API}/attendance/staff/daily`, {
                 method: 'POST',
@@ -450,6 +466,20 @@ export default function StaffAttendancePage() {
 
             const d = await res.json();
             if (res.ok) {
+                // Update local staff state with recorded times immediately
+                setStaff(prev => prev.map(m => {
+                    const rec = records.find(r => r.employee_id === m.employee_id);
+                    if (!rec) return m;
+                    return {
+                        ...m,
+                        status: rec.status as StatusType,
+                        check_in_time: rec.check_in_time || m.check_in_time,
+                        check_out_time: rec.check_out_time || m.check_out_time,
+                        in_verified: rec.in_verified || m.in_verified,
+                        out_verified: rec.out_verified || m.out_verified
+                    };
+                }));
+
                 // Lock all saved rows
                 setLockedIds(new Set(staff.map(e => e.employee_id)));
                 notify.success(`Attendance saved successfully for ${records.length} staff members!`);
@@ -498,11 +528,11 @@ export default function StaffAttendancePage() {
     const formatTimeDisplay = (timeStr: string | null) => {
         if (!timeStr) return null;
         try {
-            const [h, m] = timeStr.split(':');
-            const hour = parseInt(h, 10);
-            const ampm = hour >= 12 ? 'PM' : 'AM';
-            const displayH = hour % 12 || 12;
-            return `${displayH}:${m} ${ampm}`;
+            const parts = timeStr.trim().split(':');
+            if (parts.length < 2) return timeStr;
+            const h = parts[0].padStart(2, '0');
+            const m = parts[1].padStart(2, '0');
+            return `${h}:${m}`; // strictly 24-hour format: HH:mm
         } catch {
             return timeStr;
         }

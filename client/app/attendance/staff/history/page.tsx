@@ -62,12 +62,11 @@ const S_BG: Record<string, string> = {
 function formatTime(timeStr: string | null | undefined): string | null {
     if (!timeStr) return null;
     try {
-        const parts = timeStr.split(':');
-        const h = parseInt(parts[0], 10);
-        const m = parts[1];
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const displayH = h % 12 || 12;
-        return `${displayH}:${m} ${ampm}`;
+        const parts = timeStr.trim().split(':');
+        if (parts.length < 2) return timeStr;
+        const h = parts[0].padStart(2, '0');
+        const m = parts[1].padStart(2, '0');
+        return `${h}:${m}`; // strictly 24-hour format: 08:05, 14:35
     } catch {
         return timeStr;
     }
@@ -105,15 +104,15 @@ function AttBadge({ detail, dateStr }: { detail: DailyAttendanceDetail | string;
                 {S_ABBR[status] ?? '—'}
             </span>
 
-            {/* Micro Time Indicators below badge */}
+            {/* Micro Time Indicators below badge (24h format) */}
             {inTime && (
                 <span className="font-monospace text-muted mt-0.5" style={{ fontSize: '0.58rem', lineHeight: 1 }}>
-                    <span className={isLate ? 'text-warning fw-bold' : 'text-success'}>↓{inTime.split(' ')[0]}</span>
+                    <span className={isLate ? 'text-warning fw-bold' : 'text-success'}>↓{inTime}</span>
                 </span>
             )}
             {outTime && (
                 <span className="font-monospace text-muted" style={{ fontSize: '0.58rem', lineHeight: 1 }}>
-                    <span className={isEarly ? 'text-danger fw-bold' : 'text-primary'}>↑{outTime.split(' ')[0]}</span>
+                    <span className={isEarly ? 'text-danger fw-bold' : 'text-primary'}>↑{outTime}</span>
                 </span>
             )}
         </div>

@@ -807,26 +807,67 @@ router.post('/staff/daily', async (req, res) => {
             return res.status(400).json({ error: 'date and records[] required' });
 
         const markedById = parseUserId(user_id);
+
+        // Fetch settings for late/early calculations
+        const setRes = await client.query('SELECT * FROM attendance_settings WHERE id = 1');
+        const settings = setRes.rows[0] || {
+            staff_in_time: '08:00:00',
+            staff_out_time: '14:00:00',
+            staff_grace_minutes: 15,
+            staff_biometric_mode: 'both'
+        };
+
+        const nowObj = new Date();
+        const currentTimeStr = nowObj.toTimeString().split(' ')[0]; // "HH:MM:SS"
+
         await client.query('BEGIN');
         let saved = 0;
         for (const r of records) {
             const empId = parseUserId(r.employee_id);
             if (!empId) continue;
 
-            const status = r.status || 'Present';
-            const checkIn = r.check_in_time || null;
-            const checkOut = r.check_out_time || null;
+            let status = r.status || 'Present';
+            let checkIn = r.check_in_time || null;
+            let checkOut = r.check_out_time || null;
             const remarks = r.remarks || null;
             const inVerified = r.in_verified === true;
             const outVerified = r.out_verified === true;
 
+            // If session is IN and status is Present/Late, ensure checkIn time is set to actual time if missing
+            if (session_type === 'in' && ['Present', 'Late'].includes(status) && !checkIn) {
+                checkIn = currentTimeStr;
+            }
+
+            // If session is OUT and status is Present, ensure checkOut time is set to actual time if missing
+            if (session_type === 'out' && ['Present'].includes(status) && !checkOut) {
+                checkOut = currentTimeStr;
+            }
+
+            // Calculate is_in_late and is_out_early based on actual recorded times
+            let isInLate = null;
+            if (checkIn) {
+                const checkInMins = timeStringToMinutes(checkIn);
+                const inLimitMins = timeStringToMinutes(settings.staff_in_time) + (settings.staff_grace_minutes || 0);
+                isInLate = checkInMins > inLimitMins;
+                if (isInLate && status === 'Present') {
+                    status = 'Late';
+                }
+            }
+
+            let isOutEarly = null;
+            if (checkOut) {
+                const checkOutMins = timeStringToMinutes(checkOut);
+                const outLimitMins = timeStringToMinutes(settings.staff_out_time);
+                isOutEarly = checkOutMins < outLimitMins;
+            }
+
             await client.query(
                 `INSERT INTO staff_attendance (
                     employee_id, attendance_date, status, check_in_time, check_out_time, 
-                    remarks, in_verified, out_verified, in_marked_by, updated_at
+                    remarks, in_verified, out_verified, is_in_late, is_out_early, in_marked_by, updated_at
                 ) VALUES (
                     $1, $2, $3, $4, $5, 
-                    $6, $7, $8, $9, CURRENT_TIMESTAMP
+                    $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP
                 )
                 ON CONFLICT (employee_id, attendance_date)
                 DO UPDATE SET 
@@ -836,8 +877,10 @@ router.post('/staff/daily', async (req, res) => {
                     remarks = COALESCE($6, staff_attendance.remarks),
                     in_verified = CASE WHEN $7 = TRUE THEN TRUE ELSE staff_attendance.in_verified END,
                     out_verified = CASE WHEN $8 = TRUE THEN TRUE ELSE staff_attendance.out_verified END,
+                    is_in_late = CASE WHEN $9::boolean IS NOT NULL THEN $9 ELSE staff_attendance.is_in_late END,
+                    is_out_early = CASE WHEN $10::boolean IS NOT NULL THEN $10 ELSE staff_attendance.is_out_early END,
                     updated_at = CURRENT_TIMESTAMP`,
-                [empId, date, status, checkIn, checkOut, remarks, inVerified, outVerified, markedById]
+                [empId, date, status, checkIn, checkOut, remarks, inVerified, outVerified, isInLate, isOutEarly, markedById]
             );
             saved++;
         }
