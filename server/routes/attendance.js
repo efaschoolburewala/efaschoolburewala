@@ -190,14 +190,129 @@ async function checkHolidayForDate(db, dateStr, targetType = 'staff_and_students
 }
 
 // ═══════════════════════════════════════════════
+//  ACADEMIC YEAR HELPERS FOR ATTENDANCE
+// ═══════════════════════════════════════════════
+
+function formatAcademicYearDates(ay) {
+    if (!ay) return null;
+    let sDate = null;
+    let eDate = null;
+    if (ay.start_date) {
+        sDate = typeof ay.start_date === 'string' ? ay.start_date.split('T')[0] : ay.start_date.toISOString().split('T')[0];
+    }
+    if (ay.end_date) {
+        eDate = typeof ay.end_date === 'string' ? ay.end_date.split('T')[0] : ay.end_date.toISOString().split('T')[0];
+    }
+    if (!sDate && ay.year_name) {
+        const parts = String(ay.year_name).split('-');
+        const startY = parseInt(parts[0], 10) || new Date().getFullYear();
+        const endY = parts[1] ? (parseInt(parts[1], 10) || (startY + 1)) : (startY + 1);
+        sDate = `${startY}-03-01`;
+        eDate = `${endY}-02-28`;
+    }
+    return {
+        id: ay.id,
+        year_name: ay.year_name,
+        is_active: Boolean(ay.is_active || ay.status === 'active'),
+        status: ay.status || (ay.is_active ? 'active' : 'upcoming'),
+        start_date: sDate,
+        end_date: eDate
+    };
+}
+
+async function getAcademicYearContext(clientOrPool, yearId = null) {
+    let year = null;
+    if (yearId && yearId !== 'active') {
+        const res = await clientOrPool.query(
+            "SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years WHERE id = $1",
+            [yearId]
+        );
+        if (res.rows.length > 0) year = res.rows[0];
+    }
+    if (!year) {
+        const res = await clientOrPool.query(
+            "SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years WHERE is_active = TRUE OR status = 'active' ORDER BY id ASC LIMIT 1"
+        );
+        if (res.rows.length > 0) year = res.rows[0];
+        else {
+            const fallback = await clientOrPool.query(
+                "SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC LIMIT 1"
+            );
+            year = fallback.rows[0] || null;
+        }
+    }
+    return formatAcademicYearDates(year);
+}
+
+function getSessionMonths(startDateStr, endDateStr) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    if (!startDateStr || !endDateStr) {
+        const curY = new Date().getFullYear();
+        return monthNames.map((name, i) => ({
+            month: String(i + 1).padStart(2, '0'),
+            month_number: i + 1,
+            month_name: name,
+            year: String(curY),
+            label: `${name} ${curY}`
+        }));
+    }
+    const s = new Date(startDateStr + 'T00:00:00');
+    const e = new Date(endDateStr + 'T00:00:00');
+    
+    const months = [];
+    let cur = new Date(s.getFullYear(), s.getMonth(), 1);
+    const end = new Date(e.getFullYear(), e.getMonth(), 1);
+
+    while (cur <= end) {
+        const mNum = cur.getMonth() + 1;
+        const yNum = cur.getFullYear();
+        months.push({
+            month: String(mNum).padStart(2, '0'),
+            month_number: mNum,
+            month_name: monthNames[cur.getMonth()],
+            year: String(yNum),
+            label: `${monthNames[cur.getMonth()]} ${yNum}`
+        });
+        cur.setMonth(cur.getMonth() + 1);
+    }
+    return months.length > 0 ? months : monthNames.map((name, i) => ({
+        month: String(i + 1).padStart(2, '0'),
+        month_number: i + 1,
+        month_name: name,
+        year: String(new Date().getFullYear()),
+        label: `${name} ${new Date().getFullYear()}`
+    }));
+}
+
+// GET /attendance/academic-years
+router.get('/academic-years', async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC"
+        );
+        const formattedYears = result.rows.map(formatAcademicYearDates);
+        const activeYear = formattedYears.find(r => r.is_active || r.status === 'active') || formattedYears[0] || null;
+        const sessionMonths = activeYear ? getSessionMonths(activeYear.start_date, activeYear.end_date) : [];
+        res.json({
+            years: formattedYears,
+            active_year: activeYear,
+            session_months: sessionMonths
+        });
+    } catch (err) {
+        console.error('attendance/academic-years error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ═══════════════════════════════════════════════
 //  STUDENT ATTENDANCE
 // ═══════════════════════════════════════════════
 
-// GET /attendance/students/daily?class_id=&date=
+// GET /attendance/students/daily?class_id=&date=&academic_year_id=
 // Returns all students in a class with their attendance status for the given date and holiday info
 router.get('/students/daily', async (req, res) => {
     try {
-        const { class_id, section_id, date, user_id, employee_id } = req.query;
+        const { class_id, section_id, date, user_id, employee_id, academic_year_id } = req.query;
         if (!class_id || !section_id || !date) return res.status(400).json({ error: 'class_id, section_id and date required' });
 
         const client = await pool.connect();
@@ -230,10 +345,14 @@ router.get('/students/daily', async (req, res) => {
             );
 
             const holidayInfo = await checkHolidayForDate(client, date, 'students_only');
+            const targetYear = await getAcademicYearContext(client, academic_year_id);
+            const sessionMonths = targetYear ? getSessionMonths(targetYear.start_date, targetYear.end_date) : [];
 
             res.json({
                 records: result.rows,
-                holiday: holidayInfo
+                holiday: holidayInfo,
+                active_year: targetYear,
+                session_months: sessionMonths
             });
         } finally {
             client.release();
@@ -380,12 +499,33 @@ router.post('/students/daily', async (req, res) => {
     } finally { client.release(); }
 });
 
-// GET /attendance/students/history?class_id=&month=&year=
-// Returns attendance for entire class for a month with holidays marked
+// GET /attendance/students/history?class_id=&month=&year=&academic_year_id=
+// Returns attendance for entire class for a month with holidays marked and academic year session metadata
 router.get('/students/history', async (req, res) => {
     try {
-        const { class_id, month, year } = req.query;
-        if (!class_id || !month || !year) return res.status(400).json({ error: 'class_id, month, year required' });
+        const { class_id, month, year, academic_year_id } = req.query;
+        if (!class_id) return res.status(400).json({ error: 'class_id required' });
+
+        const targetYear = await getAcademicYearContext(pool, academic_year_id);
+        const allYearsRes = await pool.query("SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC");
+        const availableYears = allYearsRes.rows.map(formatAcademicYearDates);
+        const sessionMonths = targetYear ? getSessionMonths(targetYear.start_date, targetYear.end_date) : [];
+
+        let targetMonth = month;
+        let targetYearNum = year;
+        if ((!targetMonth || !targetYearNum) && sessionMonths.length > 0) {
+            const now = new Date();
+            const nowM = String(now.getMonth() + 1).padStart(2, '0');
+            const nowY = String(now.getFullYear());
+            const matchedCurrent = sessionMonths.find(m => m.month === nowM && m.year === nowY);
+            if (matchedCurrent) {
+                targetMonth = matchedCurrent.month;
+                targetYearNum = matchedCurrent.year;
+            } else {
+                targetMonth = sessionMonths[0].month;
+                targetYearNum = sessionMonths[0].year;
+            }
+        }
 
         // All active students in class
         const students = await pool.query(
@@ -403,7 +543,7 @@ router.get('/students/history', async (req, res) => {
                AND EXTRACT(MONTH FROM sa.attendance_date) = $2
                AND EXTRACT(YEAR FROM sa.attendance_date) = $3
              ORDER BY sa.attendance_date`,
-            [class_id, month, year]
+            [class_id, targetMonth, targetYearNum]
         );
 
         // All student holidays in that month
@@ -414,9 +554,9 @@ router.get('/students/history', async (req, res) => {
         `);
 
         const holidayDateMap = {};
-        const daysInMonth = new Date(Number(year), Number(month), 0).getDate();
+        const daysInMonth = new Date(Number(targetYearNum), Number(targetMonth), 0).getDate();
         for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dateStr = `${targetYearNum}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dObj = new Date(dateStr);
             const dow = dObj.getDay();
 
@@ -437,7 +577,7 @@ router.get('/students/history', async (req, res) => {
                AND EXTRACT(MONTH FROM attendance_date) = $2
                AND EXTRACT(YEAR FROM attendance_date) = $3
              ORDER BY attendance_date`,
-            [class_id, month, year]
+            [class_id, targetMonth, targetYearNum]
         );
         const recordedDates = datesResult.rows.map(r => r.attendance_date.toISOString().split('T')[0]);
         const allUniqueDates = Array.from(new Set([...recordedDates, ...Object.keys(holidayDateMap)])).sort();
@@ -468,22 +608,71 @@ router.get('/students/history', async (req, res) => {
             return { ...s, daily: rec, present, late, absent, leave, holiday, total_days: allUniqueDates.length };
         });
 
-        res.json({ students: rows, working_dates: allUniqueDates, holidays: holidayDateMap });
+        res.json({
+            students: rows,
+            working_dates: allUniqueDates,
+            holidays: holidayDateMap,
+            academic_year: targetYear,
+            available_years: availableYears,
+            session_months: sessionMonths,
+            selected_month: targetMonth,
+            selected_year: targetYearNum
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /attendance/students/:student_id/history?month=&year=
-// Individual student history (for profile page)
+// GET /attendance/students/:student_id/history?month=&year=&academic_year_id=
+// Individual student history (for profile page & student dashboard)
 router.get('/students/:student_id/history', async (req, res) => {
     try {
         const { student_id } = req.params;
-        const { month, year } = req.query;
+        const { month, year, academic_year_id } = req.query;
 
+        const targetYear = await getAcademicYearContext(pool, academic_year_id);
+        const allYearsRes = await pool.query("SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC");
+        const availableYears = allYearsRes.rows.map(formatAcademicYearDates);
+        const sessionMonths = targetYear ? getSessionMonths(targetYear.start_date, targetYear.end_date) : [];
+
+        // 1. Compute Full Academic Year Stats (bounded by academic year start_date & end_date)
+        let ayWhere = '';
+        const ayParams = [student_id];
+        if (targetYear?.start_date && targetYear?.end_date) {
+            ayParams.push(targetYear.start_date, targetYear.end_date);
+            ayWhere = `AND sa.attendance_date >= $2 AND sa.attendance_date <= $3`;
+        }
+
+        const ayRes = await pool.query(
+            `SELECT sa.status
+             FROM student_attendance sa
+             WHERE sa.student_id = $1 ${ayWhere}`,
+            ayParams
+        );
+        const ayRecords = ayRes.rows;
+        const ayPresent = ayRecords.filter(r => r.status === 'Present').length;
+        const ayLate = ayRecords.filter(r => r.status === 'Late').length;
+        const ayAbsent = ayRecords.filter(r => r.status === 'Absent').length;
+        const ayLeave = ayRecords.filter(r => r.status === 'Leave').length;
+        const ayTotal = ayRecords.length;
+        const ayPct = ayTotal > 0 ? Math.round(((ayPresent + ayLate) / ayTotal) * 100) : 0;
+
+        const academicYearStats = {
+            present: ayPresent,
+            absent: ayAbsent,
+            late: ayLate,
+            leave: ayLeave,
+            total: ayTotal,
+            percentage: ayPct
+        };
+
+        // 2. Fetch specific records (filtered by month/year if provided, or full academic year if month === 'all' or omitted)
         let whereExtra = '';
         const params = [student_id];
-        if (month && year) {
+        if (month && month !== 'all' && year) {
             params.push(month, year);
             whereExtra = `AND EXTRACT(MONTH FROM sa.attendance_date) = $2 AND EXTRACT(YEAR FROM sa.attendance_date) = $3`;
+        } else if (targetYear?.start_date && targetYear?.end_date) {
+            params.push(targetYear.start_date, targetYear.end_date);
+            whereExtra = `AND sa.attendance_date >= $2 AND sa.attendance_date <= $3`;
         }
 
         const result = await pool.query(
@@ -503,8 +692,17 @@ router.get('/students/:student_id/history', async (req, res) => {
             late: records.filter(r => r.status === 'Late').length,
             leave: records.filter(r => r.status === 'Leave').length,
             total: records.length,
+            percentage: records.length > 0 ? Math.round(((records.filter(r => r.status === 'Present' || r.status === 'Late').length) / records.length) * 100) : 0
         };
-        res.json({ records, stats });
+
+        res.json({
+            records,
+            stats,
+            academic_year_stats: academicYearStats,
+            academic_year: targetYear,
+            available_years: availableYears,
+            session_months: sessionMonths
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -558,10 +756,10 @@ function getPKTDateString(d = new Date()) {
 //  STAFF ATTENDANCE (IN / OUT & BIOMETRICS)
 // ═══════════════════════════════════════════════
 
-// GET /attendance/staff/daily?date=&department_id=&session_type=
+// GET /attendance/staff/daily?date=&department_id=&session_type=&academic_year_id=
 router.get('/staff/daily', async (req, res) => {
     try {
-        const { date, department_id, session_type = 'in' } = req.query;
+        const { date, department_id, session_type = 'in', academic_year_id } = req.query;
         if (!date) return res.status(400).json({ error: 'date required' });
 
         let whereClause = 'WHERE e.status = $2';
@@ -596,12 +794,16 @@ router.get('/staff/daily', async (req, res) => {
         };
 
         const holidayInfo = await checkHolidayForDate(pool, date, 'staff_only');
+        const targetYear = await getAcademicYearContext(pool, academic_year_id);
+        const sessionMonths = targetYear ? getSessionMonths(targetYear.start_date, targetYear.end_date) : [];
 
         res.json({
             records: result.rows,
             settings,
             holiday: holidayInfo,
-            session_type
+            session_type,
+            active_year: targetYear,
+            session_months: sessionMonths
         });
     } catch (err) {
         console.error('staff/daily error:', err);
@@ -928,11 +1130,33 @@ router.post('/staff/daily', async (req, res) => {
     } finally { client.release(); }
 });
 
-// GET /attendance/staff/history?month=&year=&department_id=
+// GET /attendance/staff/history?month=&year=&department_id=&academic_year_id=
 router.get('/staff/history', async (req, res) => {
     try {
-        const { month, year, department_id } = req.query;
-        if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+        const { month, year, department_id, academic_year_id } = req.query;
+
+        const targetYear = await getAcademicYearContext(pool, academic_year_id);
+        const allYearsRes = await pool.query("SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC");
+        const availableYears = allYearsRes.rows.map(formatAcademicYearDates);
+        const sessionMonths = targetYear ? getSessionMonths(targetYear.start_date, targetYear.end_date) : [];
+
+        let targetMonth = month;
+        let targetYearNum = year;
+        if ((!targetMonth || !targetYearNum) && sessionMonths.length > 0) {
+            const now = new Date();
+            const nowM = String(now.getMonth() + 1).padStart(2, '0');
+            const nowY = String(now.getFullYear());
+            const matchedCurrent = sessionMonths.find(m => m.month === nowM && m.year === nowY);
+            if (matchedCurrent) {
+                targetMonth = matchedCurrent.month;
+                targetYearNum = matchedCurrent.year;
+            } else {
+                targetMonth = sessionMonths[0].month;
+                targetYearNum = sessionMonths[0].year;
+            }
+        }
+
+        if (!targetMonth || !targetYearNum) return res.status(400).json({ error: 'month and year required' });
 
         let empWhere = `WHERE e.status = 'Active'`;
         const empParams = [];
@@ -947,7 +1171,7 @@ router.get('/staff/history', async (req, res) => {
             empParams
         );
 
-        const attParams = [month, year];
+        const attParams = [targetMonth, targetYearNum];
         let attWhere = '';
         if (department_id) { attParams.push(department_id); attWhere = ` AND e.department_id = $3`; }
 
@@ -980,9 +1204,9 @@ router.get('/staff/history', async (req, res) => {
         `);
 
         const holidayDateMap = {};
-        const daysInMonth = new Date(Number(year), Number(month), 0).getDate();
+        const daysInMonth = new Date(Number(targetYearNum), Number(targetMonth), 0).getDate();
         for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dateStr = `${targetYearNum}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dObj = new Date(dateStr);
             const dow = dObj.getDay();
 
@@ -1001,7 +1225,7 @@ router.get('/staff/history', async (req, res) => {
              JOIN employees e ON sa.employee_id = e.employee_id
              WHERE EXTRACT(MONTH FROM sa.attendance_date) = $1 AND EXTRACT(YEAR FROM sa.attendance_date) = $2
              ORDER BY sa.attendance_date`,
-            [month, year]
+            [targetMonth, targetYearNum]
         );
         const recordedDates = datesResult.rows.map(r => r.attendance_date.toISOString().split('T')[0]);
         const allUniqueDates = Array.from(new Set([...recordedDates, ...Object.keys(holidayDateMap)])).sort();
@@ -1061,7 +1285,12 @@ router.get('/staff/history', async (req, res) => {
             staff: rows,
             working_dates: allUniqueDates,
             holidays: holidayDateMap,
-            settings
+            settings,
+            academic_year: targetYear,
+            available_years: availableYears,
+            session_months: sessionMonths,
+            selected_month: targetMonth,
+            selected_year: targetYearNum
         });
     } catch (err) {
         console.error('staff/history error:', err);
@@ -1069,17 +1298,59 @@ router.get('/staff/history', async (req, res) => {
     }
 });
 
-// GET /attendance/staff/:employee_id/history?month=&year=
+// GET /attendance/staff/:employee_id/history?month=&year=&academic_year_id=
 router.get('/staff/:employee_id/history', async (req, res) => {
     try {
         const { employee_id } = req.params;
-        const { month, year } = req.query;
+        const { month, year, academic_year_id } = req.query;
 
+        const targetYear = await getAcademicYearContext(pool, academic_year_id);
+        const allYearsRes = await pool.query("SELECT id, year_name, is_active, status, start_date, end_date FROM academic_years ORDER BY id DESC");
+        const availableYears = allYearsRes.rows.map(formatAcademicYearDates);
+        const sessionMonths = targetYear ? getSessionMonths(targetYear.start_date, targetYear.end_date) : [];
+
+        // 1. Full Academic Year Stats (bounded by academic year start_date & end_date)
+        let ayWhere = '';
+        const ayParams = [employee_id];
+        if (targetYear?.start_date && targetYear?.end_date) {
+            ayParams.push(targetYear.start_date, targetYear.end_date);
+            ayWhere = `AND sa.attendance_date >= $2 AND sa.attendance_date <= $3`;
+        }
+
+        const ayRes = await pool.query(
+            `SELECT sa.status, sa.is_in_late, sa.is_out_early
+             FROM staff_attendance sa
+             WHERE sa.employee_id = $1 ${ayWhere}`,
+            ayParams
+        );
+        const ayRecords = ayRes.rows;
+        const ayPresent = ayRecords.filter(r => r.status === 'Present').length;
+        const ayAbsent = ayRecords.filter(r => r.status === 'Absent').length;
+        const ayLateIn = ayRecords.filter(r => r.is_in_late || r.status === 'Late').length;
+        const ayEarlyOut = ayRecords.filter(r => r.is_out_early).length;
+        const ayLeave = ayRecords.filter(r => r.status === 'Leave').length;
+        const ayTotal = ayRecords.length;
+        const ayPct = ayTotal > 0 ? Math.round((ayPresent / ayTotal) * 100) : 0;
+
+        const academicYearStats = {
+            present: ayPresent,
+            absent: ayAbsent,
+            late_in: ayLateIn,
+            early_out: ayEarlyOut,
+            leave: ayLeave,
+            total: ayTotal,
+            percentage: ayPct
+        };
+
+        // 2. Filtered records (by month/year if given, or full academic year)
         let whereExtra = '';
         const params = [employee_id];
-        if (month && year) {
+        if (month && month !== 'all' && year) {
             params.push(month, year);
             whereExtra = `AND EXTRACT(MONTH FROM sa.attendance_date) = $2 AND EXTRACT(YEAR FROM sa.attendance_date) = $3`;
+        } else if (targetYear?.start_date && targetYear?.end_date) {
+            params.push(targetYear.start_date, targetYear.end_date);
+            whereExtra = `AND sa.attendance_date >= $2 AND sa.attendance_date <= $3`;
         }
 
         const result = await pool.query(
@@ -1100,8 +1371,17 @@ router.get('/staff/:employee_id/history', async (req, res) => {
             early_out: records.filter(r => r.is_out_early).length,
             leave: records.filter(r => r.status === 'Leave').length,
             total: records.length,
+            percentage: records.length > 0 ? Math.round(((records.filter(r => r.status === 'Present').length) / records.length) * 100) : 0
         };
-        res.json({ records, stats });
+
+        res.json({
+            records,
+            stats,
+            academic_year_stats: academicYearStats,
+            academic_year: targetYear,
+            available_years: availableYears,
+            session_months: sessionMonths
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

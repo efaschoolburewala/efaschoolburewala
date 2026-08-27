@@ -119,10 +119,30 @@ function AttBadge({ detail, dateStr }: { detail: DailyAttendanceDetail | string;
     );
 }
 
+interface AcademicYear {
+    id: number;
+    year_name: string;
+    is_active: boolean;
+    status: string;
+    start_date: string | null;
+    end_date: string | null;
+}
+
+interface SessionMonth {
+    month: string;
+    month_number: number;
+    month_name: string;
+    year: string;
+    label: string;
+}
+
 export default function StaffAttendanceHistoryPage() {
     const now = new Date();
     const [departments, setDepartments] = useState<Department[]>([]);
     const [deptId, setDeptId] = useState('');
+    const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+    const [academicYearId, setAcademicYearId] = useState<string>('');
+    const [sessionMonths, setSessionMonths] = useState<SessionMonth[]>([]);
     const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
     const [year, setYear] = useState(String(now.getFullYear()));
     const [data, setData] = useState<{
@@ -130,6 +150,9 @@ export default function StaffAttendanceHistoryPage() {
         working_dates: string[];
         holidays?: Record<string, string>;
         settings?: any;
+        academic_year?: AcademicYear;
+        available_years?: AcademicYear[];
+        session_months?: SessionMonth[];
     } | null>(null);
 
     const [loading, setLoading] = useState(false);
@@ -139,7 +162,6 @@ export default function StaffAttendanceHistoryPage() {
 
     const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
 
-    const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - i));
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
     useEffect(() => {
@@ -147,29 +169,54 @@ export default function StaffAttendanceHistoryPage() {
             .then(r => r.json())
             .then(d => Array.isArray(d) && setDepartments(d))
             .catch(() => { });
+
+        fetch(`${API}/attendance/academic-years`)
+            .then(r => r.json())
+            .then(d => {
+                if (Array.isArray(d.years)) {
+                    setAcademicYears(d.years);
+                    if (d.active_year?.id && !academicYearId) {
+                        setAcademicYearId(String(d.active_year.id));
+                    }
+                }
+                if (Array.isArray(d.session_months)) {
+                    setSessionMonths(d.session_months);
+                }
+            })
+            .catch(() => { });
     }, [API]);
 
     const loadHistory = useCallback(async () => {
-        if (!month || !year) return;
         setLoading(true);
         try {
-            const queryParams = new URLSearchParams({
-                month,
-                year
-            });
+            const queryParams = new URLSearchParams();
+            if (month) queryParams.append('month', month);
+            if (year) queryParams.append('year', year);
             if (deptId) queryParams.append('department_id', deptId);
+            if (academicYearId) queryParams.append('academic_year_id', academicYearId);
 
             const res = await fetch(`${API}/attendance/staff/history?${queryParams.toString()}`);
             const d = await res.json();
             if (d.staff) {
                 setData(d);
+                if (Array.isArray(d.available_years) && d.available_years.length > 0) {
+                    setAcademicYears(d.available_years);
+                }
+                if (Array.isArray(d.session_months) && d.session_months.length > 0) {
+                    setSessionMonths(d.session_months);
+                }
+                if (d.academic_year?.id && !academicYearId) {
+                    setAcademicYearId(String(d.academic_year.id));
+                }
+                if (d.selected_month) setMonth(d.selected_month);
+                if (d.selected_year) setYear(d.selected_year);
             }
         } catch (err) {
             console.error('History load error:', err);
         } finally {
             setLoading(false);
         }
-    }, [API, deptId, month, year]);
+    }, [API, deptId, month, year, academicYearId]);
 
     useEffect(() => {
         loadHistory();
@@ -206,6 +253,17 @@ export default function StaffAttendanceHistoryPage() {
     };
 
     const dept = departments.find(d => String(d.department_id) === deptId);
+    const activeAy = academicYears.find(ay => String(ay.id) === academicYearId) || data?.academic_year;
+
+    const handleAcademicYearChange = (newYearId: string) => {
+        setAcademicYearId(newYearId);
+        const ay = academicYears.find(a => String(a.id) === newYearId);
+        if (ay?.start_date) {
+            const s = new Date(ay.start_date);
+            setMonth(String(s.getMonth() + 1).padStart(2, '0'));
+            setYear(String(s.getFullYear()));
+        }
+    };
 
     return (
         <div className="container-fluid px-3 px-md-4 py-3 animate__animated animate__fadeIn">
@@ -217,9 +275,17 @@ export default function StaffAttendanceHistoryPage() {
                         <i className="bi bi-clock-history me-2" style={{ color: 'var(--accent-orange)' }} />
                         Staff Attendance History &amp; Timesheets
                     </h2>
-                    <p className="text-muted mb-0 small">
-                        Monthly records with dual IN &amp; OUT timestamps, Late Arrival &amp; Early Exit detection
-                    </p>
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <p className="text-muted mb-0 small">
+                            Monthly records with dual IN &amp; OUT timestamps, Late Arrival &amp; Early Exit detection
+                        </p>
+                        {activeAy && (
+                            <span className="badge rounded-pill bg-light text-dark border px-2.5 py-1 small fw-semibold">
+                                <i className="bi bi-mortarboard-fill text-primary me-1" />
+                                Session: <strong>{activeAy.year_name}</strong>
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {data && (
@@ -235,6 +301,25 @@ export default function StaffAttendanceHistoryPage() {
                 <div className="card-body p-3 p-md-4">
                     <div className="row g-3 align-items-end">
 
+                        {/* Academic Year Selector */}
+                        <div className="col-12 col-md-3">
+                            <label className="form-label fw-bold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
+                                <i className="bi bi-mortarboard-fill me-1" style={{ color: 'var(--accent-orange)' }} />Academic Year
+                            </label>
+                            <select
+                                className="form-select rounded-3 fw-semibold"
+                                value={academicYearId}
+                                onChange={e => handleAcademicYearChange(e.target.value)}
+                                style={{ border: '2px solid rgba(245, 130, 32, 0.4)', height: 42 }}
+                            >
+                                {academicYears.map(ay => (
+                                    <option key={ay.id} value={ay.id}>
+                                        {ay.year_name} {ay.is_active ? '★ Active' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                         {/* Department */}
                         <div className="col-12 col-md-3">
                             <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
@@ -246,30 +331,39 @@ export default function StaffAttendanceHistoryPage() {
                             </select>
                         </div>
 
-                        {/* Month */}
-                        <div className="col-6 col-md-2">
+                        {/* Session Month Selector (Spans from start_date to end_date) */}
+                        <div className="col-6 col-md-3">
                             <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
-                                <i className="bi bi-calendar3 me-1" style={{ color: 'var(--primary-teal)' }} />Month
+                                <i className="bi bi-calendar3 me-1" style={{ color: 'var(--primary-teal)' }} />Session Month
                             </label>
-                            <select className="form-select rounded-3" value={month} onChange={e => setMonth(e.target.value)} style={{ border: '1.5px solid #dee2e6', height: 42 }}>
-                                {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((m, i) => (
-                                    <option key={m} value={m}>{monthNames[i]}</option>
-                                ))}
+                            <select
+                                className="form-select rounded-3 fw-semibold"
+                                value={`${year}-${month}`}
+                                onChange={e => {
+                                    const [y, m] = e.target.value.split('-');
+                                    setYear(y);
+                                    setMonth(m);
+                                }}
+                                style={{ border: '1.5px solid #dee2e6', height: 42 }}
+                            >
+                                {sessionMonths.length > 0 ? (
+                                    sessionMonths.map(sm => (
+                                        <option key={`${sm.year}-${sm.month}`} value={`${sm.year}-${sm.month}`}>
+                                            {sm.label}
+                                        </option>
+                                    ))
+                                ) : (
+                                    monthNames.map((mn, i) => (
+                                        <option key={String(i + 1).padStart(2, '0')} value={`${year}-${String(i + 1).padStart(2, '0')}`}>
+                                            {mn} {year}
+                                        </option>
+                                    ))
+                                )}
                             </select>
                         </div>
 
-                        {/* Year */}
-                        <div className="col-6 col-md-2">
-                            <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
-                                <i className="bi bi-calendar-event me-1" style={{ color: 'var(--primary-teal)' }} />Year
-                            </label>
-                            <select className="form-select rounded-3" value={year} onChange={e => setYear(e.target.value)} style={{ border: '1.5px solid #dee2e6', height: 42 }}>
-                                {years.map(y => <option key={y}>{y}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Specific Date Filter */}
-                        <div className="col-12 col-md-3">
+                        {/* Specific Date Filter (Constrained to Academic Year) */}
+                        <div className="col-6 col-md-3">
                             <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
                                 <i className="bi bi-calendar-day me-1" style={{ color: 'var(--primary-teal)' }} />Filter Day
                             </label>
@@ -278,6 +372,8 @@ export default function StaffAttendanceHistoryPage() {
                                     type="date"
                                     className="form-control rounded-start-3"
                                     value={filterDate}
+                                    min={activeAy?.start_date || undefined}
+                                    max={activeAy?.end_date || undefined}
                                     onChange={e => {
                                         setFilterDate(e.target.value);
                                         if (e.target.value) {

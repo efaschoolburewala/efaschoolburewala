@@ -45,6 +45,7 @@ export default function StudentAttendancePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [activeYear, setActiveYear] = useState<{ id: number; year_name: string; start_date: string | null; end_date: string | null } | null>(null);
   const { hasPermission, user } = useAuth();
 
   const isAdmin = (user?.role_level || 0) >= 90;
@@ -113,6 +114,10 @@ export default function StudentAttendancePage() {
       const data = await res.json();
       const records: StudentRow[] = Array.isArray(data) ? data : (data.records || []);
       const hol: HolidayInfo | null = data.holiday || null;
+
+      if (data.active_year) {
+        setActiveYear(data.active_year);
+      }
 
       setHolidayInfo(hol);
       setStudents(records);
@@ -208,7 +213,15 @@ export default function StudentAttendancePage() {
           <h2 className="fw-bold mb-1" style={{ color: 'var(--primary-dark)' }}>
             <i className="bi bi-calendar-check-fill me-2" style={{ color: 'var(--accent-orange)' }} /> Student Attendance
           </h2>
-          <p className="text-muted mb-0 small">Mark daily attendance &amp; track records</p>
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            <p className="text-muted mb-0 small">Mark daily attendance &amp; track records</p>
+            {activeYear && (
+              <span className="badge rounded-pill bg-light text-dark border px-2.5 py-1 small fw-semibold">
+                <i className="bi bi-mortarboard-fill text-primary me-1" />
+                Session: <strong>{activeYear.year_name}</strong>
+              </span>
+            )}
+          </div>
         </div>
         {students.length > 0 && (
           <div className="d-flex flex-wrap gap-2">
@@ -253,8 +266,15 @@ export default function StudentAttendancePage() {
                 <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
                   <i className="bi bi-calendar3 me-1" style={{ color: 'var(--primary-teal)' }} />Date
                 </label>
-                <input type="date" className="form-control rounded-3" value={date} max={canMarkAdvance ? undefined : today}
-                  onChange={e => setDate(e.target.value)} style={{ border: '1.5px solid #dee2e6', height: 42 }} />
+                <input
+                  type="date"
+                  className="form-control rounded-3"
+                  value={date}
+                  min={activeYear?.start_date || undefined}
+                  max={canMarkAdvance ? (activeYear?.end_date || undefined) : (activeYear?.end_date && today > activeYear.end_date ? activeYear.end_date : today)}
+                  onChange={e => setDate(e.target.value)}
+                  style={{ border: '1.5px solid #dee2e6', height: 42 }}
+                />
               </div>
               <div className="col-md-3">
                 <button className="btn btn-primary-custom w-100 fw-bold rounded-3" style={{ height: 42 }}

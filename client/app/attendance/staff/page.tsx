@@ -94,6 +94,7 @@ export default function StaffAttendancePage() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeYear, setActiveYear] = useState<{ id: number; year_name: string; start_date: string | null; end_date: string | null } | null>(null);
 
     // Biometric Modal State
     const [verifyingMember, setVerifyingMember] = useState<StaffRow | null>(null);
@@ -110,11 +111,15 @@ export default function StaffAttendancePage() {
 
     const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
 
-    // 1. Initial Load of Departments & Settings
+    // 1. Fetch Department Meta
     useEffect(() => {
         fetch(`${API}/attendance/departments`)
             .then(r => r.json())
-            .then(d => Array.isArray(d) && setDepartments(d))
+            .then(d => {
+                if (Array.isArray(d)) {
+                    setDepartments(d);
+                }
+            })
             .catch(() => { });
 
         fetch(`${API}/attendance/settings`)
@@ -147,6 +152,10 @@ export default function StaffAttendancePage() {
             const data = await res.json();
             const records: StaffRow[] = Array.isArray(data.records) ? data.records : (Array.isArray(data) ? data : []);
             const hol: HolidayInfo | null = data.holiday || null;
+
+            if (data.active_year) {
+                setActiveYear(data.active_year);
+            }
 
             if (data.settings) {
                 setSettings({
@@ -564,9 +573,17 @@ export default function StaffAttendancePage() {
                         <i className="bi bi-fingerprint me-2" style={{ color: 'var(--accent-orange)' }} />
                         Staff Biometric Attendance
                     </h2>
-                    <p className="text-muted mb-0 small">
-                        Real-time IN/OUT biometrics verification, automated locking, and admin controls
-                    </p>
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <p className="text-muted mb-0 small">
+                            Real-time IN/OUT biometrics verification, automated locking, and admin controls
+                        </p>
+                        {activeYear && (
+                            <span className="badge rounded-pill bg-light text-dark border px-2.5 py-1 small fw-semibold">
+                                <i className="bi bi-mortarboard-fill text-primary me-1" />
+                                Session: <strong>{activeYear.year_name}</strong>
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Bulk Status Action Buttons for Unlocked */}
@@ -642,7 +659,7 @@ export default function StaffAttendancePage() {
                             </select>
                         </div>
 
-                        {/* 3. Date Picker */}
+                        {/* 3. Date Picker (Constrained to Active Academic Year) */}
                         <div className="col-12 col-md-3">
                             <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
                                 <i className="bi bi-calendar3 me-1" style={{ color: 'var(--primary-teal)' }} />
@@ -652,7 +669,8 @@ export default function StaffAttendancePage() {
                                 type="date"
                                 className="form-control rounded-3"
                                 value={date}
-                                max={canMarkAdvance ? undefined : today}
+                                min={activeYear?.start_date || undefined}
+                                max={canMarkAdvance ? (activeYear?.end_date || undefined) : (activeYear?.end_date && today > activeYear.end_date ? activeYear.end_date : today)}
                                 onChange={e => setDate(e.target.value)}
                                 style={{ border: '1.5px solid #dee2e6', height: 44 }}
                             />

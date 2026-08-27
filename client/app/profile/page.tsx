@@ -65,11 +65,13 @@ export default function ProfilePage() {
     const [activeTab, setActiveTab] = useState<'info' | 'biometrics' | 'security' | 'attendance'>('info');
 
     // Attendance Tab State
-    const now = new Date();
-    const [attMonth, setAttMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
-    const [attYear, setAttYear] = useState(String(now.getFullYear()));
+    const [attAcademicYears, setAttAcademicYears] = useState<any[]>([]);
+    const [attAcademicYearId, setAttAcademicYearId] = useState<string>('');
+    const [attSessionMonths, setAttSessionMonths] = useState<any[]>([]);
+    const [attSelectedMonth, setAttSelectedMonth] = useState<string>('all'); // 'all' or 'YYYY-MM'
     const [attRecords, setAttRecords] = useState<any[]>([]);
     const [attStats, setAttStats] = useState<any>(null);
+    const [attYearStats, setAttYearStats] = useState<any>(null);
     const [loadingAtt, setLoadingAtt] = useState(false);
 
     // Profile Edit State
@@ -121,18 +123,38 @@ export default function ProfilePage() {
         setLoadingAtt(true);
         try {
             const cleanAPI = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
-            const res = await fetch(`${cleanAPI}/attendance/staff/${empId}/history?month=${attMonth}&year=${attYear}`);
+            const queryParams = new URLSearchParams();
+            if (attAcademicYearId) queryParams.append('academic_year_id', attAcademicYearId);
+            if (attSelectedMonth && attSelectedMonth !== 'all') {
+                const [y, m] = attSelectedMonth.split('-');
+                queryParams.append('month', m);
+                queryParams.append('year', y);
+            } else {
+                queryParams.append('month', 'all');
+            }
+
+            const res = await fetch(`${cleanAPI}/attendance/staff/${empId}/history?${queryParams.toString()}`);
             const data = await res.json();
             if (Array.isArray(data.records)) {
                 setAttRecords(data.records);
                 setAttStats(data.stats);
+                setAttYearStats(data.academic_year_stats);
+                if (Array.isArray(data.available_years) && data.available_years.length > 0) {
+                    setAttAcademicYears(data.available_years);
+                }
+                if (Array.isArray(data.session_months) && data.session_months.length > 0) {
+                    setAttSessionMonths(data.session_months);
+                }
+                if (data.academic_year?.id && !attAcademicYearId) {
+                    setAttAcademicYearId(String(data.academic_year.id));
+                }
             }
         } catch (err) {
             console.error('Failed to load user attendance:', err);
         } finally {
             setLoadingAtt(false);
         }
-    }, [profile?.employee_id, authUser?.employee_id, profile?.id, attMonth, attYear]);
+    }, [profile?.employee_id, authUser?.employee_id, profile?.id, attAcademicYearId, attSelectedMonth]);
 
     useEffect(() => {
         if (activeTab === 'attendance') {
@@ -974,53 +996,60 @@ export default function ProfilePage() {
             {/* TAB 4: My Attendance & Timesheets */}
             {activeTab === 'attendance' && (
                 <div className="animate__animated animate__fadeIn">
-                    {/* Header & Filter Card */}
-                    <div className="card border-0 shadow-sm rounded-4 mb-4 bg-white p-3 p-md-4">
-                        <div className="row g-3 align-items-end">
-                            <div className="col-12 col-md-5">
+                    {/* Attendance Filter Card */}
+                    <div className="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+                        <div className="row g-3 align-items-center">
+                            <div className="col-12 col-md-4">
                                 <h5 className="fw-bold text-dark mb-1">
                                     <i className="bi bi-calendar2-check-fill me-2" style={{ color: '#0d9488' }} />
                                     Personal Attendance Log
                                 </h5>
-                                <p className="text-muted small mb-0">View your daily IN/OUT biometric timestamps and punctuality stats</p>
+                                <p className="text-muted small mb-0">Academic session timesheets with dual IN/OUT timestamps</p>
                             </div>
 
-                            <div className="col-6 col-md-2">
+                            {/* Academic Year Selector */}
+                            <div className="col-12 col-md-3">
                                 <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
-                                    Month
+                                    Academic Year
                                 </label>
                                 <select 
-                                    className="form-select form-select-sm rounded-3" 
-                                    value={attMonth} 
-                                    onChange={e => setAttMonth(e.target.value)} 
-                                    style={{ height: 38 }}
+                                    className="form-select form-select-sm rounded-3 fw-semibold" 
+                                    value={attAcademicYearId} 
+                                    onChange={e => {
+                                        setAttAcademicYearId(e.target.value);
+                                        setAttSelectedMonth('all');
+                                    }} 
+                                    style={{ height: 38, border: '2px solid rgba(245, 130, 32, 0.4)' }}
                                 >
-                                    {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((m, i) => (
-                                        <option key={m} value={m}>
-                                            {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][i]}
+                                    {attAcademicYears.map(ay => (
+                                        <option key={ay.id} value={ay.id}>
+                                            {ay.year_name} {ay.is_active ? '★ Active' : ''}
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
-                            <div className="col-6 col-md-2">
+                            {/* Session Month Selector */}
+                            <div className="col-12 col-md-3">
                                 <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
-                                    Year
+                                    Session Month
                                 </label>
                                 <select 
-                                    className="form-select form-select-sm rounded-3" 
-                                    value={attYear} 
-                                    onChange={e => setAttYear(e.target.value)} 
+                                    className="form-select form-select-sm rounded-3 fw-semibold" 
+                                    value={attSelectedMonth} 
+                                    onChange={e => setAttSelectedMonth(e.target.value)} 
                                     style={{ height: 38 }}
                                 >
-                                    {[0, 1, 2, 3, 4].map(offset => {
-                                        const y = String(now.getFullYear() - offset);
-                                        return <option key={y} value={y}>{y}</option>;
-                                    })}
+                                    <option value="all">📅 All Months (Full Session)</option>
+                                    {attSessionMonths.map(sm => (
+                                        <option key={`${sm.year}-${sm.month}`} value={`${sm.year}-${sm.month}`}>
+                                            {sm.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
-                            <div className="col-12 col-md-3">
+                            <div className="col-12 col-md-2">
                                 <button 
                                     type="button"
                                     className="btn btn-sm w-100 fw-bold rounded-3 text-white shadow-xs" 
@@ -1031,11 +1060,32 @@ export default function ProfilePage() {
                                     {loadingAtt ? (
                                         <><span className="spinner-border spinner-border-sm me-1.5" />Loading...</>
                                     ) : (
-                                        <><i className="bi bi-arrow-repeat me-1.5" />Refresh Timesheet</>
+                                        <><i className="bi bi-arrow-repeat me-1.5" />Refresh</>
                                     )}
                                 </button>
                             </div>
                         </div>
+
+                        {/* Overall Academic Year Progress Banner */}
+                        {attYearStats && (
+                            <div className="mt-4 p-3 rounded-3 bg-light border border-light-subtle">
+                                <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                    <span className="small fw-bold text-uppercase text-muted" style={{ letterSpacing: '0.05em' }}>
+                                        <i className="bi bi-mortarboard-fill text-primary me-1.5" />
+                                        Full Session Attendance Performance
+                                    </span>
+                                    <span className="fw-bold fs-6" style={{ color: (attYearStats.percentage || 0) >= 75 ? '#0d9e6e' : '#e13232' }}>
+                                        {attYearStats.percentage ?? 0}% Rate ({attYearStats.present ?? 0} / {attYearStats.total ?? 0} days)
+                                    </span>
+                                </div>
+                                <div className="progress" style={{ height: 8, borderRadius: 10 }}>
+                                    <div
+                                        className={`progress-bar ${(attYearStats.percentage || 0) >= 75 ? 'bg-success' : 'bg-danger'}`}
+                                        style={{ width: `${Math.min(attYearStats.percentage || 0, 100)}%`, borderRadius: 10 }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Stats Summary Cards */}
