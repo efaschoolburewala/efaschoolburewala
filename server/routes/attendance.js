@@ -517,6 +517,43 @@ function timeStringToMinutes(timeStr) {
     return hours * 60 + minutes;
 }
 
+// Helper: Get Current Time in Pakistan Timezone (Asia/Karachi - UTC+5) in "HH:MM:SS" (24-hour format)
+function getPKTTimeString(d = new Date()) {
+    try {
+        return new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Karachi',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).format(d);
+    } catch {
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        const pktDate = new Date(utc + (3600000 * 5));
+        return pktDate.toTimeString().split(' ')[0];
+    }
+}
+
+// Helper: Get Current Date in Pakistan Timezone (Asia/Karachi) in "YYYY-MM-DD"
+function getPKTDateString(d = new Date()) {
+    try {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Karachi',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).formatToParts(d);
+        const y = parts.find(p => p.type === 'year').value;
+        const m = parts.find(p => p.type === 'month').value;
+        const day = parts.find(p => p.type === 'day').value;
+        return `${y}-${m}-${day}`;
+    } catch {
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        const pktDate = new Date(utc + (3600000 * 5));
+        return pktDate.toISOString().split('T')[0];
+    }
+}
+
 // ═══════════════════════════════════════════════
 //  STAFF ATTENDANCE (IN / OUT & BIOMETRICS)
 // ═══════════════════════════════════════════════
@@ -697,9 +734,8 @@ router.post('/staff/verify-biometric', async (req, res) => {
             console.log(`[Biometric] ✅ Employee ${empId} verified successfully. Score: ${(similarity * 100).toFixed(2)}%`);
         }
 
-        // 4. Time calculations
-        const nowObj = new Date();
-        const currentTimeStr = nowObj.toTimeString().split(' ')[0]; // "08:15:30"
+        // 4. Time calculations in Pakistan Timezone (Asia/Karachi - UTC+5)
+        const currentTimeStr = getPKTTimeString(); // e.g. "11:15:30" (PKT)
         const currentMins = timeStringToMinutes(currentTimeStr);
         const inLimitMins = timeStringToMinutes(settings.staff_in_time) + (settings.staff_grace_minutes || 0);
         const outLimitMins = timeStringToMinutes(settings.staff_out_time);
@@ -817,8 +853,7 @@ router.post('/staff/daily', async (req, res) => {
             staff_biometric_mode: 'both'
         };
 
-        const nowObj = new Date();
-        const currentTimeStr = nowObj.toTimeString().split(' ')[0]; // "HH:MM:SS"
+        const currentTimeStr = getPKTTimeString(); // "HH:MM:SS" in Pakistan Timezone (Asia/Karachi)
 
         await client.query('BEGIN');
         let saved = 0;

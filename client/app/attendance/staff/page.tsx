@@ -428,7 +428,23 @@ export default function StaffAttendancePage() {
         if (!date || !staff.length) return;
         setSaving(true);
         try {
-            const nowTimeStr = new Date().toTimeString().split(' ')[0]; // actual current timestamp "HH:mm:ss"
+            const getPKTTime = () => {
+                try {
+                    return new Intl.DateTimeFormat('en-GB', {
+                        timeZone: 'Asia/Karachi',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    }).format(new Date());
+                } catch {
+                    const d = new Date();
+                    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+                    const pktDate = new Date(utc + (3600000 * 5));
+                    return pktDate.toTimeString().split(' ')[0];
+                }
+            };
+            const nowTimeStr = getPKTTime(); // actual current timestamp "HH:mm:ss" in PKT (Asia/Karachi)
             const records = staff.map(e => {
                 const curStatus = statuses[e.employee_id] || 'Present';
                 const isPresentOrLate = ['Present', 'Late'].includes(curStatus);
