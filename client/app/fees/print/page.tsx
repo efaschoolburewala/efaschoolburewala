@@ -246,9 +246,27 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
         itemMap.set(desc, (itemMap.get(desc) || 0) + amt);
     }
 
+    const isTrustedVoucher = Boolean(
+        (v.primary as any).is_trusted ||
+        ((v.primary as any).category && (v.primary as any).category.trim().toLowerCase() === 'trusted') ||
+        (v.family_members && v.family_members.length > 0 && v.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'))
+    );
+
     itemMap.forEach((amt, desc) => {
         regularFeeItems.push({ desc, amount: amt });
     });
+
+    if (isTrustedVoucher) {
+        let tuitionSum = 0;
+        itemMap.forEach((amt, desc) => {
+            if (desc.toLowerCase().includes('monthly fee') || desc.toLowerCase().includes('tuition')) {
+                tuitionSum += amt;
+            }
+        });
+        if (tuitionSum > 0) {
+            regularFeeItems.push({ desc: 'Tuition Concession (Trusted)', amount: -tuitionSum });
+        }
+    }
 
     const totalPaid = parseFloat(v.total_paid as any) || 0;
     if (totalPaid > 0) {

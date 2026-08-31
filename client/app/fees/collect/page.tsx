@@ -220,9 +220,25 @@ export default function CollectFeePage() {
 
         const buildInitialHeads = (targetSlip: SlipRow, currentPayDate: string) => {
             const initialHeads: Record<string, string> = {};
+            const isTrusted = Boolean(
+                (targetSlip as any).is_trusted ||
+                (targetSlip.category && targetSlip.category.trim().toLowerCase() === 'trusted') ||
+                (targetSlip.family_members && targetSlip.family_members.length > 0 && targetSlip.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'))
+            );
+
             if (targetSlip.line_items && targetSlip.line_items.length > 0) {
                 targetSlip.line_items.forEach((item: any) => {
                     const headId = item.item_id ? item.item_id.toString() : item.head_name;
+                    const isTuitionOrPb = (item.head_name || '').toLowerCase().includes('tuition') || 
+                        (item.head_name || '').toLowerCase().includes('family monthly fee') || 
+                        (item.head_name || '').toLowerCase().includes('monthly fee') || 
+                        (item.head_name || '').toLowerCase().includes('previous balance');
+
+                    if (isTrusted && isTuitionOrPb) {
+                        initialHeads[headId] = '';
+                        return;
+                    }
+
                     const rem = Math.max(0, parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0));
                     const isLateFine = (item.head_name || '').toLowerCase().includes('late') || (item.head_name || '').toLowerCase().includes('fine');
                     
@@ -1561,6 +1577,11 @@ export default function CollectFeePage() {
 
                                                                 const elements: any[] = [];
                                                                 let keyIdx = 0;
+                                                                const isTrustedSlip = Boolean(
+                                                                    (activeSlip as any).is_trusted ||
+                                                                    (activeSlip.category && activeSlip.category.trim().toLowerCase() === 'trusted') ||
+                                                                    (activeSlip.family_members && activeSlip.family_members.length > 0 && activeSlip.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'))
+                                                                );
 
                                                                 if (tItem || pbItem) {
                                                                     const tAmtB = parseFloat(tItem?.amount || 0);
@@ -1583,63 +1604,83 @@ export default function CollectFeePage() {
 
                                                                     const dsDis = parseFloat(combRem) <= 0 && combPaid > 0;
 
-                                                                    elements.push(
-                                                                        <div key={'comb-' + (keyIdx++)} className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
-                                                                            <div className="d-flex flex-column flex-grow-1 min-w-0 me-2" style={{ maxWidth: '100%' }}>
-                                                                                <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>
-                                                                                    {(tItem && pbItem) ? 'Tuition Fee + Prev. Balance' : (tItem ? (tItem.head_name || 'Tuition Fee') : (pbItem?.head_name || 'Previous Balance'))}
-                                                                                </span>
-                                                                                <span className="text-muted" style={{ fontSize: '0.72rem' }}>Billed: {combAmtB.toLocaleString('en-PK')} {combPaid > 0 ? ' • Paid: ' + combPaid.toLocaleString('en-PK') : ''}</span>
-                                                                                {(tItem && pbItem) && (
-                                                                                    <span className="text-muted fw-semibold" style={{ fontSize: '0.68rem' }}>
-                                                                                        (Remaining Tuition: {tRem.toLocaleString('en-PK')} | Prev: {pbRem.toLocaleString('en-PK')})
+                                                                    if (isTrustedSlip) {
+                                                                        elements.push(
+                                                                            <div key={'comb-' + (keyIdx++)} className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
+                                                                                <div className="d-flex flex-column flex-grow-1 min-w-0 me-2" style={{ maxWidth: '100%' }}>
+                                                                                    <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>
+                                                                                        {tItem ? (tItem.head_name || 'Tuition Fee') : 'Tuition Fee'}
                                                                                     </span>
-                                                                                )}
-                                                                            </div>
-                                                                            <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
-                                                                                {combAmtB > 0 && (
-                                                                                    <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold py-1.5 px-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-                                                                                        Bal: {combRem}
+                                                                                    <span className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                                                                        Regular Fee: PKR {combAmtB.toLocaleString('en-PK')} • <span className="text-info fw-semibold">100% Concession (Trusted)</span>
                                                                                     </span>
-                                                                                )}
-                                                                                <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
-                                                                                    <span className="input-group-text bg-light text-muted small px-2 fw-bold" style={{ fontSize: '0.78rem' }}>PKR</span>
-                                                                                    <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
-                                                                                        onKeyDown={e => ['e', 'E', '+', '-', '.', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
-                                                                                        onWheel={e => (e.target as HTMLElement).blur()}
-                                                                                        value={combInputVal > 0 ? combInputVal : ''}
-                                                                                        onChange={(e) => {
-                                                                                            const vStr = e.target.value;
-                                                                                            if (vStr === '') {
-                                                                                                setHeadPayVals({ ...headPayVals, ...(pbId ? { [pbId]: '' } : {}), ...(tId ? { [tId]: '' } : {}) });
-                                                                                                return;
-                                                                                            }
-                                                                                            let val = Math.max(0, parseFloat(vStr) || 0);
-                                                                                            const maxComb = parseFloat(combRem) || 0;
-                                                                                            if (maxComb > 0 && val > maxComb) {
-                                                                                                val = maxComb; // Cap at remaining balance
-                                                                                            }
-                                                                                            let newPb = 0, newT = 0;
-                                                                                            if (val <= pbRem) {
-                                                                                                newPb = Math.max(0, val);
-                                                                                            } else {
-                                                                                                newPb = Math.max(0, pbRem);
-                                                                                                newT = Math.max(0, val - pbRem);
-                                                                                            }
-                                                                                            if (pbRem <= 0) { newPb = 0; newT = Math.max(0, val); }
-
-                                                                                            setHeadPayVals({
-                                                                                                ...headPayVals,
-                                                                                                ...(pbId ? { [pbId]: newPb > 0 ? newPb.toString() : '' } : {}),
-                                                                                                ...(tId ? { [tId]: newT > 0 ? newT.toString() : '' } : {})
-                                                                                            });
-                                                                                        }}
-                                                                                        style={{ fontSize: '0.9rem', fontWeight: 600, padding: '4px 8px' }}
-                                                                                        disabled={dsDis} min="0" />
+                                                                                </div>
+                                                                                <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                                                                                    <span className="badge rounded-pill" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.75rem', padding: '4px 8px' }}>
+                                                                                        ✓ Free Tuition (Nill)
+                                                                                    </span>
                                                                                 </div>
                                                                             </div>
-                                                                        </div>
-                                                                    );
+                                                                        );
+                                                                    } else {
+                                                                        elements.push(
+                                                                            <div key={'comb-' + (keyIdx++)} className="d-flex flex-wrap justify-content-between align-items-center bg-white p-2.5 rounded-3 border shadow-sm gap-2">
+                                                                                <div className="d-flex flex-column flex-grow-1 min-w-0 me-2" style={{ maxWidth: '100%' }}>
+                                                                                    <span className="text-dark fw-bold text-truncate" style={{ fontSize: '0.88rem' }}>
+                                                                                        {(tItem && pbItem) ? 'Tuition Fee + Prev. Balance' : (tItem ? (tItem.head_name || 'Tuition Fee') : (pbItem?.head_name || 'Previous Balance'))}
+                                                                                    </span>
+                                                                                    <span className="text-muted" style={{ fontSize: '0.72rem' }}>Billed: {combAmtB.toLocaleString('en-PK')} {combPaid > 0 ? ' • Paid: ' + combPaid.toLocaleString('en-PK') : ''}</span>
+                                                                                    {(tItem && pbItem) && (
+                                                                                        <span className="text-muted fw-semibold" style={{ fontSize: '0.68rem' }}>
+                                                                                            (Remaining Tuition: {tRem.toLocaleString('en-PK')} | Prev: {pbRem.toLocaleString('en-PK')})
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                                                                                    {combAmtB > 0 && (
+                                                                                        <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold py-1.5 px-2" style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                                                                            Bal: {combRem}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <div className="input-group input-group-sm w-auto" style={{ width: '130px', maxWidth: '140px' }}>
+                                                                                        <span className="input-group-text bg-light text-muted small px-2 fw-bold" style={{ fontSize: '0.78rem' }}>PKR</span>
+                                                                                        <input type="number" className="form-control form-control-sm text-end fw-bold no-spinner" placeholder="0"
+                                                                                            onKeyDown={e => ['e', 'E', '+', '-', '.', 'ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()}
+                                                                                            onWheel={e => (e.target as HTMLElement).blur()}
+                                                                                            value={combInputVal > 0 ? combInputVal : ''}
+                                                                                            onChange={(e) => {
+                                                                                                const vStr = e.target.value;
+                                                                                                if (vStr === '') {
+                                                                                                    setHeadPayVals({ ...headPayVals, ...(pbId ? { [pbId]: '' } : {}), ...(tId ? { [tId]: '' } : {}) });
+                                                                                                    return;
+                                                                                                }
+                                                                                                let val = Math.max(0, parseFloat(vStr) || 0);
+                                                                                                const maxComb = parseFloat(combRem) || 0;
+                                                                                                if (maxComb > 0 && val > maxComb) {
+                                                                                                    val = maxComb; // Cap at remaining balance
+                                                                                                }
+                                                                                                let newPb = 0, newT = 0;
+                                                                                                if (val <= pbRem) {
+                                                                                                    newPb = Math.max(0, val);
+                                                                                                } else {
+                                                                                                    newPb = Math.max(0, pbRem);
+                                                                                                    newT = Math.max(0, val - pbRem);
+                                                                                                }
+                                                                                                if (pbRem <= 0) { newPb = 0; newT = Math.max(0, val); }
+
+                                                                                                setHeadPayVals({
+                                                                                                    ...headPayVals,
+                                                                                                    ...(pbId ? { [pbId]: newPb > 0 ? newPb.toString() : '' } : {}),
+                                                                                                    ...(tId ? { [tId]: newT > 0 ? newT.toString() : '' } : {})
+                                                                                                });
+                                                                                            }}
+                                                                                            style={{ fontSize: '0.9rem', fontWeight: 600, padding: '4px 8px' }}
+                                                                                            disabled={dsDis} min="0" />
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
                                                                 }
 
                                                                 others.forEach((item: any) => {

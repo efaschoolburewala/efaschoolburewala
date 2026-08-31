@@ -340,14 +340,9 @@ router.post('/generate', async (req, res) => {
                 })
                 .map(head => {
                     const isTuition = head.head_name.toLowerCase().includes('tuition');
-                    let unitAmount = 0;
-                    if (isTuition) {
-                        unitAmount = isTrusted ? 0 : (personalFee > 0 ? personalFee : parseFloat(head.amount));
-                    } else {
-                        unitAmount = parseFloat(head.amount);
-                        if (multiplier > 1) {
-                            unitAmount = unitAmount * multiplier;
-                        }
+                    let unitAmount = (isTuition && personalFee > 0) ? personalFee : parseFloat(head.amount);
+                    if (!isTuition && multiplier > 1) {
+                        unitAmount = unitAmount * multiplier;
                     }
                     const finalAmount = unitAmount * monthsCount;
                     const headName = monthsCount > 1 && isTuition
@@ -357,7 +352,8 @@ router.post('/generate', async (req, res) => {
                         head_id: head.head_id,
                         head_name: headName,
                         amount: finalAmount,
-                        is_carried_forward: false
+                        is_carried_forward: false,
+                        note: (isTuition && isTrusted) ? 'Trusted Category - Free Tuition' : undefined
                     };
                 });
         };
@@ -417,7 +413,7 @@ router.post('/generate', async (req, res) => {
             // Check if all active family members are in Trusted category
             const isFamTrusted = members.length > 0 && members.every(m => (m.category || '').trim().toLowerCase() === 'trusted');
 
-            const familyFee = isFamTrusted ? 0 : (parseFloat(primary.family_fee) || 0);
+            const familyFee = parseFloat(primary.family_fee) || 0;
             const familySize = parseInt(primary.total_family_size) || 1;
 
             const lineItems = buildLineItems(familyFee, familySize, isFamTrusted);
@@ -429,7 +425,7 @@ router.post('/generate', async (req, res) => {
             });
 
             if (!lineItems.some(h => h.head_name.includes('Family Monthly Fee')) && familyFee > 0) {
-                lineItems.unshift({ head_id: null, head_name: monthsCount > 1 ? `Family Monthly Fee (${monthLabel})` : 'Family Monthly Fee', amount: familyFee * monthsCount, is_carried_forward: false });
+                lineItems.unshift({ head_id: null, head_name: monthsCount > 1 ? `Family Monthly Fee (${monthLabel})` : 'Family Monthly Fee', amount: familyFee * monthsCount, is_carried_forward: false, note: isFamTrusted ? 'Trusted Category - Free Tuition' : undefined });
             }
 
             // ── 1. Add Pure Previous Balance (Tuition Arrears + OPB) ───────────
@@ -458,7 +454,13 @@ router.post('/generate', async (req, res) => {
                 }
             }
 
-            let totalAmount = lineItems.reduce((s, h) => s + h.amount, 0);
+            // For Trusted families, tuition is 100% exempt from payable total_amount
+            let totalAmount = isFamTrusted
+                ? lineItems.filter(h => {
+                    const hn = (h.head_name || '').toLowerCase();
+                    return !hn.includes('tuition') && !hn.includes('family monthly fee') && !hn.includes('monthly fee') && !hn.includes('previous balance');
+                }).reduce((s, h) => s + h.amount, 0)
+                : lineItems.reduce((s, h) => s + h.amount, 0);
 
             if (extra_heads && extra_heads.length > 0)
                 totalAmount += extra_heads.filter(h => h.amount && parseFloat(h.amount) > 0)
@@ -479,7 +481,7 @@ router.post('/generate', async (req, res) => {
             if (existing.rows.length > 0) { skippedCount++; continue; }
 
             const isSoloTrusted = (student.category || '').trim().toLowerCase() === 'trusted';
-            const personalFee = isSoloTrusted ? 0 : (parseFloat(student.personal_monthly_fee) || 0);
+            const personalFee = parseFloat(student.personal_monthly_fee) || 0;
             const lineItems = buildLineItems(personalFee, 1, isSoloTrusted);
 
             // ── 1. Add Pure Previous Balance (Tuition Arrears + OPB) ───────────
@@ -509,7 +511,13 @@ router.post('/generate', async (req, res) => {
                 }
             }
 
-            let totalAmount = lineItems.reduce((s, h) => s + h.amount, 0);
+            // For Trusted students, tuition is 100% exempt from payable total_amount
+            let totalAmount = isSoloTrusted
+                ? lineItems.filter(h => {
+                    const hn = (h.head_name || '').toLowerCase();
+                    return !hn.includes('tuition') && !hn.includes('monthly fee') && !hn.includes('previous balance');
+                }).reduce((s, h) => s + h.amount, 0)
+                : lineItems.reduce((s, h) => s + h.amount, 0);
 
             if (extra_heads && extra_heads.length > 0)
                 totalAmount += extra_heads.filter(h => h.amount && parseFloat(h.amount) > 0)
