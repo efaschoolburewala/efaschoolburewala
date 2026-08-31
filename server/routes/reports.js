@@ -258,7 +258,7 @@ router.get('/family-fee', async (req, res) => {
             LEFT JOIN families f ON ms.family_id = f.family_id
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
-            WHERE (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted')
+            WHERE 1=1
         `;
         const params = [];
         let idx = 1;

@@ -181,6 +181,7 @@ router.post('/generate', async (req, res) => {
         const studentsResult = await client.query(
             `SELECT s.student_id, s.family_id, s.first_name, s.last_name,
                     s.admission_no, s.monthly_fee AS personal_monthly_fee,
+                    s.category,
                     COALESCE(f.family_fee, 0) AS family_fee,
                     (SELECT COUNT(*) FROM students s2
                      WHERE s2.family_id = s.family_id AND s2.status = 'Active') AS total_family_size,
@@ -311,11 +312,11 @@ router.post('/generate', async (req, res) => {
         }
 
         // ─── Helper: build line items from plan heads (skips prev_balance handled separately) ─
-        const buildLineItems = (personalFee, multiplier = 1) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+        const buildLineItems = (personalFee = 0, multiplier = 1, isTrusted = false) => {
             const slipDueDate = due_date ? new Date(due_date) : null;
             if (slipDueDate) slipDueDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
             return planHeads.rows
                 .filter(head => {
@@ -339,9 +340,14 @@ router.post('/generate', async (req, res) => {
                 })
                 .map(head => {
                     const isTuition = head.head_name.toLowerCase().includes('tuition');
-                    let unitAmount = (isTuition && personalFee > 0) ? personalFee : parseFloat(head.amount);
-                    if (!isTuition && multiplier > 1) {
-                        unitAmount = unitAmount * multiplier;
+                    let unitAmount = 0;
+                    if (isTuition) {
+                        unitAmount = isTrusted ? 0 : (personalFee > 0 ? personalFee : parseFloat(head.amount));
+                    } else {
+                        unitAmount = parseFloat(head.amount);
+                        if (multiplier > 1) {
+                            unitAmount = unitAmount * multiplier;
+                        }
                     }
                     const finalAmount = unitAmount * monthsCount;
                     const headName = monthsCount > 1 && isTuition
@@ -359,12 +365,13 @@ router.post('/generate', async (req, res) => {
         const insertSlip = async (student, totalAmount, lineItems, isFamilySlip) => {
             const hasMulti = monthsArray.length > 1;
             const actualClassId = student.sort_class_id || student.class_id || class_id;
+            const initialStatus = totalAmount <= 0 ? 'paid' : 'unpaid';
             const slip = await client.query(
                 `INSERT INTO monthly_fee_slips
-                    (student_id, family_id, class_id, month, year, due_date, issue_date, total_amount, is_family_slip, has_multi_months, months_list, academic_year_id)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING slip_id`,
+                    (student_id, family_id, class_id, month, year, due_date, issue_date, total_amount, paid_amount, status, is_family_slip, has_multi_months, months_list, academic_year_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, $12, $13) RETURNING slip_id`,
                 [student.student_id, student.family_id, actualClassId,
-                    month, actualYear, due_date || null, issue_date || null, totalAmount, isFamilySlip, hasMulti, monthsArray, targetYearId]
+                    month, actualYear, due_date || null, issue_date || null, totalAmount, initialStatus, isFamilySlip, hasMulti, monthsArray, targetYearId]
             );
             const slipId = slip.rows[0].slip_id;
             for (const item of lineItems)
@@ -406,10 +413,14 @@ router.post('/generate', async (req, res) => {
                 [fid]
             );
             const primary = famPrimaryRes.rows.length > 0 ? famPrimaryRes.rows[0] : members[0];
-            const familyFee = parseFloat(primary.family_fee) || 0;
+            
+            // Check if all active family members are in Trusted category
+            const isFamTrusted = members.length > 0 && members.every(m => (m.category || '').trim().toLowerCase() === 'trusted');
+
+            const familyFee = isFamTrusted ? 0 : (parseFloat(primary.family_fee) || 0);
             const familySize = parseInt(primary.total_family_size) || 1;
 
-            const lineItems = buildLineItems(familyFee, familySize);
+            const lineItems = buildLineItems(familyFee, familySize, isFamTrusted);
 
             lineItems.forEach(h => {
                 if (h.head_name.toLowerCase().includes('tuition')) {
@@ -422,7 +433,8 @@ router.post('/generate', async (req, res) => {
             }
 
             // ── 1. Add Pure Previous Balance (Tuition Arrears + OPB) ───────────
-            const famPB = pbPlanHead && fid && familyPBMap[fid] ? familyPBMap[fid] : 0;
+            // Trusted families do NOT accumulate pure tuition arrears
+            const famPB = (!isFamTrusted && pbPlanHead && fid && familyPBMap[fid]) ? familyPBMap[fid] : 0;
             if (famPB > 0) {
                 lineItems.push({ head_id: pbPlanHead.head_id, head_name: 'Previous Balance', amount: famPB, is_carried_forward: false });
             }
@@ -466,11 +478,13 @@ router.post('/generate', async (req, res) => {
             );
             if (existing.rows.length > 0) { skippedCount++; continue; }
 
-            const personalFee = parseFloat(student.personal_monthly_fee) || 0;
-            const lineItems = buildLineItems(personalFee);
+            const isSoloTrusted = (student.category || '').trim().toLowerCase() === 'trusted';
+            const personalFee = isSoloTrusted ? 0 : (parseFloat(student.personal_monthly_fee) || 0);
+            const lineItems = buildLineItems(personalFee, 1, isSoloTrusted);
 
             // ── 1. Add Pure Previous Balance (Tuition Arrears + OPB) ───────────
-            const indivPB = pbPlanHead && student.family_id && familyPBMap[student.family_id]
+            // Trusted students do NOT accumulate pure tuition arrears
+            const indivPB = (!isSoloTrusted && pbPlanHead && student.family_id && familyPBMap[student.family_id])
                 ? familyPBMap[student.family_id] : 0;
             if (indivPB > 0) {
                 lineItems.push({ head_id: pbPlanHead.head_id, head_name: 'Previous Balance', amount: indivPB, is_carried_forward: false });
@@ -718,7 +732,7 @@ router.get('/', async (req, res) => {
             }
         }
 
-        // Force trusted category and all-trusted families to satteled
+        // Evaluate trusted category and all-trusted families
         result.rows.forEach(r => {
             if (r.is_family_slip && r.family_id) {
                 r.family_members = membersMap[r.family_id] || [];
@@ -727,8 +741,16 @@ router.get('/', async (req, res) => {
             }
             const isSingleTrusted = r.category && r.category.trim().toLowerCase() === 'trusted';
             const isFamilyAllTrusted = r.family_members.length > 0 && r.family_members.every(m => m.category && m.category.trim().toLowerCase() === 'trusted');
-            if (isSingleTrusted || isFamilyAllTrusted) {
-                r.status = 'satteled';
+            r.is_trusted = isSingleTrusted || isFamilyAllTrusted;
+
+            if (r.is_trusted) {
+                const slipTotal = parseFloat(r.total_amount || 0);
+                const slipPaid = parseFloat(r.paid_amount || 0);
+                if (slipTotal <= 0) {
+                    r.status = 'satteled';
+                } else {
+                    r.status = slipPaid >= slipTotal ? 'paid' : slipPaid > 0 ? 'partial' : 'unpaid';
+                }
             }
         });
 
@@ -1895,12 +1917,12 @@ router.get('/family-summary/:student_id', async (req, res) => {
             }
 
             const isTrusted = row.category && row.category.trim().toLowerCase() === 'trusted';
-            const studentStatus = isTrusted ? 'satteled' : row.status;
+            const billedAmount = Number(row.total_amount || 0);
+            const paidAmount = Number(row.paid_amount || 0);
+            const studentStatus = billedAmount <= 0 ? 'satteled' : paidAmount >= billedAmount ? 'paid' : paidAmount > 0 ? 'partial' : 'unpaid';
 
-            if (!isTrusted) {
-                summary[myKey].family_total_billed += Number(row.total_amount || 0);
-                summary[myKey].family_total_paid += Number(row.paid_amount || 0);
-            }
+            summary[myKey].family_total_billed += billedAmount;
+            summary[myKey].family_total_paid += paidAmount;
 
             if (row.last_payment_date) {
                 if (!summary[myKey].last_submission_date || new Date(row.last_payment_date) > new Date(summary[myKey].last_submission_date)) {
@@ -1914,9 +1936,9 @@ router.get('/family-summary/:student_id', async (req, res) => {
                 admission_no: row.admission_no,
                 category: row.category || 'Normal',
                 is_trusted: isTrusted,
-                billed: isTrusted ? 0 : Number(row.total_amount || 0),
-                raw_billed: Number(row.total_amount || 0),
-                paid: Number(row.paid_amount || 0),
+                billed: billedAmount,
+                raw_billed: billedAmount,
+                paid: paidAmount,
                 status: studentStatus,
                 last_payment_date: row.last_payment_date,
                 heads: row.heads || []
@@ -1924,17 +1946,14 @@ router.get('/family-summary/:student_id', async (req, res) => {
         });
 
         Object.values(summary).forEach(m => {
-            const allTrusted = m.students.length > 0 && m.students.every(st => st.is_trusted || st.status === 'satteled');
-            if (allTrusted) {
+            if (m.family_total_billed <= 0) {
                 m.status = 'satteled';
-                m.family_total_billed = 0;
-                m.family_total_paid = 0;
-            } else if (m.family_total_paid === 0) {
-                m.status = 'unpaid';
             } else if (m.family_total_paid >= m.family_total_billed) {
                 m.status = 'paid';
-            } else {
+            } else if (m.family_total_paid > 0) {
                 m.status = 'partial';
+            } else {
+                m.status = 'unpaid';
             }
         });
 

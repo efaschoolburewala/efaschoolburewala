@@ -1361,7 +1361,7 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                             <div className="d-flex flex-column gap-2 py-2" style={{ minWidth: '280px' }}>
                                                                                 {monthSlip.students.map((st: any, i: number) => {
                                                                                     const isStTrusted = Boolean(st.is_trusted || (st.category || '').toLowerCase() === 'trusted');
-                                                                                    const stRemaining = isStTrusted ? 0 : Math.max(0, Number(st.billed || 0) - Number(st.paid || 0));
+                                                                                    const stRemaining = Math.max(0, Number(st.billed || 0) - Number(st.paid || 0));
                                                                                     const stSubDate = st.last_payment_date
                                                                                         ? new Date(st.last_payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                                                                                         : '';
@@ -1393,8 +1393,8 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                                                                                                     <span className="badge bg-success-subtle text-success border border-success-subtle">
                                                                                                         Paid: <strong>{fmt(st.paid)}</strong>
                                                                                                     </span>
-                                                                                                    {isStTrusted ? (
-                                                                                                        <span className="badge rounded-pill" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>Rem: 0 (Settled)</span>
+                                                                                                    {isStTrusted && stRemaining === 0 ? (
+                                                                                                        <span className="badge rounded-pill" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>Rem: 0 (Free Tuition)</span>
                                                                                                     ) : stRemaining > 0 ? (
                                                                                                         <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">
                                                                                                             Rem: {fmt(stRemaining)}

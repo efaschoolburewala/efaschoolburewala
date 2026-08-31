@@ -364,7 +364,7 @@ export default function FamilyListPage() {
         let sr = 1;
 
         filteredFamilies.forEach(f => {
-            const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
+            const isSettled = (f.is_trusted_family && (f.total_balance || 0) <= 0 && (f.total_billed || 0) <= 0) || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
             const monthlyFeeVal = f.effective_monthly_fee || f.family_fee || 0;
             const opbVal = f.opb_remaining !== undefined ? f.opb_remaining : (f.opening_balance || 0);
 
@@ -381,7 +381,7 @@ export default function FamilyListPage() {
                 };
 
                 if (showFeeColumns) {
-                    rowObj["Fee Status"] = isSettled ? "SETTLED" : (f.fee_status ? f.fee_status.toUpperCase() : "PAID");
+                    rowObj["Fee Status"] = isSettled ? "FREE TUITION" : (f.fee_status ? f.fee_status.toUpperCase() : "PAID");
                     rowObj["Total Bill (PKR)"] = isSettled ? 0 : (f.total_billed || 0);
                     rowObj["Paid (PKR)"] = isSettled ? 0 : (f.total_paid || 0);
                     rowObj["Balance (PKR)"] = isSettled ? 0 : (f.total_balance || 0);
@@ -459,7 +459,7 @@ export default function FamilyListPage() {
         let sr = 1;
 
         filteredFamilies.forEach(f => {
-            const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
+            const isSettled = (f.is_trusted_family && (f.total_balance || 0) <= 0 && (f.total_billed || 0) <= 0) || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
             const monthlyFeeVal = f.effective_monthly_fee || f.family_fee || 0;
             const opbVal = f.opb_remaining !== undefined ? f.opb_remaining : (f.opening_balance || 0);
 
@@ -477,7 +477,7 @@ export default function FamilyListPage() {
 
                 if (showFeeColumns) {
                     row.push(
-                        `"${isSettled ? 'SETTLED' : (f.fee_status || 'paid').toUpperCase()}"`,
+                        `"${isSettled ? 'FREE TUITION' : (f.fee_status || 'paid').toUpperCase()}"`,
                         `"${isSettled ? 0 : (f.total_billed || 0)}"`,
                         `"${isSettled ? 0 : (f.total_paid || 0)}"`,
                         `"${isSettled ? 0 : (f.total_balance || 0)}"`

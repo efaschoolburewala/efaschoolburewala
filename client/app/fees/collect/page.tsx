@@ -55,7 +55,8 @@ function fmtDate(d: string | null) {
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, { bg: string; label: string }> = {
         paid: { bg: '#198754', label: 'Paid' },
-        satteled: { bg: '#0dcaf0', label: 'Satteled' },
+        satteled: { bg: '#0891b2', label: 'Free Tuition' },
+        settled: { bg: '#0891b2', label: 'Free Tuition' },
         partial: { bg: '#fd7e14', label: 'Partial' },
         unpaid: { bg: '#dc3545', label: 'Unpaid' },
     };
@@ -745,28 +746,26 @@ export default function CollectFeePage() {
         });
         // After collecting all slips, find the latest unpaid/partial per group
         map.forEach(g => {
+            const isTrustedGroup = Boolean(
+                (g.family_members && g.family_members.length > 0 && g.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted')) ||
+                ((g.latest_slip?.category || '').toLowerCase() === 'trusted')
+            );
+
             // slips ordered by month ASC from server; pick last unpaid/partial
             const unpaid = g.slips
-                .filter(s => !['paid', 'satteled', 'settled'].includes((s.status || '').toLowerCase()))
+                .filter(s => !['paid', 'satteled', 'settled'].includes((s.status || '').toLowerCase()) && (parseFloat(s.total_amount as any || 0) - parseFloat(s.paid_amount as any || 0) > 0))
                 .sort((a, b) => (b.year - a.year) || (b.month - a.month));
             
-            const isGroupSettled = (g.slips.length > 0 && g.slips.every(s => ['satteled', 'settled'].includes((s.status || '').toLowerCase()))) ||
-                ['satteled', 'settled'].includes((g.latest_slip.status || '').toLowerCase()) ||
-                Boolean(g.family_members && g.family_members.length > 0 && g.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'));
-
-            if (isGroupSettled) {
-                g.latest_unpaid = g.latest_slip;
-                g.balance = 0;
-                g.status = 'satteled';
-            } else {
-                g.latest_unpaid = unpaid[0] || g.latest_slip;
+            if (unpaid.length > 0) {
+                g.latest_unpaid = unpaid[0];
                 const tot = parseFloat(g.latest_unpaid.total_amount as any || 0);
                 const paid = parseFloat(g.latest_unpaid.paid_amount as any || 0);
-                const isLatestSettled = ['satteled', 'settled'].includes((g.latest_unpaid.status || '').toLowerCase());
-                g.balance = isLatestSettled ? 0 : Math.max(0, tot - paid);
-                g.status = isLatestSettled
-                    ? 'satteled'
-                    : g.balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+                g.balance = Math.max(0, tot - paid);
+                g.status = g.balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+            } else {
+                g.latest_unpaid = g.latest_slip;
+                g.balance = 0;
+                g.status = isTrustedGroup ? 'satteled' : (['satteled', 'settled'].includes((g.latest_slip.status || '').toLowerCase()) ? 'satteled' : 'paid');
             }
         });
         return Array.from(map.values());
@@ -777,8 +776,7 @@ export default function CollectFeePage() {
 
     const isModalSlipSettled = activeSlip ? (
         ['satteled', 'settled'].includes((activeSlip.status || '').toLowerCase()) ||
-        Boolean(activeSlip.category && activeSlip.category.trim().toLowerCase() === 'trusted') ||
-        Boolean(activeSlip.family_members && activeSlip.family_members.length > 0 && activeSlip.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'))
+        parseFloat(activeSlip.total_amount as any || 0) <= 0
     ) : false;
     const modalSlipBalance = isModalSlipSettled ? 0 : (activeSlip ? Math.max(0, parseFloat(activeSlip.total_amount as any || 0) - parseFloat(activeSlip.paid_amount as any || 0)) : 0);
 
@@ -1058,7 +1056,7 @@ export default function CollectFeePage() {
                                                     <td className="px-2 text-end fw-bold" style={{ color: ['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? '#0891b2' : g.balance > 0 ? '#dc3545' : '#198754' }}>
                                                         {['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? (
                                                             <span className="badge rounded-pill px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.72rem' }}>
-                                                                ✓ Settled (Nill)
+                                                                ✓ Free Tuition (Nill)
                                                             </span>
                                                         ) : g.balance > 0 ? (
                                                             fmt(g.balance)

@@ -757,16 +757,15 @@ router.get('/families-directory', async (req, res) => {
             });
         }
 
-        // Query overall fee statistics per family across all generated monthly fee slips (excluding Trusted category students)
+        // Query overall fee statistics per family across all generated monthly fee slips
         const feeStatsRes = await pool.query(`
             SELECT 
                 f.family_id,
-                COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.total_amount ELSE 0 END), 0) + COALESCE(f.opening_balance, 0) AS total_billed,
-                COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.paid_amount ELSE 0 END), 0) AS total_paid,
-                GREATEST(0, (COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.total_amount ELSE 0 END), 0) + COALESCE(f.opening_balance, 0)) - COALESCE(SUM(CASE WHEN (s.category IS NULL OR LOWER(TRIM(s.category)) != 'trusted') THEN ms.paid_amount ELSE 0 END), 0)) AS total_balance
+                COALESCE(SUM(ms.total_amount), 0) + COALESCE(f.opening_balance, 0) AS total_billed,
+                COALESCE(SUM(ms.paid_amount), 0) AS total_paid,
+                GREATEST(0, (COALESCE(SUM(ms.total_amount), 0) + COALESCE(f.opening_balance, 0)) - COALESCE(SUM(ms.paid_amount), 0)) AS total_balance
             FROM families f
             LEFT JOIN monthly_fee_slips ms ON (ms.family_id = f.family_id OR ms.student_id IN (SELECT student_id FROM students WHERE family_id = f.family_id))
-            LEFT JOIN students s ON ms.student_id = s.student_id
             GROUP BY f.family_id, f.opening_balance
         `);
 
@@ -883,10 +882,14 @@ router.get('/families-directory', async (req, res) => {
             let finalBalance = feeStat.total_balance;
 
             if (isAllTrusted) {
-                finalFeeStatus = 'settled';
-                finalBilled = 0;
-                finalPaid = 0;
-                finalBalance = 0;
+                if (finalBalance <= 0 && finalBilled <= 0) {
+                    finalFeeStatus = 'settled';
+                    finalBilled = 0;
+                    finalPaid = 0;
+                    finalBalance = 0;
+                } else if (finalBalance <= 0) {
+                    finalFeeStatus = 'settled';
+                }
             } else if (finalBalance === 0) {
                 finalFeeStatus = 'paid';
             }
