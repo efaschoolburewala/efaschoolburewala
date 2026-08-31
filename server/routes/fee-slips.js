@@ -221,62 +221,92 @@ router.post('/generate', async (req, res) => {
         ].filter(Boolean);
         const uniqueFamilyIds = [...new Set(allFamilyIds)];
 
-        let familyPBMap = {}; // family_id → total pure tuition arrears + OPB
+        let familyPBMap = {}; // family_id → total pure tuition arrears + OPB (from latest prior consolidated state)
         let familyCumulativeMap = {}; // family_id → [ { head_id, head_name, pending_amount } ]
 
         if (uniqueFamilyIds.length > 0) {
-            // 1. OPB remaining from families table
+            // 1. For each family, find their LATEST previous slip in this academic session before this billing month/year
+            // The latest slip already represents the consolidated state up to that point (prevents compounding/snowballing).
+            const latestSlipsRes = await client.query(
+                `SELECT DISTINCT ON (mfs.family_id)
+                    mfs.slip_id,
+                    mfs.family_id,
+                    mfs.year,
+                    mfs.month,
+                    mfs.total_amount,
+                    mfs.paid_amount,
+                    mfs.status
+                 FROM monthly_fee_slips mfs
+                 WHERE mfs.family_id = ANY($1::varchar[])
+                   AND (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
+                   AND (mfs.academic_year_id = $4 OR $4 IS NULL)
+                 ORDER BY mfs.family_id, mfs.year DESC, mfs.month DESC, mfs.slip_id DESC`,
+                [uniqueFamilyIds, actualYear, month, targetYearId]
+            );
+
+            const latestSlipByFamily = {};
+            const latestSlipIds = [];
+            for (const s of latestSlipsRes.rows) {
+                latestSlipByFamily[s.family_id] = s;
+                latestSlipIds.push(s.slip_id);
+            }
+
+            // 2. Find tracked extra heads on the latest slips that are still pending
+            let trackedHeadsBySlip = {};
+            if (latestSlipIds.length > 0) {
+                const cumRes = await client.query(
+                    `SELECT sli.slip_id, mfs.family_id, sli.head_id, sli.head_name,
+                            GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0)) AS pending_amount
+                     FROM slip_line_items sli
+                     JOIN monthly_fee_slips mfs ON sli.slip_id = mfs.slip_id
+                     JOIN fee_heads fh ON sli.head_id = fh.head_id
+                     WHERE sli.slip_id = ANY($1::int[])
+                       AND fh.track_arrears = TRUE
+                       AND (sli.amount - COALESCE(sli.paid_amount, 0)) > 0`,
+                    [latestSlipIds]
+                );
+                for (const r of cumRes.rows) {
+                    if (!trackedHeadsBySlip[r.slip_id]) trackedHeadsBySlip[r.slip_id] = [];
+                    trackedHeadsBySlip[r.slip_id].push({
+                        head_id: r.head_id,
+                        head_name: r.head_name,
+                        pending_amount: parseFloat(r.pending_amount) || 0
+                    });
+                }
+            }
+
+            // 3. OPB from families table for families with no prior slips in this session
             const opbRes = await client.query(
                 `SELECT family_id, (opening_balance - COALESCE(opening_balance_paid, 0)) AS opb_remaining
                  FROM families WHERE family_id = ANY($1::varchar[]) AND (opening_balance - COALESCE(opening_balance_paid, 0)) > 0`,
                 [uniqueFamilyIds]
             );
+            const opbMap = {};
             for (const r of opbRes.rows) {
-                familyPBMap[r.family_id] = parseFloat(r.opb_remaining) || 0;
+                opbMap[r.family_id] = parseFloat(r.opb_remaining) || 0;
             }
 
-            // 2. Pure Tuition Arrears from earlier slips in active session
-            const tuitionArrearsRes = await client.query(
-                `SELECT mfs.family_id,
-                        SUM(GREATEST(0, mfs.total_amount - COALESCE(mfs.paid_amount, 0))) AS pending_tuition
-                 FROM monthly_fee_slips mfs
-                 WHERE mfs.family_id = ANY($1::varchar[])
-                   AND (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
-                   AND (mfs.academic_year_id = $4 OR $4 IS NULL)
-                   AND mfs.status IN ('unpaid', 'partial')
-                 GROUP BY mfs.family_id`,
-                [uniqueFamilyIds, actualYear, month, targetYearId]
-            );
-            for (const r of tuitionArrearsRes.rows) {
-                const prev = familyPBMap[r.family_id] || 0;
-                familyPBMap[r.family_id] = prev + (parseFloat(r.pending_tuition) || 0);
-            }
+            for (const fid of uniqueFamilyIds) {
+                const latestSlip = latestSlipByFamily[fid];
+                if (latestSlip) {
+                    // Family already has a previous slip in this session.
+                    // Its unpaid balance already embodies all prior months and OPB (strictly non-compounding).
+                    const latestUnpaid = Math.max(0, parseFloat(latestSlip.total_amount) - parseFloat(latestSlip.paid_amount));
+                    
+                    const trackedHeads = trackedHeadsBySlip[latestSlip.slip_id] || [];
+                    const trackedSum = trackedHeads.reduce((sum, h) => sum + h.pending_amount, 0);
 
-            // 3. Cumulative Tracked Extra Heads (Annual Fee, Exam Fee, etc. with track_arrears = TRUE)
-            const cumulativeRes = await client.query(
-                `SELECT mfs.family_id, sli.head_id, sli.head_name,
-                        SUM(GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0))) AS pending_amount
-                 FROM slip_line_items sli
-                 JOIN monthly_fee_slips mfs ON sli.slip_id = mfs.slip_id
-                 JOIN fee_heads fh ON sli.head_id = fh.head_id
-                 WHERE mfs.family_id = ANY($1::varchar[])
-                   AND (mfs.year < $2 OR (mfs.year = $2 AND mfs.month < $3))
-                   AND (mfs.academic_year_id = $4 OR $4 IS NULL)
-                   AND mfs.status IN ('unpaid', 'partial')
-                   AND fh.track_arrears = TRUE
-                   AND sli.is_carried_forward = FALSE
-                 GROUP BY mfs.family_id, sli.head_id, sli.head_name
-                 HAVING SUM(GREATEST(0, sli.amount - COALESCE(sli.paid_amount, 0))) > 0`,
-                [uniqueFamilyIds, actualYear, month, targetYearId]
-            );
+                    if (trackedHeads.length > 0) {
+                        familyCumulativeMap[fid] = trackedHeads;
+                    }
 
-            for (const r of cumulativeRes.rows) {
-                if (!familyCumulativeMap[r.family_id]) familyCumulativeMap[r.family_id] = [];
-                familyCumulativeMap[r.family_id].push({
-                    head_id: r.head_id,
-                    head_name: r.head_name,
-                    pending_amount: parseFloat(r.pending_amount) || 0
-                });
+                    // Pure Previous Balance is the remaining unpaid balance minus the tracked extra heads
+                    familyPBMap[fid] = Math.max(0, parseFloat((latestUnpaid - trackedSum).toFixed(2)));
+                } else {
+                    // Month 1 (No prior slips in this session): Use remaining OPB from families table
+                    familyPBMap[fid] = opbMap[fid] || 0;
+                    familyCumulativeMap[fid] = [];
+                }
             }
         }
 
@@ -1425,17 +1455,37 @@ router.post('/:id/pay', async (req, res) => {
                         if (pbThisPayment <= 0) break;
                         const oldTotal = parseFloat(old.total_amount);
                         const oldPaid = parseFloat(old.paid_amount);
-                        const oldExcl = parseFloat(old.excl_sum);
-                        // Net fees owed = total minus prev_balance/admission lines, minus what's paid
-                        const baseOwed = Math.max(0, (oldTotal - oldExcl) - oldPaid);
-                        if (baseOwed > 0) {
-                            const settle = parseFloat(Math.min(pbThisPayment, baseOwed).toFixed(2));
+                        const oldOwed = Math.max(0, oldTotal - oldPaid);
+                        if (oldOwed > 0) {
+                            const settle = parseFloat(Math.min(pbThisPayment, oldOwed).toFixed(2));
                             const newOldPaid = parseFloat((oldPaid + settle).toFixed(2));
                             const newOldStat = newOldPaid >= oldTotal ? 'paid' : 'partial';
                             await client.query(
                                 `UPDATE monthly_fee_slips SET paid_amount=$1, status=$2 WHERE slip_id=$3`,
                                 [newOldPaid, newOldStat, old.slip_id]
                             );
+
+                            // Also settle line items on old slip chronologically
+                            const oldLines = await client.query(
+                                `SELECT item_id, amount, paid_amount FROM slip_line_items WHERE slip_id = $1 ORDER BY item_id ASC`,
+                                [old.slip_id]
+                            );
+                            let settleLineUnalloc = settle;
+                            for (const ol of oldLines.rows) {
+                                if (settleLineUnalloc <= 0) break;
+                                const olAmt = parseFloat(ol.amount);
+                                const olPaid = parseFloat(ol.paid_amount);
+                                const olRem = Math.max(0, olAmt - olPaid);
+                                if (olRem > 0) {
+                                    const thisLineAlloc = parseFloat(Math.min(settleLineUnalloc, olRem).toFixed(2));
+                                    await client.query(
+                                        `UPDATE slip_line_items SET paid_amount = paid_amount + $1 WHERE item_id = $2`,
+                                        [thisLineAlloc, ol.item_id]
+                                    );
+                                    settleLineUnalloc = parseFloat((settleLineUnalloc - thisLineAlloc).toFixed(2));
+                                }
+                            }
+
                             pbThisPayment = parseFloat((pbThisPayment - settle).toFixed(2));
                         }
                     }
