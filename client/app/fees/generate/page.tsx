@@ -124,13 +124,8 @@ export default function FeeGeneratePage() {
             const plans: any[] = await r.json();
             const activePlans = plans.filter(p => p.is_active && (p.applies_to_all || (p.classes && p.classes.some((c: any) => c.class_id.toString() === class_id))));
             setMatchingPlans(activePlans);
-            if (activePlans.length > 0) {
-                setSelectedPlanId(activePlans[0].plan_id.toString());
-                setPlanInfo(activePlans[0]);
-            } else {
-                setSelectedPlanId('');
-                setPlanInfo(null);
-            }
+            setSelectedPlanId('');
+            setPlanInfo(null);
         } catch { setMatchingPlans([]); setPlanInfo(null); setSelectedPlanId(''); }
         finally { setLoadingPlan(false); }
     };
@@ -293,6 +288,10 @@ export default function FeeGeneratePage() {
     const handleGenerate = async () => {
         if (!selectedClass || selectedMonths.length === 0 || !selectedYear) {
             notify.error('Please select class, at least one month and year.');
+            return;
+        }
+        if (!selectedPlanId) {
+            notify.error('Please select a fee plan first | برائے مہربانی پہلے فیس پلان منتخب کریں');
             return;
         }
         setGenerating(true);
@@ -555,16 +554,17 @@ export default function FeeGeneratePage() {
                                 <div className="border rounded p-3 mb-4" style={{ backgroundColor: '#f0f9ff' }}>
                                     <div className="d-flex justify-content-between align-items-center mb-2">
                                         <h6 className="fw-bold mb-0 small" style={{ color: 'var(--primary-dark)' }}>
-                                            <i className="bi bi-clipboard-check me-2"></i>Fee Plan Preview
+                                            <i className="bi bi-clipboard-check me-2"></i>Fee Plan <span className="text-danger">*</span>
                                         </h6>
                                     </div>
                                     {!loadingPlan && matchingPlans.length > 0 && (
                                         <div className="mb-3">
                                             <select
-                                                className="form-select form-select-sm"
+                                                className={`form-select form-select-sm ${!selectedPlanId ? 'border-primary fw-semibold' : ''}`}
                                                 value={selectedPlanId}
                                                 onChange={e => setSelectedPlanId(e.target.value)}
                                             >
+                                                <option value="">Select Plan</option>
                                                 {matchingPlans.map(p => (
                                                     <option key={p.plan_id} value={p.plan_id}>
                                                         {p.plan_name}
@@ -598,6 +598,11 @@ export default function FeeGeneratePage() {
                                                 For students with siblings, <strong className="text-warning">1 family slip</strong> is generated using the family fee set on their family.
                                             </div>
                                         </>
+                                    ) : matchingPlans.length > 0 && !selectedPlanId ? (
+                                        <div className="d-flex align-items-center gap-2 text-primary py-1">
+                                            <i className="bi bi-arrow-up-circle"></i>
+                                            <small className="fw-semibold">Please select a plan from the dropdown above to preview fee heads.</small>
+                                        </div>
                                     ) : (
                                         <div className="d-flex align-items-center gap-2 text-danger">
                                             <i className="bi bi-exclamation-triangle"></i>
