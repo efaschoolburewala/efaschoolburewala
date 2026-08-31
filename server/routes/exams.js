@@ -685,6 +685,7 @@ router.post('/marks/save', async (req, res) => {
                     await createNotification({
                         familyId: sInfo.rows[0].family_id,
                         studentId: sId,
+                        role: 'student',
                         type: 'test_marks',
                         title: 'New Exam / Test Marks Entered 📊',
                         message: `New marks recorded for ${sInfo.rows[0].full_name} in ${className} (${subName}): ${row.obtained_marks}/${totalMarks}.`,

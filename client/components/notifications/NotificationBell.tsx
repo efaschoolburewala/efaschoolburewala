@@ -57,6 +57,7 @@ export function NotificationBell({ role = 'all', familyId = '', userId = '', stu
             const params = new URLSearchParams();
             if (activeRole) params.append('role', activeRole);
             if (familyId) params.append('family_id', familyId);
+            if (studentId) params.append('student_id', String(studentId));
             if (activeUserId) params.append('user_id', String(activeUserId));
 
             const res = await fetch(`${API}/notifications?${params.toString()}`);
@@ -84,7 +85,7 @@ export function NotificationBell({ role = 'all', familyId = '', userId = '', stu
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 12000);
         return () => clearInterval(interval);
-    }, [role, familyId, userId]);
+    }, [role, familyId, userId, studentId]);
 
     // Handle Click Outside Dropdown
     useEffect(() => {

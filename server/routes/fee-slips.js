@@ -1289,6 +1289,7 @@ router.post('/:id/pay', async (req, res) => {
                 await createNotification({
                     familyId: famId,
                     studentId: slipObj.student_id,
+                    role: 'student',
                     type: 'fee_payment',
                     title: 'Fee Payment Received 💳',
                     message: `Payment of PKR ${parseFloat(paidNow).toLocaleString('en-PK')} received for ${stuName} (Family ID: ${famId || 'N/A'}). Status: ${newStatus.toUpperCase()}.`,

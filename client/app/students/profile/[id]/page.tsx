@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { notify } from '@/app/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export default function StudentProfile({ params }: { params: { id: string } }) {
     const [student, setStudent] = useState<any>(null);
@@ -373,9 +372,6 @@ export default function StudentProfile({ params }: { params: { id: string } }) {
                         <button className="btn btn-outline-light rounded-circle shadow-sm" onClick={() => router.back()} style={{ width: 42, height: 42 }}>
                             <i className="bi bi-arrow-left fs-5"></i>
                         </button>
-                        <div className="d-flex align-items-center gap-2">
-                            <NotificationBell familyId={student?.family_id} studentId={student?.student_id} role="student" />
-                        </div>
                     </div>
 
                     {/* Student Hero Header Block */}

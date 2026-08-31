@@ -482,6 +482,7 @@ router.post('/students/daily', async (req, res) => {
                 await createNotification({
                     familyId: famId,
                     studentId: r.student_id,
+                    role: 'student',
                     type: 'attendance',
                     title: notifTitle,
                     message: notifMessage,
