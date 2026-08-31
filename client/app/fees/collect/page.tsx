@@ -764,12 +764,17 @@ export default function CollectFeePage() {
         map.forEach(g => {
             const isTrustedGroup = Boolean(
                 (g.family_members && g.family_members.length > 0 && g.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted')) ||
-                ((g.latest_slip?.category || '').toLowerCase() === 'trusted')
+                ((g.latest_slip?.category || '').toLowerCase() === 'trusted') ||
+                ((g.latest_unpaid as any)?.is_trusted)
             );
 
-            // slips ordered by month ASC from server; pick last unpaid/partial
+            // Find any slip with a positive unpaid balance
             const unpaid = g.slips
-                .filter(s => !['paid', 'satteled', 'settled'].includes((s.status || '').toLowerCase()) && (parseFloat(s.total_amount as any || 0) - parseFloat(s.paid_amount as any || 0) > 0))
+                .filter(s => {
+                    const tot = parseFloat(s.total_amount as any || 0);
+                    const paid = parseFloat(s.paid_amount as any || 0);
+                    return (tot - paid) > 0;
+                })
                 .sort((a, b) => (b.year - a.year) || (b.month - a.month));
             
             if (unpaid.length > 0) {
@@ -780,8 +785,14 @@ export default function CollectFeePage() {
                 g.status = g.balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
             } else {
                 g.latest_unpaid = g.latest_slip;
-                g.balance = 0;
-                g.status = isTrustedGroup ? 'satteled' : (['satteled', 'settled'].includes((g.latest_slip.status || '').toLowerCase()) ? 'satteled' : 'paid');
+                const tot = parseFloat(g.latest_slip.total_amount as any || 0);
+                const paid = parseFloat(g.latest_slip.paid_amount as any || 0);
+                g.balance = Math.max(0, tot - paid);
+                if (g.balance > 0) {
+                    g.status = paid > 0 ? 'partial' : 'unpaid';
+                } else {
+                    g.status = isTrustedGroup ? 'satteled' : (['satteled', 'settled'].includes((g.latest_slip.status || '').toLowerCase()) ? 'satteled' : 'paid');
+                }
             }
         });
         return Array.from(map.values());
@@ -791,7 +802,6 @@ export default function CollectFeePage() {
     const collectionPct = stats && stats.total_amount > 0 ? Math.round((stats.paid_amount / stats.total_amount) * 100) : 0;
 
     const isModalSlipSettled = activeSlip ? (
-        ['satteled', 'settled'].includes((activeSlip.status || '').toLowerCase()) ||
         parseFloat(activeSlip.total_amount as any || 0) <= 0
     ) : false;
     const modalSlipBalance = isModalSlipSettled ? 0 : (activeSlip ? Math.max(0, parseFloat(activeSlip.total_amount as any || 0) - parseFloat(activeSlip.paid_amount as any || 0)) : 0);
@@ -1091,7 +1101,7 @@ export default function CollectFeePage() {
                                                         </div>
                                                     </td>
                                                     <td className="px-2 text-center">
-                                                        {['paid', 'satteled'].includes(g.status) || g.latest_unpaid.is_active_year === false ? (
+                                                        {g.balance <= 0 || g.latest_unpaid.is_active_year === false ? (
                                                             <button className="btn btn-sm" style={{ fontSize: '0.72rem', backgroundColor: '#e8f5e9', color: '#198754', border: '1px solid #c3e6cb', borderRadius: 6 }}
                                                                 onClick={() => openPayModal(g.latest_paid || g.latest_slip)}>
                                                                 <i className="bi bi-eye me-1"></i>{g.latest_unpaid.is_active_year === false ? 'View Slip' : 'History'}

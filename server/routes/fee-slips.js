@@ -747,8 +747,8 @@ router.get('/', async (req, res) => {
             } else {
                 r.family_members = [];
             }
-            const isSingleTrusted = r.category && r.category.trim().toLowerCase() === 'trusted';
-            const isFamilyAllTrusted = r.family_members.length > 0 && r.family_members.every(m => m.category && m.category.trim().toLowerCase() === 'trusted');
+            const isSingleTrusted = (r.category || '').trim().toLowerCase() === 'trusted';
+            const isFamilyAllTrusted = r.family_members.length > 0 && r.family_members.every(m => (m.category || '').trim().toLowerCase() === 'trusted');
             r.is_trusted = isSingleTrusted || isFamilyAllTrusted;
 
             if (r.is_trusted) {
