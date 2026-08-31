@@ -699,12 +699,15 @@ router.get('/families-directory', async (req, res) => {
                 s.dob,
                 s.status,
                 s.category,
+                s.monthly_fee,
                 c.class_id,
                 c.class_name,
                 sec.section_id,
                 sec.section_name,
                 f.family_fee,
-                f.opening_balance
+                f.opening_balance,
+                f.opening_balance_paid,
+                GREATEST(0, COALESCE(f.opening_balance, 0) - COALESCE(f.opening_balance_paid, 0)) AS opb_remaining
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             LEFT JOIN sections sec ON s.section_id = sec.section_id
@@ -722,6 +725,8 @@ router.get('/families-directory', async (req, res) => {
                     family_id: fid,
                     family_fee: parseFloat(s.family_fee || 0),
                     opening_balance: parseFloat(s.opening_balance || 0),
+                    opening_balance_paid: parseFloat(s.opening_balance_paid || 0),
+                    opb_remaining: parseFloat(s.opb_remaining || 0),
                     members: []
                 };
             }
@@ -734,6 +739,7 @@ router.get('/families-directory', async (req, res) => {
                 full_name: `${s.first_name || ''} ${s.last_name || ''}`.trim(),
                 category: s.category || 'Normal',
                 is_trusted: isTrusted,
+                monthly_fee: parseFloat(s.monthly_fee || 0),
                 father_name: (s.father_name || '').trim(),
                 father_phone: (s.father_phone || '').trim(),
                 father_cnic: (s.father_cnic || '').trim(),
@@ -885,6 +891,12 @@ router.get('/families-directory', async (req, res) => {
                 finalFeeStatus = 'paid';
             }
 
+            // Effective monthly tuition fee calculation
+            const memberMonthlySum = members
+                .filter(m => (m.status || '').toLowerCase() === 'active' && !m.is_trusted)
+                .reduce((sum, m) => sum + (parseFloat(m.monthly_fee) || 0), 0);
+            const effectiveMonthlyFee = fam.family_fee > 0 ? fam.family_fee : memberMonthlySum;
+
             return {
                 family_id: fam.family_id,
                 family_name: primaryFatherName,
@@ -905,7 +917,10 @@ router.get('/families-directory', async (req, res) => {
                 classes_list: classesList,
                 sections_list: sectionsList,
                 family_fee: fam.family_fee,
+                effective_monthly_fee: effectiveMonthlyFee,
                 opening_balance: fam.opening_balance,
+                opening_balance_paid: fam.opening_balance_paid,
+                opb_remaining: fam.opb_remaining,
                 total_billed: finalBilled,
                 total_paid: finalPaid,
                 total_balance: finalBalance,

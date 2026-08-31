@@ -13,6 +13,7 @@ interface StudentMember {
     full_name: string;
     category?: string;
     is_trusted?: boolean;
+    monthly_fee?: number;
     father_name: string;
     father_phone: string;
     father_cnic: string;
@@ -56,12 +57,16 @@ interface FamilyData {
     classes_list: string[];
     sections_list: string[];
     family_fee: number;
+    effective_monthly_fee?: number;
     opening_balance: number;
+    opening_balance_paid?: number;
+    opb_remaining?: number;
     total_billed?: number;
     total_paid?: number;
     total_balance?: number;
     fee_status?: 'unpaid' | 'partial' | 'paid' | 'settled' | 'satteled' | string;
     members: StudentMember[];
+    eldest_child?: StudentMember | null;
 }
 
 interface SchoolInfo {
@@ -106,6 +111,10 @@ export default function FamilyListPage() {
     const [selectedSection, setSelectedSection] = useState('');
     const [showFeeColumns, setShowFeeColumns] = useState(false);
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+    // Pagination state (default: 50 families per page for maximum speed & responsiveness)
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [pageSize, setPageSize] = useState<number>(50);
 
     // Fetch initial datasets
     useEffect(() => {
@@ -177,7 +186,6 @@ export default function FamilyListPage() {
     // Filter available sections based on selected class
     const availableSections = useMemo(() => {
         if (!selectedClass) {
-            // Unique section names when no class selected
             const uniqueNames = Array.from(new Set(sections.map(s => s.section_name)));
             return uniqueNames.map(name => ({
                 section_id: sections.find(s => s.section_name === name)?.section_id || 0,
@@ -189,10 +197,23 @@ export default function FamilyListPage() {
         return sections.filter(s => s.class_id === classIdNum);
     }, [sections, selectedClass]);
 
-    // Handle class filter change & reset section if invalid
+    // Handle class filter change & reset section
     const handleClassChange = (newClassId: string) => {
         setSelectedClass(newClassId);
         setSelectedSection('');
+    };
+
+    // Helper: Identify the Eldest Child (Lead Student) representing the family unit
+    // Seniority is determined by highest class level (class_id DESC), then earliest admission
+    const getEldestChild = (members: StudentMember[]): StudentMember | null => {
+        if (!members || members.length === 0) return null;
+        return members.reduce((eldest, curr) => {
+            if (!eldest) return curr;
+            const diff = (curr.class_id || 0) - (eldest.class_id || 0);
+            if (diff > 0) return curr;
+            if (diff < 0) return eldest;
+            return eldest;
+        }, members[0]);
     };
 
     // Calculate Sibling vs Cousin breakdown stats
@@ -209,8 +230,10 @@ export default function FamilyListPage() {
         return { pureSiblings, cousins };
     }, [families]);
 
-    // Filter & Project Families and Matching Children
-    // When Class/Section is filtered: ONLY the matching children in that class/section are displayed!
+    // Filter & Project Families:
+    // Core Rule: When filtering by Class/Section, a family is matched IF AND ONLY IF its
+    // ELDEST/LEAD CHILD is in that selected Class/Section. When matched, the WHOLE FAMILY
+    // (with all younger siblings) is displayed together!
     const filteredFamilies = useMemo(() => {
         const s = searchTerm.toLowerCase().trim();
         const hasClassFilter = Boolean(selectedClass);
@@ -235,24 +258,33 @@ export default function FamilyListPage() {
 
                 if (!matchesSearch) return null;
 
-                // 2. Class & Section filter matching for member projection
-                let activeMembers = fam.members;
+                // 2. Determine Eldest Child (Lead Student) of the Family
+                const eldest = getEldestChild(fam.members);
 
-                if (hasClassFilter || hasSectionFilter) {
-                    activeMembers = fam.members.filter(m => {
-                        const matchC = !hasClassFilter || m.class_id?.toString() === selectedClass || m.class_name.toLowerCase() === selectedClass.toLowerCase();
-                        const matchS = !hasSectionFilter || m.section_id?.toString() === selectedSection || m.section_name.toLowerCase() === selectedSection.toLowerCase();
-                        return matchC && matchS;
-                    });
-
-                    // If no children in this family belong to the filtered class/section, omit this family
-                    if (activeMembers.length === 0) return null;
+                // 3. Class & Section filter applied ONLY to the Eldest Child representing the family
+                if (hasClassFilter) {
+                    const matchC = eldest && (
+                        eldest.class_id?.toString() === selectedClass ||
+                        eldest.class_name.toLowerCase() === selectedClass.toLowerCase()
+                    );
+                    if (!matchC) return null;
                 }
 
-                // Sort members inside family by Class & Section & Name
+                if (hasSectionFilter) {
+                    const matchS = eldest && (
+                        eldest.section_id?.toString() === selectedSection ||
+                        eldest.section_name.toLowerCase() === selectedSection.toLowerCase()
+                    );
+                    if (!matchS) return null;
+                }
+
+                // When matched, show the ENTIRE family with all its children
+                const activeMembers = fam.members;
+
+                // Sort members inside family by Class DESC (eldest child first) & Section & Name
                 const sortedMembers = [...activeMembers].sort((a, b) => {
-                    const cComp = (a.class_name || '').localeCompare(b.class_name || '');
-                    if (cComp !== 0) return cComp;
+                    const cDiff = (b.class_id || 0) - (a.class_id || 0);
+                    if (cDiff !== 0) return cDiff;
                     const sComp = (a.section_name || '').localeCompare(b.section_name || '');
                     if (sComp !== 0) return sComp;
                     return (a.first_name || '').localeCompare(b.first_name || '');
@@ -260,28 +292,26 @@ export default function FamilyListPage() {
 
                 return {
                     ...fam,
+                    eldest_child: eldest,
                     activeMembers: sortedMembers,
-                    isFilteredChildCount: sortedMembers.length !== fam.members.length
+                    isFilteredChildCount: false
                 };
             })
-            .filter((item): item is FamilyData & { activeMembers: StudentMember[]; isFilteredChildCount: boolean } => item !== null);
+            .filter((item): item is FamilyData & { eldest_child: StudentMember | null; activeMembers: StudentMember[]; isFilteredChildCount: boolean } => item !== null);
 
-        // Sorting Priority (Requirement 5):
-        // If NO filter applied: Always show in Section-wise & Alphabetical priority
-        // If filter applied: Sort alphabetically by family name
+        // Sorting Priority:
         return list.sort((a, b) => {
             if (!hasClassFilter && !hasSectionFilter && !s) {
-                // Section-wise priority first
-                const secA = a.activeMembers[0]?.section_name || '';
-                const secB = b.activeMembers[0]?.section_name || '';
-                const secCompare = secA.localeCompare(secB, undefined, { numeric: true, sensitivity: 'base' });
-                if (secCompare !== 0) return secCompare;
-
-                // Then Class-wise priority
-                const clsA = a.activeMembers[0]?.class_name || '';
-                const clsB = b.activeMembers[0]?.class_name || '';
+                // Class-wise & Section-wise priority of lead student
+                const clsA = a.eldest_child?.class_name || a.activeMembers[0]?.class_name || '';
+                const clsB = b.eldest_child?.class_name || b.activeMembers[0]?.class_name || '';
                 const clsCompare = clsA.localeCompare(clsB, undefined, { numeric: true, sensitivity: 'base' });
                 if (clsCompare !== 0) return clsCompare;
+
+                const secA = a.eldest_child?.section_name || a.activeMembers[0]?.section_name || '';
+                const secB = b.eldest_child?.section_name || b.activeMembers[0]?.section_name || '';
+                const secCompare = secA.localeCompare(secB, undefined, { numeric: true, sensitivity: 'base' });
+                if (secCompare !== 0) return secCompare;
 
                 // Then Family Name alphabetically
                 return a.family_name.localeCompare(b.family_name, undefined, { sensitivity: 'base' });
@@ -292,13 +322,27 @@ export default function FamilyListPage() {
         });
     }, [families, searchTerm, selectedClass, selectedSection]);
 
+    // Reset pagination to page 1 whenever search, class, or section changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedClass, selectedSection, pageSize]);
+
+    // Pagination calculations
+    const totalPages = Math.max(1, Math.ceil(filteredFamilies.length / (pageSize === -1 ? filteredFamilies.length || 1 : pageSize)));
+
+    const paginatedFamilies = useMemo(() => {
+        if (pageSize === -1) return filteredFamilies;
+        const start = (currentPage - 1) * pageSize;
+        return filteredFamilies.slice(start, start + pageSize);
+    }, [filteredFamilies, currentPage, pageSize]);
+
     // Total displayed student count across all filtered families
     const displayedStudentsCount = useMemo(() => {
         return filteredFamilies.reduce((acc, f) => acc + f.activeMembers.length, 0);
     }, [filteredFamilies]);
 
     // Format phone for WhatsApp URL (e.g. 03001234567 -> 923001234567)
-    const formatWhatsAppNumber = (phone: string) => {
+    const formatWhatsAppNumber = (phone?: string) => {
         if (!phone) return '';
         const cleaned = phone.replace(/[^0-9]/g, '');
         if (cleaned.startsWith('0')) {
@@ -307,12 +351,12 @@ export default function FamilyListPage() {
         if (cleaned.startsWith('92')) {
             return cleaned;
         }
-        return '92' + cleaned;
+        return cleaned ? '92' + cleaned : '';
     };
 
     // ── Export Functions ──────────────────────────────────────────────
 
-    // 1. Export Excel (Strictly reflects filtered families/children & conditional fee status)
+    // 1. Export Excel (Strictly reflects filtered families, entire children list, Fee & OPB)
     const exportExcel = () => {
         if (filteredFamilies.length === 0) return;
 
@@ -321,16 +365,21 @@ export default function FamilyListPage() {
 
         filteredFamilies.forEach(f => {
             const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
-            f.activeMembers.forEach(m => {
+            const monthlyFeeVal = f.effective_monthly_fee || f.family_fee || 0;
+            const opbVal = f.opb_remaining !== undefined ? f.opb_remaining : (f.opening_balance || 0);
+
+            f.activeMembers.forEach((m) => {
                 const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
                 const rowObj: any = {
                     "Sr.#": sr,
                     "Family Name": f.is_cousin_family ? (f.combined_father_names || f.family_name || '') : (f.family_name || ''),
                     "Family ID": f.family_id,
                     "Family Type": f.is_cousin_family ? "Siblings + Cousins" : "Pure Siblings",
+                    "Lead / Eldest Child": f.eldest_child ? `${f.eldest_child.full_name} (${f.eldest_child.class_name})` : "N/A",
+                    "Monthly Fee (PKR)": monthlyFeeVal,
+                    "OPB Arrears (PKR)": opbVal,
                 };
 
-                // Requirement 5: Fee status only exported if showFeeColumns is enabled
                 if (showFeeColumns) {
                     rowObj["Fee Status"] = isSettled ? "SETTLED" : (f.fee_status ? f.fee_status.toUpperCase() : "PAID");
                     rowObj["Total Bill (PKR)"] = isSettled ? 0 : (f.total_billed || 0);
@@ -358,8 +407,11 @@ export default function FamilyListPage() {
         const colWidths = [
             { wch: 6 },  // Sr
             { wch: 26 }, // Family Name
-            { wch: 16 }, // Family ID
+            { wch: 14 }, // Family ID
             { wch: 18 }, // Family Type
+            { wch: 24 }, // Lead Child
+            { wch: 16 }, // Monthly Fee
+            { wch: 16 }, // OPB Arrears
         ];
 
         if (showFeeColumns) {
@@ -393,11 +445,11 @@ export default function FamilyListPage() {
         XLSX.writeFile(wb, `${school.school_name || 'School'}_Family_Directory${filterTag}_${dateStr}.xlsx`);
     };
 
-    // 2. Export CSV (Strictly reflects filtered families/children & conditional fee status)
+    // 2. Export CSV
     const exportCSV = () => {
         if (filteredFamilies.length === 0) return;
 
-        const headers = ["Sr.#", "Family Name", "Family ID", "Family Type"];
+        const headers = ["Sr.#", "Family Name", "Family ID", "Family Type", "Lead Child", "Monthly Fee", "OPB Arrears"];
         if (showFeeColumns) {
             headers.push("Fee Status", "Total Bill", "Paid", "Balance");
         }
@@ -408,13 +460,19 @@ export default function FamilyListPage() {
 
         filteredFamilies.forEach(f => {
             const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
+            const monthlyFeeVal = f.effective_monthly_fee || f.family_fee || 0;
+            const opbVal = f.opb_remaining !== undefined ? f.opb_remaining : (f.opening_balance || 0);
+
             f.activeMembers.forEach(m => {
                 const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
                 const row: string[] = [
                     sr.toString(),
                     `"${(f.is_cousin_family ? (f.combined_father_names || f.family_name || '') : (f.family_name || '')).replace(/"/g, '""')}"`,
                     `"${(f.family_id || '').replace(/"/g, '""')}"`,
-                    `"${f.is_cousin_family ? 'Siblings + Cousins' : 'Pure Siblings'}"`
+                    `"${f.is_cousin_family ? 'Siblings + Cousins' : 'Pure Siblings'}"`,
+                    `"${(f.eldest_child ? `${f.eldest_child.full_name} (${f.eldest_child.class_name})` : '').replace(/"/g, '""')}"`,
+                    `"${monthlyFeeVal}"`,
+                    `"${opbVal}"`
                 ];
 
                 if (showFeeColumns) {
@@ -456,7 +514,7 @@ export default function FamilyListPage() {
         document.body.removeChild(link);
     };
 
-    // 3. Print / PDF Export with Hierarchical Rows & Conditional Fee Columns
+    // 3. Print / PDF Export
     const exportPDF = () => {
         if (filteredFamilies.length === 0) return;
 
@@ -464,14 +522,14 @@ export default function FamilyListPage() {
         if (!printWindow) return;
 
         const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        const filterTitle = selectedClass ? ` - Filtered: Class ${selectedClass}${selectedSection ? ` (${selectedSection})` : ''}` : '';
+        const filterTitle = selectedClass ? ` - Lead Filter: Class ${selectedClass}${selectedSection ? ` (${selectedSection})` : ''}` : '';
 
         const tableRowsHtml = filteredFamilies.map((f, idx) => {
             const M = f.activeMembers.length;
             const isSettled = f.is_trusted_family || ['settled', 'satteled'].includes((f.fee_status || '').toLowerCase());
-            const feeStatusStr = isSettled ? 'SETTLED' : (f.fee_status ? f.fee_status.toUpperCase() : 'PAID');
-            const statusColor = isSettled ? '#0891b2' : f.fee_status === 'unpaid' ? '#dc3545' : f.fee_status === 'partial' ? '#fd7e14' : '#198754';
             const isCousin = f.is_cousin_family;
+            const monthlyFeeVal = f.effective_monthly_fee || f.family_fee || 0;
+            const opbVal = f.opb_remaining !== undefined ? f.opb_remaining : (f.opening_balance || 0);
 
             return f.activeMembers.map((m, mIdx) => {
                 const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
@@ -486,11 +544,14 @@ export default function FamilyListPage() {
                                 </div>
                                 ${isSettled ? `<div style="font-size: 7.5pt; color: #0891b2; font-weight: 700; margin-top: 1px;">🛡️ TRUSTED SETTLED</div>` : ''}
                                 <div style="font-size: 8pt; color: #666; font-weight: normal; margin-top: 2px;">
-                                    ${f.isFilteredChildCount ? `Showing ${f.activeMembers.length} of ${f.total_children} Children` : `${f.total_children} Child${f.total_children > 1 ? 'ren' : ''}`}
+                                    ${f.total_children} Child${f.total_children > 1 ? 'ren' : ''} in family
                                 </div>
-                                ${showFeeColumns ? `<div style="font-size: 7.5pt; font-weight: bold; color: ${statusColor}; margin-top: 2px;">Fee: ${feeStatusStr}</div>` : ''}
                             </td>
                             <td rowspan="${M}" style="text-align: center; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle; background-color: #f8f9fa;">${f.family_id}</td>
+                            <td rowspan="${M}" style="border: 1px solid #333; padding: 6px; vertical-align: middle; background-color: #fafafa;">
+                                <div style="font-size: 8pt;"><strong>Monthly:</strong> PKR ${monthlyFeeVal.toLocaleString('en-PK')}</div>
+                                <div style="font-size: 8pt; color: ${opbVal > 0 ? '#dc2626' : '#166534'}; margin-top: 2px;"><strong>OPB:</strong> PKR ${opbVal.toLocaleString('en-PK')}</div>
+                            </td>
                             ${showFeeColumns ? `
                                 <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; vertical-align: middle;">PKR ${(isSettled ? 0 : (f.total_billed || 0)).toLocaleString('en-PK')}</td>
                                 <td rowspan="${M}" style="text-align: right; border: 1px solid #333; padding: 6px; font-weight: bold; color: #198754; vertical-align: middle;">PKR ${(isSettled ? 0 : (f.total_paid || 0)).toLocaleString('en-PK')}</td>
@@ -516,7 +577,7 @@ export default function FamilyListPage() {
                             f.fathers_list.map(fa => fa.phone ? `<div>${fa.name.split(' ')[0]}: ${fa.phone}</div>` : '').join('')
                         ) : (
                             `<div>${f.father_phone ? `Father: ${f.father_phone}` : ''}</div>
-                                     <div>${f.mother_phone ? `Mother: ${f.mother_phone}` : ''}</div>`
+                             <div>${f.mother_phone ? `Mother: ${f.mother_phone}` : ''}</div>`
                         )}
                             </td>
                         </tr>
@@ -572,18 +633,19 @@ export default function FamilyListPage() {
                     <thead>
                         <tr>
                             <th style="width: 4%;">Sr.#</th>
-                            <th style="width: 18%;">Family Information</th>
-                            <th style="width: 10%;">Family ID</th>
+                            <th style="width: 17%;">Family Information</th>
+                            <th style="width: 9%;">Family ID</th>
+                            <th style="width: 12%;">Fee & OPB</th>
                             ${showFeeColumns ? `
-                                <th style="width: 8%;">Total Bill</th>
-                                <th style="width: 8%;">Paid</th>
-                                <th style="width: 8%;">Balance</th>
+                                <th style="width: 7%;">Total Bill</th>
+                                <th style="width: 7%;">Paid</th>
+                                <th style="width: 7%;">Balance</th>
                             ` : ''}
-                            <th style="width: 20%;">Student / Child Name</th>
-                            <th style="width: 7%;">Class</th>
-                            <th style="width: 7%;">Section</th>
-                            <th style="width: 14%;">Parents / Guardians</th>
-                            <th style="width: 12%;">Phone Numbers</th>
+                            <th style="width: 18%;">Student / Child Name</th>
+                            <th style="width: 6%;">Class</th>
+                            <th style="width: 6%;">Section</th>
+                            <th style="width: 12%;">Parents / Guardians</th>
+                            <th style="width: 15%;">Contacts & WhatsApp</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -619,7 +681,7 @@ export default function FamilyListPage() {
                         border-radius: 12px !important;
                     }
                     .family-table {
-                        min-width: 820px;
+                        min-width: 860px;
                     }
                 }
                 @media (max-width: 575.98px) {
@@ -640,7 +702,7 @@ export default function FamilyListPage() {
                         Family Directory
                     </h2>
                     <p className="text-muted small mb-0">
-                        Class & section-filtered family units, pure sibling vs cousin households, contact directories, and fee status.
+                        Class & section lead-filtered family units, pure sibling vs cousin households, contacts, fee and opening balance directory.
                     </p>
                 </div>
 
@@ -720,7 +782,7 @@ export default function FamilyListPage() {
                         <div className="card-body p-2.5 p-md-3">
                             <div className="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Active Filter Results</div>
+                                    <div className="text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem' }}>Filtered Families</div>
                                     <div className="fw-bold fs-4 mt-1 text-success text-truncate">
                                         {filteredFamilies.length} <span className="fs-6 text-muted fw-normal">({displayedStudentsCount} kids)</span>
                                     </div>
@@ -739,7 +801,7 @@ export default function FamilyListPage() {
                 {/* Responsive Filter & Action Toolbar */}
                 <div className="card-header bg-white border-bottom p-3" style={{ borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}>
                     <div className="row g-3 align-items-center justify-content-between">
-                        {/* Search & Dynamic Class/Section Filters */}
+                        {/* Search & Lead Class/Section Filters */}
                         <div className="col-12 col-xl-7">
                             <div className="row g-2">
                                 {/* Search Input */}
@@ -750,34 +812,25 @@ export default function FamilyListPage() {
                                         </span>
                                         <input
                                             type="text"
-                                            className="form-control border-start-0 ps-0 bg-light"
-                                            style={{ borderRadius: searchTerm ? '0' : '0 12px 12px 0' }}
-                                            placeholder="Search name, phone, admission#..."
+                                            className="form-control bg-light border-start-0"
+                                            placeholder="Search family, father, child, phone..."
                                             value={searchTerm}
                                             onChange={e => setSearchTerm(e.target.value)}
+                                            style={{ borderRadius: '0 12px 12px 0', fontSize: '0.88rem' }}
                                         />
-                                        {searchTerm && (
-                                            <button
-                                                className="btn btn-light border border-start-0"
-                                                style={{ borderRadius: '0 12px 12px 0' }}
-                                                type="button"
-                                                onClick={() => setSearchTerm('')}
-                                            >
-                                                <i className="bi bi-x text-muted"></i>
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
 
-                                {/* Class Dropdown */}
-                                <div className="col-6 col-md-3.5 col-lg-3">
+                                {/* Class Filter (Filters by Eldest / Lead Child of the family) */}
+                                <div className="col-6 col-md-3">
                                     <select
-                                        className="form-select bg-light"
-                                        style={{ borderRadius: '12px' }}
+                                        className="form-select bg-light border"
                                         value={selectedClass}
                                         onChange={e => handleClassChange(e.target.value)}
+                                        style={{ borderRadius: '12px', fontSize: '0.88rem' }}
+                                        title="Filter families where Eldest Child is in this class"
                                     >
-                                        <option value="">All Classes</option>
+                                        <option value="">All Lead Classes</option>
                                         {classes.map(c => (
                                             <option key={c.class_id} value={c.class_id.toString()}>
                                                 {c.class_name}
@@ -786,17 +839,18 @@ export default function FamilyListPage() {
                                     </select>
                                 </div>
 
-                                {/* Section Dropdown Filter (Requirement 1 & 2) */}
-                                <div className="col-6 col-md-3.5 col-lg-3">
+                                {/* Section Filter */}
+                                <div className="col-6 col-md-3">
                                     <select
-                                        className="form-select bg-light"
-                                        style={{ borderRadius: '12px' }}
+                                        className="form-select bg-light border"
                                         value={selectedSection}
                                         onChange={e => setSelectedSection(e.target.value)}
+                                        style={{ borderRadius: '12px', fontSize: '0.88rem' }}
+                                        title="Filter families where Eldest Child is in this section"
                                     >
                                         <option value="">All Sections</option>
                                         {availableSections.map(sec => (
-                                            <option key={sec.section_id || sec.section_name} value={sec.section_id ? sec.section_id.toString() : sec.section_name}>
+                                            <option key={sec.section_id} value={sec.section_id ? sec.section_id.toString() : sec.section_name}>
                                                 {sec.section_name}
                                             </option>
                                         ))}
@@ -826,7 +880,7 @@ export default function FamilyListPage() {
 
                         {/* Actions & View Controls */}
                         <div className="col-12 col-xl-5 d-flex flex-wrap justify-content-xl-end align-items-center gap-2">
-                            {/* Layout Toggle (Table vs Cards for Mobile/Tablet) */}
+                            {/* Layout Toggle (Table vs Cards) */}
                             <div className="btn-group btn-group-sm shadow-sm" role="group" style={{ borderRadius: '10px' }}>
                                 <button
                                     type="button"
@@ -848,7 +902,7 @@ export default function FamilyListPage() {
                                 </button>
                             </div>
 
-                            {/* Fee Toggle Button */}
+                            {/* Fee Slips Summary Columns Toggle */}
                             <button
                                 type="button"
                                 className={`btn btn-sm ${showFeeColumns ? 'btn-teal text-white' : 'btn-light border'} px-2.5 shadow-sm d-inline-flex align-items-center gap-1`}
@@ -858,10 +912,10 @@ export default function FamilyListPage() {
                                     color: showFeeColumns ? '#fff' : 'var(--primary-teal)'
                                 }}
                                 onClick={() => setShowFeeColumns(!showFeeColumns)}
-                                title={showFeeColumns ? "Hide Fee Columns" : "Show Fee Summary Columns"}
+                                title={showFeeColumns ? "Hide Detailed Fee Slip Columns" : "Show Detailed Fee Slip Columns"}
                             >
                                 <i className={`bi ${showFeeColumns ? 'bi-cash-stack' : 'bi-currency-dollar'} fs-6`}></i>
-                                <span className="small fw-semibold">{showFeeColumns ? 'Fee On' : 'Fee Off'}</span>
+                                <span className="small fw-semibold">{showFeeColumns ? 'Slips Summary' : 'Slips Summary'}</span>
                             </button>
 
                             {/* Export Buttons */}
@@ -918,41 +972,44 @@ export default function FamilyListPage() {
                         </div>
                     ) : viewMode === 'table' ? (
                         /* Responsive Table View with Grouped Child Rows */
-                        <div className="table-responsive">
-                            <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.88rem' }}>
+                        <div className="table-responsive family-table-container">
+                            <table className="table table-hover align-middle mb-0 family-table" style={{ fontSize: '0.88rem' }}>
                                 <thead style={{ backgroundColor: 'var(--primary-dark)', color: '#fff' }}>
                                     <tr>
                                         <th className="text-center" style={{ width: '3%', padding: '12px 8px' }}>Sr.#</th>
-                                        <th style={{ width: showFeeColumns ? '17%' : '20%', padding: '12px 8px' }}>Family & Households</th>
-                                        <th style={{ width: showFeeColumns ? '9%' : '11%', padding: '12px 8px' }}>Family ID</th>
+                                        <th style={{ width: showFeeColumns ? '15%' : '17%', padding: '12px 8px' }}>Family &amp; Households</th>
+                                        <th style={{ width: '8%', padding: '12px 8px' }}>Family ID</th>
+                                        <th style={{ width: '13%', padding: '12px 8px' }}>Monthly Fee &amp; OPB</th>
                                         {showFeeColumns && (
                                             <>
-                                                <th className="text-end" style={{ width: '8%', padding: '12px 8px', backgroundColor: '#1e3a8a' }}>Total Bill</th>
-                                                <th className="text-end" style={{ width: '8%', padding: '12px 8px', backgroundColor: '#065f46' }}>Paid</th>
-                                                <th className="text-end" style={{ width: '8%', padding: '12px 8px', backgroundColor: '#991b1b' }}>Balance</th>
+                                                <th className="text-end" style={{ width: '7%', padding: '12px 8px', backgroundColor: '#1e3a8a' }}>Total Bill</th>
+                                                <th className="text-end" style={{ width: '7%', padding: '12px 8px', backgroundColor: '#065f46' }}>Paid</th>
+                                                <th className="text-end" style={{ width: '7%', padding: '12px 8px', backgroundColor: '#991b1b' }}>Balance</th>
                                             </>
                                         )}
-                                        <th style={{ width: showFeeColumns ? '18%' : '22%', padding: '12px 8px' }}>Enrolled Student</th>
-                                        <th style={{ width: '8%', padding: '12px 8px' }}>Class</th>
-                                        <th style={{ width: '7%', padding: '12px 8px' }}>Section</th>
-                                        <th style={{ width: '13%', padding: '12px 8px' }}>Parents / Guardians</th>
-                                        <th style={{ width: '10%', padding: '12px 8px' }}>Contacts</th>
-                                        <th className="text-center" style={{ width: '5%', padding: '12px 8px' }}>WhatsApp</th>
+                                        <th style={{ width: showFeeColumns ? '16%' : '18%', padding: '12px 8px' }}>Enrolled Student</th>
+                                        <th style={{ width: '7%', padding: '12px 8px' }}>Class</th>
+                                        <th style={{ width: '6%', padding: '12px 8px' }}>Section</th>
+                                        <th style={{ width: '11%', padding: '12px 8px' }}>Parents / Guardians</th>
+                                        <th style={{ width: '14%', padding: '12px 8px' }}>Contacts &amp; WhatsApp</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredFamilies.map((fam, famIdx) => {
-                                        const waNumber = formatWhatsAppNumber(fam.primary_phone);
+                                    {paginatedFamilies.map((fam, famIdx) => {
+                                        const globalSr = (pageSize === -1 ? 0 : (currentPage - 1) * pageSize) + famIdx + 1;
                                         const M = fam.activeMembers.length;
                                         const feeStatus = (fam.fee_status || 'paid').toLowerCase();
                                         const isSettled = fam.is_trusted_family || ['settled', 'satteled'].includes(feeStatus);
                                         const isUnpaid = !isSettled && feeStatus === 'unpaid';
                                         const isPartial = !isSettled && feeStatus === 'partial';
                                         const isCousin = fam.is_cousin_family;
+                                        const monthlyFeeVal = fam.effective_monthly_fee || fam.family_fee || 0;
+                                        const opbVal = fam.opb_remaining !== undefined ? fam.opb_remaining : (fam.opening_balance || 0);
 
                                         return fam.activeMembers.map((m, mIdx) => {
                                             const isFirst = mIdx === 0;
                                             const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
+                                            const isEldest = fam.eldest_child?.student_id === m.student_id;
 
                                             return (
                                                 <tr
@@ -971,7 +1028,7 @@ export default function FamilyListPage() {
                                                             rowSpan={M}
                                                             className="text-center text-muted fw-bold align-middle border-end bg-light bg-opacity-50"
                                                         >
-                                                            {famIdx + 1}
+                                                            {globalSr}
                                                         </td>
                                                     )}
 
@@ -1003,20 +1060,14 @@ export default function FamilyListPage() {
                                                                 )}
                                                                 {isSettled && (
                                                                     <span className="badge rounded-pill border px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', borderColor: '#bae6fd', color: '#0369a1', fontSize: '0.68rem', fontWeight: 600 }}>
-                                                                        <i className="bi bi-shield-check me-1 text-info"></i>Settled
+                                                                        <i className="bi bi-shield-check me-1"></i>Settled
                                                                     </span>
                                                                 )}
                                                             </div>
 
-                                                            {/* Child Count / Filter status */}
+                                                            {/* Child Count */}
                                                             <small className="text-muted d-block mt-1" style={{ fontSize: '0.74rem' }}>
-                                                                {fam.isFilteredChildCount ? (
-                                                                    <span className="text-primary fw-semibold">
-                                                                        Showing {fam.activeMembers.length} of {fam.total_children} kids
-                                                                    </span>
-                                                                ) : (
-                                                                    <span>{fam.total_children} child{fam.total_children > 1 ? 'ren' : ''} in family</span>
-                                                                )}
+                                                                <span>{fam.total_children} child{fam.total_children > 1 ? 'ren' : ''} in family</span>
                                                             </small>
                                                         </td>
                                                     )}
@@ -1031,7 +1082,30 @@ export default function FamilyListPage() {
                                                         </td>
                                                     )}
 
-                                                    {/* Optional Fee Columns: Total Bill, Paid, Balance */}
+                                                    {/* 4. NEW COLUMN: Monthly Fee & OPB Arrears (Rowspan) */}
+                                                    {isFirst && (
+                                                        <td rowSpan={M} className="align-middle border-end bg-light bg-opacity-25">
+                                                            <div className="d-flex flex-column gap-1.5">
+                                                                <div className="d-flex align-items-center justify-content-between gap-1">
+                                                                    <span className="text-muted small" style={{ fontSize: '0.72rem' }}>Monthly Fee:</span>
+                                                                    <span className="fw-bold text-dark" style={{ fontSize: '0.82rem' }}>
+                                                                        PKR {monthlyFeeVal.toLocaleString('en-PK')}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="d-flex align-items-center justify-content-between gap-1">
+                                                                    <span className="text-muted small" style={{ fontSize: '0.72rem' }}>OPB Arrears:</span>
+                                                                    <span
+                                                                        className={`badge rounded-pill px-2 py-0.5 ${opbVal > 0 ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-success-subtle text-success border border-success-subtle'}`}
+                                                                        style={{ fontSize: '0.7rem', fontWeight: 600 }}
+                                                                    >
+                                                                        PKR {opbVal.toLocaleString('en-PK')}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    )}
+
+                                                    {/* Optional Fee Slips Columns: Total Bill, Paid, Balance */}
                                                     {showFeeColumns && isFirst && (
                                                         <>
                                                             <td rowSpan={M} className="align-middle text-end border-end fw-bold text-dark" style={{ backgroundColor: '#f8fafc' }}>
@@ -1052,10 +1126,10 @@ export default function FamilyListPage() {
                                                         </>
                                                     )}
 
-                                                    {/* 4. Student Member Sub-Row Name with Specific Father Tag & Trusted Tag */}
+                                                    {/* 5. Student Member Sub-Row Name with Lead Tag, Specific Father Tag & Trusted Tag */}
                                                     <td>
                                                         <div className="d-flex align-items-center gap-2">
-                                                            <i className="bi bi-person-circle" style={{ color: 'var(--primary-teal)', fontSize: '0.95rem' }}></i>
+                                                            <i className={`bi ${isEldest ? 'bi-star-fill text-warning' : 'bi-person-circle'}`} style={{ color: isEldest ? undefined : 'var(--primary-teal)', fontSize: '0.95rem' }} title={isEldest ? 'Lead / Eldest Child of Family' : 'Family Member'}></i>
                                                             <div>
                                                                 <div className="d-flex align-items-center flex-wrap gap-1">
                                                                     <span className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
@@ -1064,6 +1138,11 @@ export default function FamilyListPage() {
                                                                     <span className="badge bg-light text-muted border" style={{ fontSize: '0.7rem' }}>
                                                                         {m.admission_no}
                                                                     </span>
+                                                                    {isEldest && (
+                                                                        <span className="badge rounded-pill px-1.5 py-0.5" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '0.65rem', fontWeight: 600 }}>
+                                                                            <i className="bi bi-award me-0.5"></i>Lead
+                                                                        </span>
+                                                                    )}
                                                                     {isMemberTrusted && (
                                                                         <span className="badge rounded-pill px-1.5 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd', fontSize: '0.68rem', fontWeight: 600 }}>
                                                                             <i className="bi bi-shield-check me-1"></i>Trusted
@@ -1080,21 +1159,21 @@ export default function FamilyListPage() {
                                                         </div>
                                                     </td>
 
-                                                    {/* 5. Class */}
+                                                    {/* 6. Class */}
                                                     <td>
                                                         <span className="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1" style={{ fontSize: '0.78rem' }}>
                                                             {m.class_name}
                                                         </span>
                                                     </td>
 
-                                                    {/* 6. Section */}
+                                                    {/* 7. Section */}
                                                     <td>
                                                         <span className="badge bg-secondary bg-opacity-10 text-dark border px-2 py-1" style={{ fontSize: '0.78rem' }}>
                                                             {m.section_name}
                                                         </span>
                                                     </td>
 
-                                                    {/* 7. Parents / Guardians (Rowspan) */}
+                                                    {/* 8. Parents / Guardians (Rowspan) */}
                                                     {isFirst && (
                                                         <td rowSpan={M} className="align-middle border-start border-end">
                                                             <div className="small">
@@ -1124,79 +1203,103 @@ export default function FamilyListPage() {
                                                         </td>
                                                     )}
 
-                                                    {/* 8. Contact Numbers (Rowspan) */}
+                                                    {/* 9. MERGED COLUMN: Contacts & WhatsApp (Rowspan) */}
                                                     {isFirst && (
-                                                        <td rowSpan={M} className="align-middle border-end" style={{ whiteSpace: 'nowrap' }}>
-                                                            <div className="small">
+                                                        <td rowSpan={M} className="align-middle border-end">
+                                                            <div className="d-flex flex-column gap-1.5 small">
                                                                 {isCousin && fam.fathers_list && fam.fathers_list.length > 0 ? (
-                                                                    fam.fathers_list.map((fa, faIdx) => (
-                                                                        fa.phone ? (
-                                                                            <div key={faIdx} className="mb-0.5">
+                                                                    fam.fathers_list.map((fa, faIdx) => {
+                                                                        const faWa = formatWhatsAppNumber(fa.phone);
+                                                                        return fa.phone ? (
+                                                                            <div key={faIdx} className="d-flex align-items-center justify-content-between gap-1.5 p-1 rounded bg-light border">
                                                                                 <a
                                                                                     href={`tel:${fa.phone}`}
                                                                                     onClick={e => e.stopPropagation()}
-                                                                                    className="text-decoration-none text-dark fw-semibold"
+                                                                                    className="text-decoration-none text-dark fw-semibold text-truncate d-flex align-items-center gap-1"
                                                                                     title={`Call ${fa.name}: ${fa.phone}`}
+                                                                                    style={{ fontSize: '0.76rem' }}
                                                                                 >
-                                                                                    <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.7rem' }}></i>
-                                                                                    <span className="text-muted small me-1">{fa.name.split(' ')[0]}:</span>
-                                                                                    {fa.phone}
+                                                                                    <i className="bi bi-telephone-fill text-success" style={{ fontSize: '0.68rem' }}></i>
+                                                                                    <span>{fa.name.split(' ')[0]}: {fa.phone}</span>
                                                                                 </a>
+                                                                                {faWa && (
+                                                                                    <a
+                                                                                        href={`https://wa.me/${faWa}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        onClick={e => e.stopPropagation()}
+                                                                                        className="btn btn-success btn-sm p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                                                                                        style={{ width: '22px', height: '22px', borderRadius: '6px', backgroundColor: '#25D366', borderColor: '#25D366' }}
+                                                                                        title={`WhatsApp ${fa.name}`}
+                                                                                    >
+                                                                                        <i className="bi bi-whatsapp text-white" style={{ fontSize: '0.68rem' }}></i>
+                                                                                    </a>
+                                                                                )}
                                                                             </div>
-                                                                        ) : null
-                                                                    ))
-                                                                ) : fam.father_phone ? (
-                                                                    <div>
-                                                                        <a
-                                                                            href={`tel:${fam.father_phone}`}
-                                                                            onClick={e => e.stopPropagation()}
-                                                                            className="text-decoration-none text-dark fw-semibold"
-                                                                        >
-                                                                            <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.72rem' }}></i>
-                                                                            {fam.father_phone}
-                                                                        </a>
-                                                                        {fam.mother_phone && (
-                                                                            <div className="text-muted mt-0.5" style={{ fontSize: '0.7rem' }}>
-                                                                                M: {fam.mother_phone}
+                                                                        ) : null;
+                                                                    })
+                                                                ) : (
+                                                                    <>
+                                                                        {fam.father_phone && (
+                                                                            <div className="d-flex align-items-center justify-content-between gap-1.5 p-1 rounded bg-light border">
+                                                                                <a
+                                                                                    href={`tel:${fam.father_phone}`}
+                                                                                    onClick={e => e.stopPropagation()}
+                                                                                    className="text-decoration-none text-dark fw-semibold text-truncate d-flex align-items-center gap-1"
+                                                                                    title={`Call Father: ${fam.father_phone}`}
+                                                                                    style={{ fontSize: '0.78rem' }}
+                                                                                >
+                                                                                    <i className="bi bi-telephone-fill text-success" style={{ fontSize: '0.7rem' }}></i>
+                                                                                    <span>{fam.father_phone}</span>
+                                                                                </a>
+                                                                                {formatWhatsAppNumber(fam.father_phone) && (
+                                                                                    <a
+                                                                                        href={`https://wa.me/${formatWhatsAppNumber(fam.father_phone)}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        onClick={e => e.stopPropagation()}
+                                                                                        className="btn btn-success btn-sm p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                                                                                        style={{ width: '22px', height: '22px', borderRadius: '6px', backgroundColor: '#25D366', borderColor: '#25D366' }}
+                                                                                        title="WhatsApp Father"
+                                                                                    >
+                                                                                        <i className="bi bi-whatsapp text-white" style={{ fontSize: '0.68rem' }}></i>
+                                                                                    </a>
+                                                                                )}
                                                                             </div>
                                                                         )}
-                                                                    </div>
-                                                                ) : fam.mother_phone ? (
-                                                                    <a
-                                                                        href={`tel:${fam.mother_phone}`}
-                                                                        onClick={e => e.stopPropagation()}
-                                                                        className="text-decoration-none text-dark fw-semibold"
-                                                                    >
-                                                                        <i className="bi bi-telephone-fill me-1 text-success" style={{ fontSize: '0.72rem' }}></i>
-                                                                        {fam.mother_phone}
-                                                                    </a>
-                                                                ) : (
-                                                                    <span className="text-muted">—</span>
+                                                                        {fam.mother_phone && (
+                                                                            <div className="d-flex align-items-center justify-content-between gap-1.5 p-1 rounded bg-light border">
+                                                                                <a
+                                                                                    href={`tel:${fam.mother_phone}`}
+                                                                                    onClick={e => e.stopPropagation()}
+                                                                                    className="text-decoration-none text-dark fw-semibold text-truncate d-flex align-items-center gap-1"
+                                                                                    title={`Call Mother: ${fam.mother_phone}`}
+                                                                                    style={{ fontSize: '0.76rem' }}
+                                                                                >
+                                                                                    <i className="bi bi-telephone-fill text-success" style={{ fontSize: '0.68rem' }}></i>
+                                                                                    <span className="text-muted small">M:</span> <span>{fam.mother_phone}</span>
+                                                                                </a>
+                                                                                {formatWhatsAppNumber(fam.mother_phone) && (
+                                                                                    <a
+                                                                                        href={`https://wa.me/${formatWhatsAppNumber(fam.mother_phone)}`}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        onClick={e => e.stopPropagation()}
+                                                                                        className="btn btn-success btn-sm p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                                                                                        style={{ width: '22px', height: '22px', borderRadius: '6px', backgroundColor: '#25D366', borderColor: '#25D366' }}
+                                                                                        title="WhatsApp Mother"
+                                                                                    >
+                                                                                        <i className="bi bi-whatsapp text-white" style={{ fontSize: '0.68rem' }}></i>
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        {!fam.father_phone && !fam.mother_phone && (
+                                                                            <span className="text-muted">—</span>
+                                                                        )}
+                                                                    </>
                                                                 )}
                                                             </div>
-                                                        </td>
-                                                    )}
-
-                                                    {/* 9. WhatsApp Direct Message (Rowspan) */}
-                                                    {isFirst && (
-                                                        <td rowSpan={M} className="text-center align-middle">
-                                                            {waNumber ? (
-                                                                <a
-                                                                    href={`https://wa.me/${waNumber}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    onClick={e => e.stopPropagation()}
-                                                                    className="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm"
-                                                                    style={{ width: '34px', height: '34px', backgroundColor: '#25D366', borderColor: '#25D366' }}
-                                                                    title={`Send WhatsApp message to ${fam.primary_phone}`}
-                                                                >
-                                                                    <i className="bi bi-whatsapp fs-6 text-white"></i>
-                                                                </a>
-                                                            ) : (
-                                                                <button className="btn btn-sm btn-light text-muted rounded-circle" disabled style={{ width: '34px', height: '34px' }}>
-                                                                    <i className="bi bi-whatsapp fs-6 opacity-50"></i>
-                                                                </button>
-                                                            )}
                                                         </td>
                                                     )}
                                                 </tr>
@@ -1210,11 +1313,14 @@ export default function FamilyListPage() {
                         /* Mobile / Tablet Responsive Squircle Cards View */
                         <div className="p-3">
                             <div className="row g-3">
-                                {filteredFamilies.map((fam, idx) => {
+                                {paginatedFamilies.map((fam, idx) => {
+                                    const globalSr = (pageSize === -1 ? 0 : (currentPage - 1) * pageSize) + idx + 1;
                                     const waNumber = formatWhatsAppNumber(fam.primary_phone);
                                     const feeStatus = (fam.fee_status || 'paid').toLowerCase();
                                     const isSettled = fam.is_trusted_family || ['settled', 'satteled'].includes(feeStatus);
                                     const isCousin = fam.is_cousin_family;
+                                    const monthlyFeeVal = fam.effective_monthly_fee || fam.family_fee || 0;
+                                    const opbVal = fam.opb_remaining !== undefined ? fam.opb_remaining : (fam.opening_balance || 0);
 
                                     return (
                                         <div key={fam.family_id} className="col-12 col-md-6 col-xl-4">
@@ -1222,6 +1328,9 @@ export default function FamilyListPage() {
                                                 {/* Card Header */}
                                                 <div className="card-header bg-light border-bottom p-3 d-flex justify-content-between align-items-center">
                                                     <div className="d-flex flex-wrap gap-1 align-items-center">
+                                                        <span className="badge bg-secondary text-white rounded-pill px-2 py-0.5 me-1" style={{ fontSize: '0.72rem' }}>
+                                                            #{globalSr}
+                                                        </span>
                                                         <span className="badge rounded-pill text-dark border bg-white me-1">
                                                             {fam.family_id}
                                                         </span>
@@ -1247,6 +1356,7 @@ export default function FamilyListPage() {
                                                             rel="noopener noreferrer"
                                                             className="btn btn-success btn-sm rounded-circle d-inline-flex align-items-center justify-content-center"
                                                             style={{ width: '30px', height: '30px', backgroundColor: '#25D366' }}
+                                                            title="WhatsApp Primary Contact"
                                                         >
                                                             <i className="bi bi-whatsapp text-white" style={{ fontSize: '0.8rem' }}></i>
                                                         </a>
@@ -1260,19 +1370,39 @@ export default function FamilyListPage() {
                                                     </h6>
 
                                                     {/* Contact info */}
-                                                    <div className="small text-muted mb-3">
+                                                    <div className="small text-muted mb-2">
                                                         <i className="bi bi-telephone-fill text-success me-1"></i>
                                                         {fam.combined_phones || fam.primary_phone || 'No phone'}
                                                     </div>
 
+                                                    {/* Fee & OPB Info Summary Badge */}
+                                                    <div className="d-flex align-items-center justify-content-between p-2 rounded-3 bg-light border mb-2">
+                                                        <div>
+                                                            <span className="text-muted small d-block" style={{ fontSize: '0.7rem' }}>Monthly Fee</span>
+                                                            <span className="fw-bold text-dark" style={{ fontSize: '0.82rem' }}>PKR {monthlyFeeVal.toLocaleString('en-PK')}</span>
+                                                        </div>
+                                                        <div className="text-end">
+                                                            <span className="text-muted small d-block" style={{ fontSize: '0.7rem' }}>OPB Arrears</span>
+                                                            <span className={`badge rounded-pill ${opbVal > 0 ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-success-subtle text-success border border-success-subtle'}`} style={{ fontSize: '0.72rem' }}>
+                                                                PKR {opbVal.toLocaleString('en-PK')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
                                                     {/* Children List in this family */}
                                                     <div className="border-top pt-2">
-                                                        <div className="text-muted fw-bold mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase' }}>
-                                                            {fam.isFilteredChildCount ? `Filtered Children (${fam.activeMembers.length} of ${fam.total_children}):` : `Children (${fam.activeMembers.length}):`}
+                                                        <div className="text-muted fw-bold mb-2 d-flex justify-content-between align-items-center" style={{ fontSize: '0.72rem', textTransform: 'uppercase' }}>
+                                                            <span>Children ({fam.activeMembers.length}):</span>
+                                                            {fam.eldest_child && (
+                                                                <span className="text-warning-emphasis fw-semibold">
+                                                                    <i className="bi bi-star-fill text-warning me-1"></i>Lead: {fam.eldest_child.class_name}
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                        <div className="d-flex flex-column gap-2">
+                                                        <div className="d-flex flex-column gap-1.5">
                                                             {fam.activeMembers.map(m => {
                                                                 const isMemberTrusted = m.is_trusted || (m.category || '').toLowerCase() === 'trusted';
+                                                                const isEldest = fam.eldest_child?.student_id === m.student_id;
                                                                 return (
                                                                     <div
                                                                         key={m.student_id}
@@ -1283,6 +1413,11 @@ export default function FamilyListPage() {
                                                                         <div>
                                                                             <div className="d-flex align-items-center flex-wrap gap-1">
                                                                                 <span className="fw-bold text-dark" style={{ fontSize: '0.85rem' }}>{m.full_name}</span>
+                                                                                {isEldest && (
+                                                                                    <span className="badge rounded-pill px-1 py-0.5" style={{ backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontSize: '0.62rem' }}>
+                                                                                        Lead
+                                                                                    </span>
+                                                                                )}
                                                                                 {isMemberTrusted && (
                                                                                     <span className="badge rounded-pill px-1.5 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd', fontSize: '0.65rem' }}>
                                                                                         <i className="bi bi-shield-check me-1"></i>Trusted
@@ -1315,6 +1450,115 @@ export default function FamilyListPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Modern Responsive Pagination Footer */}
+                {filteredFamilies.length > 0 && (
+                    <div className="card-footer bg-white border-top p-3 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3" style={{ borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+                        {/* Info & Page Size Selector */}
+                        <div className="d-flex align-items-center gap-3 flex-wrap">
+                            <span className="text-muted small">
+                                Showing <strong>{pageSize === -1 ? 1 : Math.min((currentPage - 1) * pageSize + 1, filteredFamilies.length)}</strong> to <strong>{pageSize === -1 ? filteredFamilies.length : Math.min(currentPage * pageSize, filteredFamilies.length)}</strong> of <strong>{filteredFamilies.length}</strong> families
+                            </span>
+
+                            <div className="d-flex align-items-center gap-1.5">
+                                <label className="text-muted small mb-0" style={{ fontSize: '0.78rem' }}>Per page:</label>
+                                <select
+                                    className="form-select form-select-sm bg-light border"
+                                    value={pageSize}
+                                    onChange={e => setPageSize(parseInt(e.target.value, 10))}
+                                    style={{ width: '85px', borderRadius: '8px', fontSize: '0.78rem' }}
+                                >
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={200}>200</option>
+                                    <option value={-1}>All</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Page Number Navigation Buttons */}
+                        {pageSize !== -1 && totalPages > 1 && (
+                            <nav aria-label="Families Pagination">
+                                <ul className="pagination pagination-sm mb-0 gap-1">
+                                    {/* First Page */}
+                                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                        <button
+                                            className="page-link rounded-2 border"
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                            title="First Page"
+                                        >
+                                            <i className="bi bi-chevron-double-left"></i>
+                                        </button>
+                                    </li>
+
+                                    {/* Previous Page */}
+                                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                        <button
+                                            className="page-link rounded-2 border"
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                            title="Previous Page"
+                                        >
+                                            <i className="bi bi-chevron-left"></i>
+                                        </button>
+                                    </li>
+
+                                    {/* Dynamic Numeric Page Numbers */}
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                                        .map((p, idx, arr) => {
+                                            const prevP = arr[idx - 1];
+                                            const showEllipsis = prevP && p - prevP > 1;
+
+                                            return (
+                                                <span key={p} className="d-flex align-items-center">
+                                                    {showEllipsis && <span className="px-1 text-muted">...</span>}
+                                                    <li className={`page-item ${currentPage === p ? 'active' : ''}`}>
+                                                        <button
+                                                            className={`page-link rounded-2 border ${currentPage === p ? 'text-white' : ''}`}
+                                                            style={{
+                                                                backgroundColor: currentPage === p ? 'var(--primary-teal)' : undefined,
+                                                                borderColor: currentPage === p ? 'var(--primary-teal)' : undefined,
+                                                                minWidth: '32px'
+                                                            }}
+                                                            onClick={() => setCurrentPage(p)}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    </li>
+                                                </span>
+                                            );
+                                        })}
+
+                                    {/* Next Page */}
+                                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                        <button
+                                            className="page-link rounded-2 border"
+                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                            disabled={currentPage === totalPages}
+                                            title="Next Page"
+                                        >
+                                            <i className="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+
+                                    {/* Last Page */}
+                                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                        <button
+                                            className="page-link rounded-2 border"
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                            title="Last Page"
+                                        >
+                                            <i className="bi bi-chevron-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
