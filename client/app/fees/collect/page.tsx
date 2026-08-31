@@ -978,7 +978,7 @@ export default function CollectFeePage() {
                                             <th className="py-3 px-2" style={{ fontWeight: 600 }}>Student / Family</th>
                                             <th className="py-3 px-2" style={{ fontWeight: 600 }}>Class</th>
                                             <th className="py-3 px-2 text-center" style={{ fontWeight: 600 }}>Slips</th>
-                                            <th className="py-3 px-2 text-end" style={{ fontWeight: 600 }}>Per Month</th>
+                                            <th className="py-3 px-2 text-end" style={{ fontWeight: 600 }}>Voucher Bill</th>
                                             <th className="py-3 px-2 text-end" style={{ fontWeight: 600 }}>Paid</th>
                                             <th className="py-3 px-2 text-end" style={{ fontWeight: 600 }}>Pending</th>
                                             <th className="py-3 px-2 text-center" style={{ fontWeight: 600 }}>Status</th>
@@ -989,6 +989,7 @@ export default function CollectFeePage() {
                                         {groupedFiltered.map((g, idx) => {
                                             const isFam = g.is_family_slip;
                                             const members = g.family_members || [];
+                                            const groupTotalPaid = g.slips.reduce((sum, s) => sum + parseFloat(s.paid_amount as any || 0), 0);
                                             return (
                                                 <tr key={g.key} style={{ borderBottom: '1px solid #f0f0f0' }}>
                                                     <td className="px-3 text-muted" style={{ fontSize: '0.78rem' }}>{idx + 1}</td>
@@ -1046,12 +1047,12 @@ export default function CollectFeePage() {
                                                     <td className="px-2 text-end" style={{ color: 'var(--primary-dark)' }}>
                                                         <div className="fw-bold">{fmt(parseFloat(g.latest_unpaid.total_amount as any))}</div>
                                                         <div style={{ fontSize: '0.68rem', color: '#888' }}>
-                                                            {MONTHS[(g.latest_unpaid.month ?? 1) - 1]?.slice(0, 3)} {g.latest_unpaid.year}
+                                                            {MONTHS[(g.latest_unpaid.month ?? 1) - 1]?.slice(0, 3)} {g.latest_unpaid.year} Slip
                                                         </div>
                                                     </td>
                                                     <td className="px-2 text-end fw-bold" style={{ color: '#198754' }}>
-                                                        {parseFloat(g.latest_unpaid.paid_amount as any) > 0
-                                                            ? fmt(parseFloat(g.latest_unpaid.paid_amount as any))
+                                                        {groupTotalPaid > 0
+                                                            ? fmt(groupTotalPaid)
                                                             : <span className="text-muted">—</span>}
                                                     </td>
                                                     <td className="px-2 text-end fw-bold" style={{ color: ['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? '#0891b2' : g.balance > 0 ? '#dc3545' : '#198754' }}>
@@ -1134,9 +1135,15 @@ export default function CollectFeePage() {
                                 <div className="modal-body px-4 py-3 bg-light">
                                     {/* Overall Totals Summary Banner if multi-month */}
                                     {slipPickerGroup.slips.length > 1 && (() => {
-                                        const totalBilled = slipPickerGroup.slips.reduce((s, sl) => s + parseFloat(sl.total_amount as any || 0), 0);
+                                        const sortedSlips = [...slipPickerGroup.slips].sort((a, b) => (a.year - b.year) || (a.month - b.month));
+                                        const latestSlip = sortedSlips[sortedSlips.length - 1];
+                                        const isSettled = sortedSlips.some(s => ['satteled', 'settled'].includes((s.status || '').toLowerCase())) ||
+                                            ['satteled', 'settled'].includes((latestSlip.status || '').toLowerCase());
+
                                         const totalPaid = slipPickerGroup.slips.reduce((s, sl) => s + parseFloat(sl.paid_amount as any || 0), 0);
-                                        const totalPending = Math.max(0, totalBilled - totalPaid);
+                                        const totalPending = isSettled ? 0 : Math.max(0, parseFloat(latestSlip.total_amount as any || 0) - parseFloat(latestSlip.paid_amount as any || 0));
+                                        const totalBilled = totalPaid + totalPending;
+
                                         return (
                                             <div className="card border-0 shadow-sm mb-3 bg-white">
                                                 <div className="card-body p-3">
@@ -1144,16 +1151,19 @@ export default function CollectFeePage() {
                                                         <div className="col-4 border-end">
                                                             <div className="text-muted small fw-bold">TOTAL BILLED</div>
                                                             <div className="fw-bold fs-6" style={{ color: 'var(--primary-dark)' }}>{fmt(totalBilled)}</div>
+                                                            <div style={{ fontSize: '0.68rem', color: '#888' }}>Session Net Dues</div>
                                                         </div>
                                                         <div className="col-4 border-end">
                                                             <div className="text-muted small fw-bold">TOTAL PAID</div>
                                                             <div className="fw-bold fs-6 text-success">{fmt(totalPaid)}</div>
+                                                            <div style={{ fontSize: '0.68rem', color: '#888' }}>All Months Paid</div>
                                                         </div>
                                                         <div className="col-4">
                                                             <div className="text-muted small fw-bold">TOTAL BALANCE</div>
                                                             <div className="fw-bold fs-6" style={{ color: totalPending > 0 ? '#dc3545' : '#198754' }}>
                                                                 {totalPending > 0 ? fmt(totalPending) : '✓ Cleared'}
                                                             </div>
+                                                            <div style={{ fontSize: '0.68rem', color: '#888' }}>Latest Active Dues</div>
                                                         </div>
                                                     </div>
                                                 </div>

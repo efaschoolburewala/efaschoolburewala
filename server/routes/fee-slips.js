@@ -588,6 +588,19 @@ const cleanupCorruptLineItems = async () => {
             SET paid_amount = LEAST(paid_amount, amount) 
             WHERE paid_amount > amount
         `);
+        // Synchronize total_amount with line items sum if line items exist
+        await pool.query(`
+            UPDATE monthly_fee_slips mfs
+            SET total_amount = (
+                SELECT COALESCE(SUM(amount), 0) FROM slip_line_items WHERE slip_id = mfs.slip_id
+            )
+            WHERE EXISTS (
+                SELECT 1 FROM slip_line_items sli WHERE sli.slip_id = mfs.slip_id
+                GROUP BY sli.slip_id
+                HAVING ABS(SUM(sli.amount) - mfs.total_amount) > 0.01
+            )
+        `);
+
         const mismatchSlips = await pool.query(`
             SELECT mfs.slip_id, mfs.paid_amount
             FROM monthly_fee_slips mfs
@@ -719,15 +732,66 @@ router.get('/', async (req, res) => {
             }
         });
 
-        const payableRows = result.rows.filter(r => !['satteled', 'settled'].includes((r.status || '').toLowerCase()));
-        const stats = {
-            total_students: result.rows.length,
-            total_amount: payableRows.reduce((s, r) => s + parseFloat(r.total_amount || 0), 0),
-            paid_amount: payableRows.reduce((s, r) => s + parseFloat(r.paid_amount || 0), 0),
-            paid_count: result.rows.filter(r => ['paid', 'satteled', 'settled'].includes((r.status || '').toLowerCase())).length,
-            unpaid_count: result.rows.filter(r => (r.status || '').toLowerCase() === 'unpaid').length,
-            partial_count: result.rows.filter(r => (r.status || '').toLowerCase() === 'partial').length,
-        };
+        let stats;
+        if (month) {
+            // Single month query
+            const payableRows = result.rows.filter(r => !['satteled', 'settled'].includes((r.status || '').toLowerCase()));
+            stats = {
+                total_students: result.rows.length,
+                total_amount: payableRows.reduce((s, r) => s + parseFloat(r.total_amount || 0), 0),
+                paid_amount: payableRows.reduce((s, r) => s + parseFloat(r.paid_amount || 0), 0),
+                paid_count: result.rows.filter(r => ['paid', 'satteled', 'settled'].includes((r.status || '').toLowerCase())).length,
+                unpaid_count: result.rows.filter(r => (r.status || '').toLowerCase() === 'unpaid').length,
+                partial_count: result.rows.filter(r => (r.status || '').toLowerCase() === 'partial').length,
+            };
+        } else {
+            // Multi-month / Whole year query: Group by account to prevent double-counting of Previous Balance
+            const accountMap = new Map();
+            result.rows.forEach(r => {
+                const key = (r.is_family_slip && r.family_id) ? `fam_${r.family_id}` : `stu_${r.student_id}`;
+                if (!accountMap.has(key)) {
+                    accountMap.set(key, []);
+                }
+                accountMap.get(key).push(r);
+            });
+
+            let totalNetBilled = 0;
+            let totalPaid = 0;
+            let paidCount = 0;
+            let unpaidCount = 0;
+            let partialCount = 0;
+
+            accountMap.forEach(slips => {
+                slips.sort((a, b) => (a.year - b.year) || (a.month - b.month));
+                const latestSlip = slips[slips.length - 1];
+                const isSettled = slips.some(s => ['satteled', 'settled'].includes((s.status || '').toLowerCase())) ||
+                    ['satteled', 'settled'].includes((latestSlip.status || '').toLowerCase());
+
+                const acctPaid = slips.reduce((sum, s) => sum + parseFloat(s.paid_amount || 0), 0);
+                const acctDue = isSettled ? 0 : Math.max(0, parseFloat(latestSlip.total_amount || 0) - parseFloat(latestSlip.paid_amount || 0));
+                const acctBilled = acctPaid + acctDue;
+
+                totalPaid += acctPaid;
+                totalNetBilled += acctBilled;
+
+                if (isSettled || acctDue === 0) {
+                    paidCount++;
+                } else if (acctPaid > 0) {
+                    partialCount++;
+                } else {
+                    unpaidCount++;
+                }
+            });
+
+            stats = {
+                total_students: accountMap.size,
+                total_amount: parseFloat(totalNetBilled.toFixed(2)),
+                paid_amount: parseFloat(totalPaid.toFixed(2)),
+                paid_count: paidCount,
+                unpaid_count: unpaidCount,
+                partial_count: partialCount,
+            };
+        }
 
         res.json({ slips: result.rows, stats, active_year: activeYear, years: yearsRes.rows });
     } catch (err) { res.status(500).json({ error: err.message }); }
