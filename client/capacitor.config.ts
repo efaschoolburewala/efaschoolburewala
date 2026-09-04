@@ -8,13 +8,11 @@ const config: CapacitorConfig = {
     path: 'android [EFA_School]'
   },
   server: {
-    url: 'https://demo-private-school.vercel.app',
+    url: 'https://efaschoolburewala.onrender.com',
     cleartext: true,
     allowNavigation: [
       'efaschoolburewala.onrender.com',
-      '*.onrender.com',
-      'demo-private-school.vercel.app',
-      '*.vercel.app'
+      '*.onrender.com'
     ]
   },
   plugins: {
