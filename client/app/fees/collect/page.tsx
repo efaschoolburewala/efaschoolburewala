@@ -55,13 +55,53 @@ function fmtDate(d: string | null) {
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, { bg: string; label: string }> = {
         paid: { bg: '#198754', label: 'Paid' },
-        satteled: { bg: '#0891b2', label: 'Free Tuition' },
-        settled: { bg: '#0891b2', label: 'Free Tuition' },
+        satteled: { bg: '#0891b2', label: 'Settled' },
+        settled: { bg: '#0891b2', label: 'Settled' },
         partial: { bg: '#fd7e14', label: 'Partial' },
         unpaid: { bg: '#dc3545', label: 'Unpaid' },
     };
-    const s = map[status] || { bg: '#6c757d', label: status };
+    const s = map[(status || '').toLowerCase()] || { bg: '#6c757d', label: status };
     return <span className="badge rounded-pill" style={{ backgroundColor: s.bg, fontSize: '0.7rem' }}>{s.label}</span>;
+}
+
+function normalizeSlips(rawSlips: any[]): SlipRow[] {
+    return (rawSlips || []).map((s: any) => {
+        const isTrusted = Boolean(
+            s.is_trusted ||
+            (s.category && s.category.trim().toLowerCase() === 'trusted') ||
+            (s.family_members && s.family_members.length > 0 && s.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted'))
+        );
+
+        if (isTrusted) {
+            let nonTuitionTotal = 0;
+            if (s.line_items && s.line_items.length > 0) {
+                const extraItems = s.line_items.filter((li: any) => {
+                    const hn = (li.head_name || '').toLowerCase();
+                    return !hn.includes('tuition') && 
+                           !hn.includes('family monthly fee') && 
+                           !hn.includes('monthly fee') && 
+                           !hn.includes('previous balance');
+                });
+                nonTuitionTotal = extraItems.reduce((sum: number, li: any) => sum + parseFloat(li.amount as any || 0), 0);
+            } else {
+                nonTuitionTotal = parseFloat(s.total_amount as any || 0);
+            }
+
+            const paid = parseFloat(s.paid_amount as any || 0);
+            const status: 'paid' | 'partial' | 'unpaid' | 'satteled' = 
+                nonTuitionTotal <= 0 
+                    ? 'satteled' 
+                    : (paid >= nonTuitionTotal ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'));
+
+            return {
+                ...s,
+                is_trusted: true,
+                total_amount: nonTuitionTotal,
+                status
+            };
+        }
+        return s;
+    });
 }
 
 export default function CollectFeePage() {
@@ -158,7 +198,7 @@ export default function CollectFeePage() {
                     .then(r => r.json())
                     .then(data => {
                         if (data && data.slips) {
-                            setSlips((data.slips || []).map((s: any) => s.category && s.category.trim().toLowerCase() === 'trusted' ? { ...s, status: 'satteled' } : s));
+                            setSlips(normalizeSlips(data.slips));
                             setStats(data.stats || null);
                             setLoaded(true);
                         }
@@ -185,7 +225,7 @@ export default function CollectFeePage() {
             const r = await fetch(`${API}/fee-slips?${params.toString()}`);
             const data = await r.json();
             if (!r.ok) throw new Error(data.error);
-            setSlips((data.slips || []).map((s: any) => s.category && s.category.trim().toLowerCase() === 'trusted' ? { ...s, status: 'satteled' } : s));
+            setSlips(normalizeSlips(data.slips));
             setStats(data.stats || null);
             setLoaded(true);
         } catch (e: any) { notify.error(e.message); }
@@ -206,7 +246,7 @@ export default function CollectFeePage() {
             const r = await fetch(`${API}/fee-slips?${params.toString()}`);
             const data = await r.json();
             if (r.ok) {
-                setSlips((data.slips || []).map((s: any) => s.category && s.category.trim().toLowerCase() === 'trusted' ? { ...s, status: 'satteled' } : s));
+                setSlips(normalizeSlips(data.slips));
                 setStats(data.stats || null);
             }
         } catch { }
@@ -699,7 +739,14 @@ export default function CollectFeePage() {
 
     // Filtered slips
     const filtered = slips.filter(s => {
-        if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+        if (statusFilter !== 'all') {
+            const st = (s.status || '').toLowerCase();
+            if (statusFilter === 'satteled' || statusFilter === 'settled') {
+                if (!['satteled', 'settled'].includes(st)) return false;
+            } else if (st !== statusFilter) {
+                return false;
+            }
+        }
         if (search.trim()) {
             const q = search.toLowerCase().trim();
             const name = `${s.first_name} ${s.last_name}`.toLowerCase();
@@ -727,7 +774,8 @@ export default function CollectFeePage() {
             latest_paid: SlipRow | null;  // most recent slip with paid_amount > 0 (for Reverse)
             has_payments: boolean;     // any slip in this group has been paid at least partially
             balance: number;           // balance from latest_unpaid only
-            slips: SlipRow[]; status: 'paid' | 'partial' | 'unpaid' | 'satteled' | 'satteled';
+            is_trusted: boolean;
+            slips: SlipRow[]; status: 'paid' | 'partial' | 'unpaid' | 'satteled';
         }>();
         filtered.forEach(slip => {
             const key = (slip.is_family_slip && slip.family_id) ? `fam_${slip.family_id}` : `stu_${slip.student_id}`;
@@ -741,7 +789,7 @@ export default function CollectFeePage() {
                     family_members: slip.family_members,
                     latest_slip: slip, latest_unpaid: slip,
                     latest_paid: null, has_payments: false,
-                    balance: 0, slips: [], status: 'paid',
+                    balance: 0, is_trusted: false, slips: [], status: 'paid',
                 });
             }
             const g = map.get(key)!;
@@ -767,6 +815,7 @@ export default function CollectFeePage() {
                 ((g.latest_slip?.category || '').toLowerCase() === 'trusted') ||
                 ((g.latest_unpaid as any)?.is_trusted)
             );
+            g.is_trusted = isTrustedGroup;
 
             // Find any slip with a positive unpaid balance
             const unpaid = g.slips
@@ -782,7 +831,7 @@ export default function CollectFeePage() {
                 const tot = parseFloat(g.latest_unpaid.total_amount as any || 0);
                 const paid = parseFloat(g.latest_unpaid.paid_amount as any || 0);
                 g.balance = Math.max(0, tot - paid);
-                g.status = g.balance <= 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid';
+                g.status = g.balance <= 0 ? (isTrustedGroup ? 'satteled' : 'paid') : (paid > 0 ? 'partial' : 'unpaid');
             } else {
                 g.latest_unpaid = g.latest_slip;
                 const tot = parseFloat(g.latest_slip.total_amount as any || 0);
@@ -890,6 +939,7 @@ export default function CollectFeePage() {
                                 <option value="unpaid">Unpaid</option>
                                 <option value="partial">Partial</option>
                                 <option value="paid">Paid</option>
+                                <option value="satteled">Settled</option>
                             </select>
                         </div>
                         <div className="col-md-3">
@@ -1012,6 +1062,7 @@ export default function CollectFeePage() {
                                     <tbody>
                                         {groupedFiltered.map((g, idx) => {
                                             const isFam = g.is_family_slip;
+                                            const isTrustedGroup = g.is_trusted;
                                             const members = g.family_members || [];
                                             const groupTotalPaid = g.slips.reduce((sum, s) => sum + parseFloat(s.paid_amount as any || 0), 0);
                                             return (
@@ -1030,6 +1081,7 @@ export default function CollectFeePage() {
                                                                 <div className="fw-bold" style={{ color: 'var(--primary-dark)', lineHeight: 1.3 }}>
                                                                     {g.first_name} {g.last_name}
                                                                     {isFam && <span className="badge ms-1 rounded-pill" style={{ backgroundColor: 'var(--primary-teal)', fontSize: '0.65rem' }}>Family</span>}
+                                                                    {isTrustedGroup && <span className="badge ms-1 rounded-pill" style={{ backgroundColor: '#0891b2', fontSize: '0.65rem' }}>Trusted</span>}
                                                                 </div>
                                                                 <div style={{ fontSize: '0.72rem', color: '#888' }}>Adm: {g.admission_no}</div>
                                                                 {g.father_name && (
@@ -1070,7 +1122,8 @@ export default function CollectFeePage() {
                                                     </td>
                                                     <td className="px-2 text-end" style={{ color: 'var(--primary-dark)' }}>
                                                         <div className="fw-bold">{fmt(parseFloat(g.latest_unpaid.total_amount as any))}</div>
-                                                        <div style={{ fontSize: '0.68rem', color: '#888' }}>
+                                                        <div style={{ fontSize: '0.68rem', color: isTrustedGroup ? '#0891b2' : '#888' }}>
+                                                            {isTrustedGroup && parseFloat(g.latest_unpaid.total_amount as any) <= 0 ? 'Free Tuition • ' : ''}
                                                             {MONTHS[(g.latest_unpaid.month ?? 1) - 1]?.slice(0, 3)} {g.latest_unpaid.year} Slip
                                                         </div>
                                                     </td>
@@ -1082,7 +1135,7 @@ export default function CollectFeePage() {
                                                     <td className="px-2 text-end fw-bold" style={{ color: ['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? '#0891b2' : g.balance > 0 ? '#dc3545' : '#198754' }}>
                                                         {['satteled', 'settled'].includes((g.status || '').toLowerCase()) ? (
                                                             <span className="badge rounded-pill px-2 py-0.5" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontSize: '0.72rem' }}>
-                                                                ✓ Free Tuition (Nill)
+                                                                ✓ Settled (Nill)
                                                             </span>
                                                         ) : g.balance > 0 ? (
                                                             fmt(g.balance)
