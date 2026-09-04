@@ -56,7 +56,7 @@ export default function AdmissionFeeReportPage() {
 
     useEffect(() => {
         // Fetch academic years
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/years`)
             .then(r => r.json())
             .then((data: AcademicYear[]) => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -93,7 +93,7 @@ export default function AdmissionFeeReportPage() {
             if (toDate) params.append('to_date', toDate);
             if (status) params.append('status', status);
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/admission-fee?${params}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/reports/admission-fee?${params}`);
             if (!res.ok) throw new Error((await res.json()).error || 'Failed to fetch report');
 
             const data = await res.json();

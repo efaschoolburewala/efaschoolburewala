@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notify } from '@/app/utils/notify';
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -77,10 +77,10 @@ function normalizeSlips(rawSlips: any[]): SlipRow[] {
             if (s.line_items && s.line_items.length > 0) {
                 const extraItems = s.line_items.filter((li: any) => {
                     const hn = (li.head_name || '').toLowerCase();
-                    return !hn.includes('tuition') && 
-                           !hn.includes('family monthly fee') && 
-                           !hn.includes('monthly fee') && 
-                           !hn.includes('previous balance');
+                    return !hn.includes('tuition') &&
+                        !hn.includes('family monthly fee') &&
+                        !hn.includes('monthly fee') &&
+                        !hn.includes('previous balance');
                 });
                 nonTuitionTotal = extraItems.reduce((sum: number, li: any) => sum + parseFloat(li.amount as any || 0), 0);
             } else {
@@ -88,9 +88,9 @@ function normalizeSlips(rawSlips: any[]): SlipRow[] {
             }
 
             const paid = parseFloat(s.paid_amount as any || 0);
-            const status: 'paid' | 'partial' | 'unpaid' | 'satteled' = 
-                nonTuitionTotal <= 0 
-                    ? 'satteled' 
+            const status: 'paid' | 'partial' | 'unpaid' | 'satteled' =
+                nonTuitionTotal <= 0
+                    ? 'satteled'
                     : (paid >= nonTuitionTotal ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'));
 
             return {
@@ -153,7 +153,7 @@ export default function CollectFeePage() {
                     setSelectedAcademicYear(active.id.toString());
                 }
             }
-        }).catch(() => {});
+        }).catch(() => { });
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) {
                 setActiveYear(data);
@@ -163,12 +163,12 @@ export default function CollectFeePage() {
                     setYear(startY);
                 }
             }
-        }).catch(() => {});
+        }).catch(() => { });
         // School info lives in school_settings table (via /settings), NOT system_settings
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
                 const getLogo = (raw?: string) => {
-                    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+                    const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '');
                     if (!raw || !raw.trim()) return `${API_URL}/icon.png`;
                     const s = raw.trim();
                     if (s.startsWith('data:') || s.startsWith('http://') || s.startsWith('https://')) return s;
@@ -269,9 +269,9 @@ export default function CollectFeePage() {
             if (targetSlip.line_items && targetSlip.line_items.length > 0) {
                 targetSlip.line_items.forEach((item: any) => {
                     const headId = item.item_id ? item.item_id.toString() : item.head_name;
-                    const isTuitionOrPb = (item.head_name || '').toLowerCase().includes('tuition') || 
-                        (item.head_name || '').toLowerCase().includes('family monthly fee') || 
-                        (item.head_name || '').toLowerCase().includes('monthly fee') || 
+                    const isTuitionOrPb = (item.head_name || '').toLowerCase().includes('tuition') ||
+                        (item.head_name || '').toLowerCase().includes('family monthly fee') ||
+                        (item.head_name || '').toLowerCase().includes('monthly fee') ||
                         (item.head_name || '').toLowerCase().includes('previous balance');
 
                     if (isTrusted && isTuitionOrPb) {
@@ -281,7 +281,7 @@ export default function CollectFeePage() {
 
                     const rem = Math.max(0, parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0));
                     const isLateFine = (item.head_name || '').toLowerCase().includes('late') || (item.head_name || '').toLowerCase().includes('fine');
-                    
+
                     if (isLateFine && targetSlip.due_date) {
                         let cutoff = new Date(targetSlip.due_date);
                         if (item.fine_after_day && parseInt(item.fine_after_day) > 0) {
@@ -526,7 +526,7 @@ export default function CollectFeePage() {
             </tr>`;
 
         const phones = [school.phone_number, school.school_phone2, school.school_phone3].filter(Boolean).join(' ; ') || '0300-7730141 ; 0308-7696430 ; 067-3366383';
-        const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+        const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '');
         const logoUrl = school.school_logo_url || `${API_URL}/icon.png`;
         const schoolNameFormatted = (school.school_name || 'Falcon School System\nVehari').split('\n').join('<br>');
         const schoolAddress = school.school_address || '83/M Madina Colony Vehari';
@@ -689,7 +689,7 @@ export default function CollectFeePage() {
 
         const receivingSnap = Object.values(activeVals).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
         if (receivingSnap <= 0 && waivedItemIds.length === 0) { notify.error('Enter a valid amount or waive fine.'); return; }
-        
+
         // Snapshot before state changes (needed for receipt after async updates)
         const prevPaidSnap = parseFloat(activeSlip!.paid_amount as any);
         const slipSnap = { ...activeSlip! };
@@ -825,7 +825,7 @@ export default function CollectFeePage() {
                     return (tot - paid) > 0;
                 })
                 .sort((a, b) => (b.year - a.year) || (b.month - a.month));
-            
+
             if (unpaid.length > 0) {
                 g.latest_unpaid = unpaid[0];
                 const tot = parseFloat(g.latest_unpaid.total_amount as any || 0);

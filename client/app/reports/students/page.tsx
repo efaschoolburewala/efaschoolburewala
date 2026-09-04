@@ -28,7 +28,7 @@ export default function StudentReportPage() {
 
     useEffect(() => {
         // Fetch academic years
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/years`)
             .then(r => r.json())
             .then((data: AcademicYear[]) => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -39,8 +39,8 @@ export default function StudentReportPage() {
             })
             .catch(console.error);
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
     }, []);
 
     useEffect(() => {
@@ -56,7 +56,7 @@ export default function StudentReportPage() {
             if (academicYearId) params.append('academic_year_id', academicYearId);
             if (classId) params.append('class_id', classId);
             if (sectionId) params.append('section_id', sectionId);
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/students?${params}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/reports/students?${params}`);
             if (!res.ok) throw new Error((await res.json()).error || 'Failed');
             const data = await res.json();
             setStudents(data.students);

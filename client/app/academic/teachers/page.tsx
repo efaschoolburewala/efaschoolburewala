@@ -69,7 +69,7 @@ export default function TeacherAssign() {
     const fetchAllData = async () => {
         setLoading(true);
         setError(null);
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 
         try {
@@ -181,7 +181,7 @@ export default function TeacherAssign() {
                 if (isSelected && !wasSelected) {
                     // ADD
                     apiCalls.push(
-                        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/teachers/${employeeId}/subjects`, {
+                        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/teachers/${employeeId}/subjects`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ subject_id: subId })
@@ -192,7 +192,7 @@ export default function TeacherAssign() {
                     const assignId = initialSubjectMap[subId];
                     if (assignId) {
                         apiCalls.push(
-                            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/teachers/${employeeId}/subjects/${assignId}`, {
+                            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/teachers/${employeeId}/subjects/${assignId}`, {
                                 method: 'DELETE'
                             })
                         );
@@ -218,7 +218,7 @@ export default function TeacherAssign() {
 
                 // POST (Upsert)
                 apiCalls.push(
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/teachers/${employeeId}/classes`, {
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/teachers/${employeeId}/classes`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -238,7 +238,7 @@ export default function TeacherAssign() {
                     if (!activeSectionsMap.has(secId)) {
                         // Section is no longer active (no subjects, not CT) -> Remove it
                         apiCalls.push(
-                            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/teachers/${employeeId}/classes/${cls.assignment_id}`, {
+                            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/teachers/${employeeId}/classes/${cls.assignment_id}`, {
                                 method: 'DELETE'
                             })
                         );

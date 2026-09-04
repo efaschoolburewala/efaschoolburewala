@@ -66,7 +66,7 @@ export default function FeePlansPage() {
 
     const fetchPlans = async () => {
         try {
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-plans`);
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-plans`);
             const data = await r.json();
             if (Array.isArray(data)) setPlans(data);
         } catch { setError('Failed to load fee plans'); }
@@ -75,14 +75,14 @@ export default function FeePlansPage() {
 
     const fetchHeads = async () => {
         try {
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-heads/active`);
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-heads/active`);
             setAllHeads(await r.json());
         } catch { }
     };
 
     const fetchClasses = async () => {
         try {
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`);
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic`);
             setClasses(await r.json());
         } catch { }
     };
@@ -156,7 +156,7 @@ export default function FeePlansPage() {
             return;
         }
         try {
-            const url = editMode ? `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-plans/${editId}` : `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-plans`;
+            const url = editMode ? `${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-plans/${editId}` : `${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-plans`;
             const method = editMode ? 'PUT' : 'POST';
             const res = await fetch(url, {
                 method, headers: { 'Content-Type': 'application/json' },
@@ -173,7 +173,7 @@ export default function FeePlansPage() {
 
     const handleDelete = async (id: number) => {
         if (!confirm('Delete this fee plan?')) return;
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-plans/${id}`, { method: 'DELETE' });
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-plans/${id}`, { method: 'DELETE' });
         fetchPlans();
     };
 

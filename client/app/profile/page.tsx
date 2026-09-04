@@ -9,12 +9,12 @@ import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-import { 
-    extractFaceDescriptor, 
-    captureMultiFrameDescriptor, 
-    getCurrentHost, 
-    base64UrlToBuffer, 
-    bufferToBase64Url 
+import {
+    extractFaceDescriptor,
+    captureMultiFrameDescriptor,
+    getCurrentHost,
+    base64UrlToBuffer,
+    bufferToBase64Url
 } from '@/utils/biometrics';
 
 interface BiometricItem {
@@ -122,7 +122,7 @@ export default function ProfilePage() {
         if (!empId) return;
         setLoadingAtt(true);
         try {
-            const cleanAPI = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
+            const cleanAPI = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
             const queryParams = new URLSearchParams();
             if (attAcademicYearId) queryParams.append('academic_year_id', attAcademicYearId);
             if (attSelectedMonth && attSelectedMonth !== 'all') {
@@ -182,7 +182,7 @@ export default function ProfilePage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update profile');
-            
+
             setAutoSaveStatus('Saved in Realtime ✓');
             toast.success('Profile details saved to database in real-time!');
             if (authUser) {
@@ -388,7 +388,7 @@ export default function ProfilePage() {
                 setCameraStream(stream);
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
-                    videoRef.current.play().catch(() => {});
+                    videoRef.current.play().catch(() => { });
                 }
             }
         } catch (camErr: any) {
@@ -407,7 +407,7 @@ export default function ProfilePage() {
             if (!res.ok) throw new Error(data.error || 'Failed to get registration challenge');
 
             const { challengeId, options } = data;
-            
+
             // Capture multi-frame 256-D LBP-HOG descriptor vector
             const faceVector = await captureMultiFrameDescriptor(videoRef.current, 5);
             if (!faceVector || faceVector.length === 0) {
@@ -1012,13 +1012,13 @@ export default function ProfilePage() {
                                 <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
                                     Academic Year
                                 </label>
-                                <select 
-                                    className="form-select form-select-sm rounded-3 fw-semibold" 
-                                    value={attAcademicYearId} 
+                                <select
+                                    className="form-select form-select-sm rounded-3 fw-semibold"
+                                    value={attAcademicYearId}
                                     onChange={e => {
                                         setAttAcademicYearId(e.target.value);
                                         setAttSelectedMonth('all');
-                                    }} 
+                                    }}
                                     style={{ height: 38, border: '2px solid rgba(245, 130, 32, 0.4)' }}
                                 >
                                     {attAcademicYears.map(ay => (
@@ -1034,10 +1034,10 @@ export default function ProfilePage() {
                                 <label className="form-label fw-semibold small text-uppercase" style={{ color: 'var(--primary-dark)', letterSpacing: '0.05em' }}>
                                     Session Month
                                 </label>
-                                <select 
-                                    className="form-select form-select-sm rounded-3 fw-semibold" 
-                                    value={attSelectedMonth} 
-                                    onChange={e => setAttSelectedMonth(e.target.value)} 
+                                <select
+                                    className="form-select form-select-sm rounded-3 fw-semibold"
+                                    value={attSelectedMonth}
+                                    onChange={e => setAttSelectedMonth(e.target.value)}
                                     style={{ height: 38 }}
                                 >
                                     <option value="all">📅 All Months (Full Session)</option>
@@ -1050,11 +1050,11 @@ export default function ProfilePage() {
                             </div>
 
                             <div className="col-12 col-md-2">
-                                <button 
+                                <button
                                     type="button"
-                                    className="btn btn-sm w-100 fw-bold rounded-3 text-white shadow-xs" 
+                                    className="btn btn-sm w-100 fw-bold rounded-3 text-white shadow-xs"
                                     style={{ background: 'linear-gradient(135deg, #0d9488, #14b8a6)', height: 38 }}
-                                    onClick={loadMyAttendance} 
+                                    onClick={loadMyAttendance}
                                     disabled={loadingAtt}
                                 >
                                     {loadingAtt ? (
@@ -1313,7 +1313,7 @@ export default function ProfilePage() {
                                 <p className="text-white-50 small mb-3">
                                     Keep your face centered and well-lit to record your unique biometric template.
                                 </p>
-                                
+
                                 <button
                                     type="button"
                                     className="btn btn-info text-dark fw-bold rounded-pill px-4 py-2.5 w-100 shadow-sm mb-2"

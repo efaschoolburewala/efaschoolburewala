@@ -130,7 +130,7 @@ function renderCell(key: string, s: Student, idx: number) {
                     <div className="rounded-circle bg-light border d-flex align-items-center justify-content-center text-primary fw-bold flex-shrink-0"
                         style={{ width: 32, height: 32, fontSize: 13 }}>
                         {s.image_url
-                            ? <img src={`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/${s.image_url}`} alt="" className="rounded-circle w-100 h-100 object-fit-cover" />
+                            ? <img src={`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/${s.image_url}`} alt="" className="rounded-circle w-100 h-100 object-fit-cover" />
                             : (s.first_name?.charAt(0) ?? '?')}
                     </div>
                     <span className="fw-semibold text-dark">{s.first_name} {s.last_name}</span>
@@ -279,14 +279,14 @@ export default function StudentDetails() {
 
     const fetchClasses = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic`);
             if (res.ok) setClasses(await res.json());
         } catch (e) { console.error(e); }
     };
 
     const fetchSections = async (classId: string) => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/sections`);
             if (res.ok) {
                 const allSections = await res.json();
                 setSections(allSections.filter((s: any) => s.class_id === Number(classId)));
@@ -301,7 +301,7 @@ export default function StudentDetails() {
             Object.entries(filters).forEach(([key, value]) => {
                 if (value) queryParams.append(key, value.trim());
             });
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students?${queryParams.toString()}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/students?${queryParams.toString()}`);
             if (res.ok) {
                 setStudents(await res.json());
             }
@@ -323,7 +323,7 @@ export default function StudentDetails() {
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this student permanently?")) return;
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/students/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 notify.success("Student deleted successfully");
                 fetchStudents();
@@ -378,7 +378,7 @@ export default function StudentDetails() {
     const [school, setSchool] = useState<any>(null);
 
     useEffect(() => {
-        const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+        const API = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '');
         fetch(`${API}/settings`)
             .then(r => r.json())
             .then(data => {
@@ -410,7 +410,7 @@ export default function StudentDetails() {
             return isRemarks ? `<td style="border-bottom:1px dashed #777;min-width:120px">&nbsp;</td>` : `<td>${v}</td>`;
         }).join('') + '</tr>').join('');
 
-        const logoUrl = school?.logo_url || `${(process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '')}/icon.png`;
+        const logoUrl = school?.logo_url || `${(process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '')}/icon.png`;
         const schoolName = school?.school_name || 'Falcon School System';
         const address = school?.address || '';
         const contact = school?.contact_number || '';

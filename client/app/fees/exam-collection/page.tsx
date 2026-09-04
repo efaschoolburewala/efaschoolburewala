@@ -26,7 +26,7 @@ type StudentItem = {
     selected?: boolean;
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 
 
@@ -147,7 +147,7 @@ export default function ExamCollectionPage() {
         loadClasses();
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) setActiveYear(data);
-        }).catch(() => {});
+        }).catch(() => { });
     }, [user?.id]);
 
     useEffect(() => {

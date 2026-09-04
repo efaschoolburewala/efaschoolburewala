@@ -74,7 +74,7 @@ type CardPayload = {
   students: CardStudent[];
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 async function fetchJson(url: string, options?: RequestInit) {
   const r = await fetch(url, options);
@@ -124,7 +124,7 @@ function getSubjectGrade(obtained: number | null, total: number | null): string 
 }
 
 function getLogoUrl(rawLogo?: string): string {
-  const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '');
+  const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '');
   if (!rawLogo || !rawLogo.trim()) return '';
   const logoStr = rawLogo.trim();
   if (logoStr.startsWith('data:') || logoStr.startsWith('http://') || logoStr.startsWith('https://')) {

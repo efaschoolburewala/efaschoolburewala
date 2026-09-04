@@ -302,7 +302,7 @@ export function DashShell({
 }
 
 // Constants
-export const API = process.env.NEXT_PUBLIC_API_URL || " https://demo-private-school.onrender.com";
+export const API = process.env.NEXT_PUBLIC_API_URL || " https://efaschoolburewala.onrender.com";
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function fmt(n: number) {

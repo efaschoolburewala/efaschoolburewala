@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import AnimatedBackground from '@/components/AnimatedBackground';
 
-import { 
-    extractFaceDescriptor, 
-    captureMultiFrameDescriptor, 
-    getCurrentHost, 
-    base64UrlToBuffer, 
-    bufferToBase64Url 
+import {
+    extractFaceDescriptor,
+    captureMultiFrameDescriptor,
+    getCurrentHost,
+    base64UrlToBuffer,
+    bufferToBase64Url
 } from '@/utils/biometrics';
 import { Capacitor } from '@capacitor/core';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
@@ -45,7 +45,7 @@ export default function LoginPage() {
                 setLoginCameraStream(stream);
                 if (loginVideoRef.current) {
                     loginVideoRef.current.srcObject = stream;
-                    loginVideoRef.current.play().catch(() => {});
+                    loginVideoRef.current.play().catch(() => { });
                 }
             }
         } catch (camErr: any) {
@@ -199,7 +199,7 @@ export default function LoginPage() {
                     await handleNativeFingerprintLogin();
                     return;
                 }
-            } catch {}
+            } catch { }
         }
 
         // 2. If WebAuthn is available (Desktop TouchID / Windows Hello / YubiKey)
@@ -300,7 +300,7 @@ export default function LoginPage() {
         tagline: 'Excellence in Education'
     });
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
     useEffect(() => {
         if (!isLoading && isLoggedIn) {
@@ -829,14 +829,14 @@ export default function LoginPage() {
             {showLoginCameraModal && (
                 <div className="modal show d-block animate__animated animate__fadeIn" tabIndex={-1} style={{ backgroundColor: 'rgba(2, 6, 23, 0.88)', backdropFilter: 'blur(16px)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-dialog-centered bottom-sheet-dialog" style={{ maxWidth: 480, margin: '1rem auto', padding: '0 0.75rem' }}>
-                        <div className="modal-content border-0 rounded-4 shadow-2xl overflow-hidden bottom-sheet-content animate__animated animate__slideInUp" 
-                            style={{ 
-                                background: 'linear-gradient(180deg, rgba(15, 28, 44, 0.98) 0%, rgba(6, 13, 23, 0.99) 100%)', 
+                        <div className="modal-content border-0 rounded-4 shadow-2xl overflow-hidden bottom-sheet-content animate__animated animate__slideInUp"
+                            style={{
+                                background: 'linear-gradient(180deg, rgba(15, 28, 44, 0.98) 0%, rgba(6, 13, 23, 0.99) 100%)',
                                 color: '#fff',
                                 border: '1px solid rgba(6, 182, 212, 0.35)',
                                 boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.25)'
                             }}>
-                            
+
                             {/* Mobile Drag Bar */}
                             <div className="d-md-none text-center pt-3 pb-1">
                                 <div style={{ width: 48, height: 5, borderRadius: 3, backgroundColor: 'rgba(6, 182, 212, 0.4)', margin: '0 auto' }} />
@@ -919,7 +919,7 @@ export default function LoginPage() {
                                                 <div className="position-absolute top-0 end-0 m-2" style={{ width: 18, height: 18, borderTop: '3px solid #06b6d4', borderRight: '3px solid #06b6d4' }} />
                                                 <div className="position-absolute bottom-0 start-0 m-2" style={{ width: 18, height: 18, borderBottom: '3px solid #06b6d4', borderLeft: '3px solid #06b6d4' }} />
                                                 <div className="position-absolute bottom-0 end-0 m-2" style={{ width: 18, height: 18, borderBottom: '3px solid #06b6d4', borderRight: '3px solid #06b6d4' }} />
-                                                
+
                                                 {/* Target Ring */}
                                                 <div className="rounded-circle" style={{
                                                     width: 140, height: 140,
@@ -928,19 +928,19 @@ export default function LoginPage() {
                                                 }} />
 
                                                 {/* Laser Sweep Line */}
-                                                <div className="position-absolute w-100" 
-                                                    style={{ 
-                                                        height: 2, 
-                                                        background: 'linear-gradient(90deg, transparent, #22d3ee, #38bdf8, transparent)', 
+                                                <div className="position-absolute w-100"
+                                                    style={{
+                                                        height: 2,
+                                                        background: 'linear-gradient(90deg, transparent, #22d3ee, #38bdf8, transparent)',
                                                         boxShadow: '0 0 12px #22d3ee',
-                                                        animation: 'laserSweep 2s ease-in-out infinite' 
-                                                    }} 
+                                                        animation: 'laserSweep 2s ease-in-out infinite'
+                                                    }}
                                                 />
                                             </div>
 
                                             {/* Status Badge on Video */}
                                             <div className="position-absolute bottom-0 start-50 translate-middle-x mb-2 pointer-events-none">
-                                                <span className="badge px-2.5 py-1 text-info font-monospace fw-bold" 
+                                                <span className="badge px-2.5 py-1 text-info font-monospace fw-bold"
                                                     style={{ background: 'rgba(2, 6, 23, 0.85)', border: '1px solid rgba(6, 182, 212, 0.5)', fontSize: '0.68rem' }}>
                                                     <i className="bi bi-cpu-fill me-1" />AI Descriptor Tracking
                                                 </span>

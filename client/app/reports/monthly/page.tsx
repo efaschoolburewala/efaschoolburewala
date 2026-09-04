@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { notify } from '@/app/utils/notify';
 import { useAuth } from '@/contexts/AuthContext';
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 const MONTHS = [
     { num: 1, name: 'January' }, { num: 2, name: 'February' }, { num: 3, name: 'March' },

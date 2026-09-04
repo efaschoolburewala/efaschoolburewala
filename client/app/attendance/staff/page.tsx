@@ -109,7 +109,7 @@ export default function StaffAttendancePage() {
     const canEditLocked = isAdmin || hasPermission('attendance.edit_locked', 'write') || (user?.role_level || 0) >= 70;
     const canMarkAdvance = isAdmin || hasPermission('attendance.mark_advance', 'write');
 
-    const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
+    const API = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
 
     // 1. Fetch Department Meta
     useEffect(() => {
@@ -892,10 +892,10 @@ export default function StaffAttendancePage() {
                                                     style={{
                                                         background: rowBg,
                                                         borderLeft: `4px solid ${holidayInfo?.is_holiday
-                                                                ? '#7c3aed'
-                                                                : isSessionVerified
-                                                                    ? '#0d9e6e'
-                                                                    : S_COLOR[curStatus]
+                                                            ? '#7c3aed'
+                                                            : isSessionVerified
+                                                                ? '#0d9e6e'
+                                                                : S_COLOR[curStatus]
                                                             }`,
                                                         transition: 'all 0.2s ease',
                                                         opacity: (isSessionVerified && isLocked) ? 0.92 : 1

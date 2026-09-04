@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
 
-const API = (process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
+const API = (process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com").replace(/\/+$/, '').replace(/\/api$/, '');
 
 interface AttendanceSettings {
     id: number;
@@ -818,7 +818,7 @@ export default function StudentAttendanceSettingsPage() {
                                                                         type="checkbox"
                                                                         className="form-check-input cursor-pointer m-0"
                                                                         checked={isChecked}
-                                                                        onChange={() => {}}
+                                                                        onChange={() => { }}
                                                                         style={{ width: 18, height: 18, accentColor: 'var(--primary-teal)' }}
                                                                     />
                                                                     <span className="fw-bold text-dark small">

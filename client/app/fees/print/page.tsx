@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 interface SlipData {
     slip_id: number; student_id: number; family_id: string; class_id: number;
@@ -231,7 +231,7 @@ function VoucherSlip({ v, serial, month, year, school, filterClassId }: { v: Vou
         const displayName = rawName.replace(/Family Monthly Fee/i, 'Monthly Fee');
         const isTuition = displayName.toLowerCase().includes('monthly fee') || displayName.toLowerCase().includes('tuition');
         const isPb = displayName.toLowerCase().includes('previous balance') || displayName.toLowerCase().includes('opening balance');
-        
+
         let desc = displayName;
         if (isPb) {
             desc = 'Previous Balance';
@@ -494,7 +494,7 @@ export default function PrintSlipsPage() {
                     setSelectedAcademicYear(active.id.toString());
                 }
             }
-        }).catch(() => {});
+        }).catch(() => { });
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) {
                 setActiveYear(data);
@@ -504,7 +504,7 @@ export default function PrintSlipsPage() {
                     setYear(startY);
                 }
             }
-        }).catch(() => {});
+        }).catch(() => { });
 
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {

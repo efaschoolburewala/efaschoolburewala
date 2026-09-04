@@ -161,7 +161,7 @@ export default function FamilyFeeReportPage() {
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/years`)
             .then(r => r.json())
             .then((data: AcademicYear[]) => {
                 if (Array.isArray(data) && data.length > 0) {
@@ -172,9 +172,9 @@ export default function FamilyFeeReportPage() {
             })
             .catch(console.error);
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/fee-heads`).then(r => r.json()).then(setFeeHeads).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/classes`).then(r => r.json()).then(setClasses).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/sections`).then(r => r.json()).then(setSections).catch(console.error);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/reports/fee-heads`).then(r => r.json()).then(setFeeHeads).catch(console.error);
     }, []);
 
     useEffect(() => {
@@ -184,7 +184,7 @@ export default function FamilyFeeReportPage() {
         const yParam = selYear?.start_date ? new Date(selYear.start_date).getFullYear().toString() : year;
         if (yParam) setYear(yParam);
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?academic_year_id=${academicYearId}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-slips/available-months?academic_year_id=${academicYearId}`)
             .then(r => r.json())
             .then(data => {
                 if (data.months) {
@@ -246,7 +246,7 @@ export default function FamilyFeeReportPage() {
             if (headId) params.append('head_id', headId);
             if (asOfDate) params.append('as_of_date', asOfDate);
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/family-fee?${params}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/reports/family-fee?${params}`);
             if (!res.ok) throw new Error((await res.json()).error || 'Failed to load report');
             const data = await res.json();
 

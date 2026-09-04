@@ -87,7 +87,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
 
     const fetchStudentData = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students/${params.id}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/students/${params.id}`);
             if (res.ok) {
                 const data = await res.json();
 
@@ -117,7 +117,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                 // Fetch family info if student has a family
                 if (data.family_id) {
                     try {
-                        const fRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students/families/${data.family_id}`);
+                        const fRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/students/families/${data.family_id}`);
                         if (fRes.ok) {
                             const fData = await fRes.json();
                             const memberCount = fData.members ? fData.members.length : 1;
@@ -156,14 +156,14 @@ export default function EditStudent({ params }: { params: { id: string } }) {
 
     const fetchClasses = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic`);
             if (res.ok) setClasses(await res.json());
         } catch (e) { console.error(e); }
     };
 
     const fetchSections = async (classId: string) => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/sections`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/sections`);
             if (res.ok) {
                 const allSections = await res.json();
                 setSections(allSections.filter((s: any) => s.class_id === Number(classId)));
@@ -201,7 +201,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
             // Append Text Fields - Handle optional fields properly
             Object.keys(form).forEach(key => {
                 let value = (form as any)[key];
-                
+
                 // Skip empty date fields (dob, admission_date) if empty string to avoid date syntax errors
                 if ((key === 'dob' || key === 'admission_date') && (!value || String(value).trim() === '')) {
                     return;
@@ -231,7 +231,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                 }
             }
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/students/${params.id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/students/${params.id}`, {
                 method: 'PUT',
                 body: formData
             });
@@ -284,7 +284,7 @@ export default function EditStudent({ params }: { params: { id: string } }) {
                                                 <img src={URL.createObjectURL(imageFile)} alt="Preview"
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : existingImage ? (
-                                                <img src={`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/${existingImage}`} alt="Current"
+                                                <img src={`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/${existingImage}`} alt="Current"
                                                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (
                                                 <div className="text-secondary small">

@@ -41,7 +41,7 @@ interface AcademicMonthOption {
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 
 
@@ -95,7 +95,7 @@ export default function FeeGeneratePage() {
                     setSelectedAcademicYear(active.id.toString());
                 }
             }
-        }).catch(() => {});
+        }).catch(() => { });
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) {
                 setActiveYear(data);
@@ -105,22 +105,22 @@ export default function FeeGeneratePage() {
                     setSelectedYear(startY);
                 }
             }
-        }).catch(() => {});
+        }).catch(() => { });
     }, []);
 
     const fetchClasses = async () => {
-        try { const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic`); setClasses(await r.json()); } catch { }
+        try { const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic`); setClasses(await r.json()); } catch { }
     };
 
     const fetchHeads = async () => {
-        try { const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-heads/active`); setAllHeads(await r.json()); } catch { }
+        try { const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-heads/active`); setAllHeads(await r.json()); } catch { }
     };
 
     const fetchPlanForClass = async (class_id: string) => {
         if (!class_id) { setMatchingPlans([]); setPlanInfo(null); setSelectedPlanId(''); return; }
         setLoadingPlan(true);
         try {
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-plans`);
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-plans`);
             const plans: any[] = await r.json();
             const activePlans = plans.filter(p => p.is_active && (p.applies_to_all || (p.classes && p.classes.some((c: any) => c.class_id.toString() === class_id))));
             setMatchingPlans(activePlans);
@@ -219,7 +219,7 @@ export default function FeeGeneratePage() {
         if (!selectedClass || !selectedYear) { setGeneratedMonths([]); setGeneratedGroups([]); return; }
         try {
             const yrParam = selectedAcademicYear ? `&academic_year_id=${selectedAcademicYear}` : '';
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/available-months?year=${selectedYear}&class_id=${selectedClass}${yrParam}`);
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-slips/available-months?year=${selectedYear}&class_id=${selectedClass}${yrParam}`);
             const data = await r.json();
             if (data.months) {
                 setGeneratedGroups(data.months);
@@ -248,7 +248,7 @@ export default function FeeGeneratePage() {
         setLoadingSlips(true);
         try {
             const yrParam = selectedAcademicYear ? `&academic_year_id=${selectedAcademicYear}` : '';
-            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips?class_id=${selectedClass}&month=${fetchMonthValue}&year=${selectedYear}${yrParam}`);
+            const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-slips?class_id=${selectedClass}&month=${fetchMonthValue}&year=${selectedYear}${yrParam}`);
             const data = await r.json();
             setSlips(data.slips || []);
             setStats(data.stats || null);
@@ -300,7 +300,7 @@ export default function FeeGeneratePage() {
         const genYear = firstMonthObj ? firstMonthObj.year : parseInt(selectedYear);
         try {
             // Send ONE request with all selected months server creates a single combined slip
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/fee-slips/generate`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/fee-slips/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

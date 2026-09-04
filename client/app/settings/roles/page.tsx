@@ -197,7 +197,7 @@ export default function RolesPage() {
 
     const fetchRoles = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/roles`);
             const data = await res.json();
             setRoles(data);
         } catch { showToastMsg('danger', 'Failed to load roles'); }
@@ -241,7 +241,7 @@ export default function RolesPage() {
     const handleClone = async (roleId: number) => {
         try {
             setSaving(true);
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles/${roleId}/clone`, { method: 'POST' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/roles/${roleId}/clone`, { method: 'POST' });
             if (res.ok) {
                 fetchRoles();
                 showToastMsg('success', 'Role cloned successfully! Edit the new role to customize it.');
@@ -262,7 +262,7 @@ export default function RolesPage() {
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure? This role will be permanently deleted.')) return;
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/roles/${id}`, { method: 'DELETE' });
             if (res.ok) { fetchRoles(); showToastMsg('success', 'Role deleted'); }
             else showToastMsg('danger', 'Failed to delete role');
         } catch { showToastMsg('danger', 'Server error'); }
@@ -282,7 +282,7 @@ export default function RolesPage() {
 
     const performSave = async (applyToAssigned: boolean = true) => {
         setSaving(true);
-        const url = formData.id === 0 ? `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles` : `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles/${formData.id}?apply_to_assigned=${applyToAssigned}`;
+        const url = formData.id === 0 ? `${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/roles` : `${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/roles/${formData.id}?apply_to_assigned=${applyToAssigned}`;
         const method = formData.id === 0 ? 'POST' : 'PUT';
         try {
             const res = await fetch(url, {

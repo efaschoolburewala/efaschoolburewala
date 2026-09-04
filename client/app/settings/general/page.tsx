@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { showToast } from '@/utils/toastHelper';
 
-const API = process.env.NEXT_PUBLIC_API_URL || " https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || " https://efaschoolburewala.onrender.com";
 
 export default function GeneralSettings() {
     const [settings, setSettings] = useState({

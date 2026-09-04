@@ -1,7 +1,7 @@
 # 🎓 Smart School Management System (Enterprise Edition)
 
 [![Production Web](https://img.shields.io/badge/Live%20Web-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://demo-private-school.vercel.app)
-[![Production API](https://img.shields.io/badge/Live%20API-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://demo-private-school.onrender.com)
+[![Production API](https://img.shields.io/badge/Live%20API-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://efaschoolburewala.onrender.com)
 [![Mobile App](https://img.shields.io/badge/Mobile-Android%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#-mobile-application-android)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2F%20Express-339933?style=for-the-badge&logo=node.js)](https://nodejs.org/)
@@ -17,7 +17,7 @@ An end-to-end, multi-tenant enterprise School Management System (SMS) engineered
 | Platform | Link / Details | Credentials / Status |
 | :--- | :--- | :--- |
 | 🌐 **Live Web Application (Vercel)** | [https://demo-private-school.vercel.app](https://demo-private-school.vercel.app) | Production Deployment ✅ |
-| ⚡ **Live Backend API (Render)** | [https://demo-private-school.onrender.com](https://demo-private-school.onrender.com) | Health Check: `/api/system/health` ✅ |
+| ⚡ **Live Backend API (Render)** | [https://efaschoolburewala.onrender.com](https://efaschoolburewala.onrender.com) | Health Check: `/api/system/health` ✅ |
 | 📱 **Android App (APK Build)** | Built via Capacitor in `client/android [D_P_School]` | Standalone Package ID: `com.demosmartschool.app` |
 | 🔑 **Default Admin Login** | Username: `root` \| Password: `root123` | Full System Access |
 
@@ -290,7 +290,7 @@ npm run dev
 - **Repository Subdirectory**: `client`
 - **Framework Preset**: Next.js
 - **Environment Variables**:
-  - `NEXT_PUBLIC_API_URL`: `https://demo-private-school.onrender.com/api`
+  - `NEXT_PUBLIC_API_URL`: `https://efaschoolburewala.onrender.com/api`
 
 ---
 

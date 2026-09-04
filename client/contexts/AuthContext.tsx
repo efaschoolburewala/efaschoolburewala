@@ -43,7 +43,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_KEY = 'sms_user_session';
 const REMEMBER_KEY = 'sms_remember_session';
 const OFFLINE_SESSION_KEY = 'sms_offline_user_session';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);

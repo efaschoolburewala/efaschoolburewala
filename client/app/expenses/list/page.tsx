@@ -80,10 +80,10 @@ export default function ExpenseListPage() {
 
     const fetchActiveYear = async () => {
         try {
-            let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
+            let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/active-year`);
             let data = await response.json();
             if (!data?.year_name) {
-                response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses?limit=1`);
+                response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expenses?limit=1`);
                 data = await response.json();
                 data = data.active_year;
             }
@@ -102,7 +102,7 @@ export default function ExpenseListPage() {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expense-categories/active`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expense-categories/active`);
             const data = await response.json();
             setCategories(data);
         } catch (err) {
@@ -122,7 +122,7 @@ export default function ExpenseListPage() {
                 if (value) params.append(key, value);
             });
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses?${params}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expenses?${params}`);
             const data = await response.json();
 
             setExpenses(data.expenses || []);
@@ -147,7 +147,7 @@ export default function ExpenseListPage() {
                 const value = filters[key as keyof Filters];
                 if (value) params.append(key, value);
             });
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses/stats/summary?${params}`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expenses/stats/summary?${params}`);
             const data = await response.json();
             setSummary(data);
         } catch (err) {
@@ -169,7 +169,7 @@ export default function ExpenseListPage() {
         if (!confirm('Are you sure you want to delete this expense?')) return;
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses/${id}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expenses/${id}`, {
                 method: 'DELETE'
             });
 

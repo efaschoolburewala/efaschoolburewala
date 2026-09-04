@@ -44,7 +44,7 @@ interface PaymentForm {
   payment_date: string;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com";
+const API = process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com";
 
 interface SchoolInfo {
   school_name: string;
@@ -106,13 +106,13 @@ export default function AdmissionFeePage() {
           setSelectedAcademicYear(active.id.toString());
         }
       }
-    }).catch(() => {});
+    }).catch(() => { });
     fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
       if (data && data.id) {
         setActiveYear(data);
         setSelectedAcademicYear(prev => (prev === 'all' || !prev) ? data.id.toString() : prev);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     fetch(`${API}/settings`)
       .then((r) => r.json())

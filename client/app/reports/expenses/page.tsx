@@ -100,7 +100,7 @@ export default function ExpenseReportPage() {
             if (tD) params.append('to_date', tD);
             if (cId) params.append('category_id', cId);
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/expenses?${params}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/reports/expenses?${params}`);
             if (!res.ok) throw new Error((await res.json()).error || 'Failed to load expense report');
             const data = await res.json();
 
@@ -129,8 +129,8 @@ export default function ExpenseReportPage() {
         let initialToDate = '';
 
         Promise.all([
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/years`).then(r => r.json()),
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/reports/expense-categories`).then(r => r.json())
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/years`).then(r => r.json()),
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/reports/expense-categories`).then(r => r.json())
         ])
             .then(([yearsData, catsData]) => {
                 if (Array.isArray(yearsData) && yearsData.length > 0) {

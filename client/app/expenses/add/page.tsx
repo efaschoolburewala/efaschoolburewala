@@ -46,10 +46,10 @@ export default function AddExpensePage() {
 
     const fetchActiveYear = async () => {
         try {
-            let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/academic/active-year`);
+            let response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/academic/active-year`);
             let data = await response.json();
             if (!data?.year_name) {
-                response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses?limit=1`);
+                response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expenses?limit=1`);
                 data = await response.json();
                 data = data.active_year;
             }
@@ -61,7 +61,7 @@ export default function AddExpensePage() {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expense-categories/active`);
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expense-categories/active`);
             const data = await response.json();
             setCategories(data);
         } catch (err) {
@@ -75,7 +75,7 @@ export default function AddExpensePage() {
         setLoading(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/expenses`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/expenses`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

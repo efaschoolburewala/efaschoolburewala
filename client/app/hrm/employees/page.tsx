@@ -65,9 +65,9 @@ export default function EmployeesPage() {
     const fetchData = async () => {
         try {
             const [empRes, deptRes, roleRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/hrm/employees`),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/hrm/departments`),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/roles`) // Assuming this exists from previous modules
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/hrm/employees`),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/hrm/departments`),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/roles`) // Assuming this exists from previous modules
             ]);
 
             if (empRes.ok) setEmployees(await empRes.json());
@@ -138,8 +138,8 @@ export default function EmployeesPage() {
 
         const payload = { ...formData, create_system_user: isSysUser };
         const url = modalMode === 'create'
-            ? `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/hrm/employees`
-            : `${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/hrm/employees/${selectedId}`;
+            ? `${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/hrm/employees`
+            : `${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/hrm/employees/${selectedId}`;
 
         const method = modalMode === 'create' ? 'POST' : 'PUT';
 
@@ -165,7 +165,7 @@ export default function EmployeesPage() {
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure you want to delete this employee?')) return;
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://demo-private-school.onrender.com"}/hrm/employees/${id}`, { method: 'DELETE' });
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://efaschoolburewala.onrender.com"}/hrm/employees/${id}`, { method: 'DELETE' });
             fetchData();
         } catch (err) { alert('Failed to delete'); }
     };
