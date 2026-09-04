@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.smartschool.app"
+    namespace "com.efaschool.burewala"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.demosmartschool.app"
+        applicationId "com.efaschool.burewala"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

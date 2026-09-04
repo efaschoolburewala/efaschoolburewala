@@ -1,16 +1,18 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.smartschool.app',
-  appName: 'Demo Smart School',
+  appId: 'com.efaschool.burewala',
+  appName: 'EFA School Burewala',
   webDir: 'public',
   android: {
-    path: 'android [D_P_School]'
+    path: 'android [EFA_School]'
   },
   server: {
     url: 'https://demo-private-school.vercel.app',
     cleartext: true,
     allowNavigation: [
+      'efaschoolburewala.onrender.com',
+      '*.onrender.com',
       'demo-private-school.vercel.app',
       '*.vercel.app'
     ]

@@ -1,4 +1,4 @@
-package com.smartschool.app;
+package com.efaschool.burewala;
 
 import android.os.Bundle;
 import android.webkit.WebSettings;

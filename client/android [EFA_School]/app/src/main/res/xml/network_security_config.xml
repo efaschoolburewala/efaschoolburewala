@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Network Security Configuration for D_P_School
+    Network Security Configuration for EFA School Burewala
     - Allows cleartext (HTTP) traffic only for localhost/development server
     - All other traffic (production API) must use HTTPS
     - Trusts system CA store for HTTPS connections
