@@ -13,8 +13,8 @@ const config: CapacitorConfig = {
     allowNavigation: [
       'efaschoolburewala.vercel.app',
       '*.vercel.app',
-      'efaschoolburewala.onrender.com',
-      '*.onrender.com'
+      'efaschoolburewala.falconswift.online',
+      '*.falconswift.online'
     ]
   },
   plugins: {
