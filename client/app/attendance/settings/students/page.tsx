@@ -663,8 +663,19 @@ export default function StudentAttendanceSettingsPage() {
                                         <h5 className="modal-title fw-bold text-white mb-0 fs-5">
                                             Class Delegations: {selectedCoordinator.first_name} {selectedCoordinator.last_name || ''}
                                         </h5>
-                                        <span className="badge bg-white bg-opacity-20 text-white rounded-pill px-2.5 py-0.5 small fw-normal ms-1">
-                                            {selectedCoordinator.designation || 'Staff'}
+                                        <span
+                                            className="badge rounded-pill fw-bold px-3 py-1 ms-1 shadow-sm d-inline-flex align-items-center gap-1.5"
+                                            style={{
+                                                backgroundColor: '#ffffff',
+                                                color: 'var(--primary-dark)',
+                                                border: '1px solid rgba(255, 255, 255, 0.9)',
+                                                fontSize: '0.78rem',
+                                                letterSpacing: '0.3px',
+                                                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.18)'
+                                            }}
+                                        >
+                                            <i className="bi bi-person-badge-fill" style={{ color: 'var(--accent-orange)', fontSize: '0.76rem' }} />
+                                            <span style={{ color: 'var(--primary-dark)' }}>{selectedCoordinator.designation || selectedCoordinator.department_name || 'Staff Member'}</span>
                                         </span>
                                     </div>
                                     <p className="small mb-0 mt-1 ms-4 ps-2" style={{ color: 'rgba(255, 255, 255, 0.92)' }}>
