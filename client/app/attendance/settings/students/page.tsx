@@ -369,11 +369,11 @@ export default function StudentAttendanceSettingsPage() {
                         <div className="table-responsive">
                             <table className="table table-hover align-middle mb-0">
                                 <thead className="table-light">
-                                    <tr className="small text-uppercase text-secondary" style={{ letterSpacing: '0.5px' }}>
-                                        <th>Staff / Coordinator</th>
-                                        <th>Role &amp; Department</th>
-                                        <th>Assigned Classes &amp; Sections</th>
-                                        <th className="text-end">Actions</th>
+                                    <tr className="small text-uppercase fw-bold" style={{ letterSpacing: '0.5px', color: 'var(--primary-dark)', borderBottom: '2px solid #e2e8f0' }}>
+                                        <th style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>Staff / Coordinator</th>
+                                        <th style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>Role &amp; Department</th>
+                                        <th style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>Assigned Classes &amp; Sections</th>
+                                        <th className="text-end" style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -446,17 +446,17 @@ export default function StudentAttendanceSettingsPage() {
                                                     <td className="text-end">
                                                         <button
                                                             type="button"
-                                                            className="btn btn-sm rounded-pill px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5"
+                                                            className="btn btn-sm rounded-pill px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm coordinator-manage-btn"
                                                             style={{
-                                                                background: 'rgba(33, 94, 97, 0.08)',
-                                                                color: 'var(--primary-teal)',
-                                                                border: '1.5px solid rgba(33, 94, 97, 0.25)',
+                                                                background: 'var(--primary-teal)',
+                                                                color: '#ffffff',
+                                                                border: 'none',
                                                                 transition: 'all 0.2s ease'
                                                             }}
                                                             onClick={() => handleOpenAssignmentModal(c)}
                                                         >
-                                                            <i className="bi bi-sliders" />
-                                                            <span>Manage</span>
+                                                            <i className="bi bi-sliders" style={{ color: '#ffffff' }} />
+                                                            <span style={{ color: '#ffffff' }}>Manage</span>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -667,7 +667,7 @@ export default function StudentAttendanceSettingsPage() {
                                             {selectedCoordinator.designation || 'Staff'}
                                         </span>
                                     </div>
-                                    <p className="text-white-50 small mb-0 mt-1 ms-4 ps-2">
+                                    <p className="small mb-0 mt-1 ms-4 ps-2" style={{ color: 'rgba(255, 255, 255, 0.92)' }}>
                                         Select classes and sections to grant attendance roll call permissions for this staff member.
                                     </p>
                                 </div>
@@ -712,10 +712,10 @@ export default function StudentAttendanceSettingsPage() {
                                 <div className="row g-0 h-100" style={{ minHeight: 460 }}>
                                     {/* COLUMN 1: 1. SELECT CLASS */}
                                     <div className={`col-12 col-md-3 border-end bg-light-subtle ${modalMobileTab !== 'classes' ? 'd-none d-md-block' : 'd-block'}`} style={{ maxHeight: 480, overflowY: 'auto' }}>
-                                        <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center justify-content-between sticky-top" style={{ zIndex: 2 }}>
+                                        <div className="p-3 border-bottom bg-white fw-bold text-uppercase small d-flex align-items-center justify-content-between sticky-top" style={{ zIndex: 2, color: 'var(--primary-dark)' }}>
                                             <div className="d-flex align-items-center gap-2">
                                                 <i className="bi bi-building-fill" style={{ color: 'var(--primary-teal)' }} />
-                                                <span>1. Select Class</span>
+                                                <span style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>1. Select Class</span>
                                             </div>
                                             <span className="badge rounded-pill bg-light text-dark border">
                                                 {allClasses.length}
@@ -760,10 +760,10 @@ export default function StudentAttendanceSettingsPage() {
 
                                     {/* COLUMN 2: 2. SELECT SECTION */}
                                     <div className={`col-12 col-md-4 border-end bg-white ${modalMobileTab !== 'sections' ? 'd-none d-md-block' : 'd-block'}`} style={{ maxHeight: 480, overflowY: 'auto' }}>
-                                        <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center justify-content-between sticky-top" style={{ zIndex: 2 }}>
+                                        <div className="p-3 border-bottom bg-white fw-bold text-uppercase small d-flex align-items-center justify-content-between sticky-top" style={{ zIndex: 2, color: 'var(--primary-dark)' }}>
                                             <div className="d-flex align-items-center gap-2">
                                                 <i className="bi bi-grid-3x3-gap-fill" style={{ color: 'var(--primary-teal)' }} />
-                                                <span>2. Select Section</span>
+                                                <span style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>2. Select Section</span>
                                             </div>
                                             {modalActiveTabClassId && (
                                                 <button
@@ -828,10 +828,10 @@ export default function StudentAttendanceSettingsPage() {
 
                                     {/* COLUMN 3: 3. ASSIGNMENT SUMMARY */}
                                     <div className={`col-12 col-md-5 bg-light-subtle ${modalMobileTab !== 'summary' ? 'd-none d-md-block' : 'd-block'}`} style={{ maxHeight: 480, overflowY: 'auto' }}>
-                                        <div className="p-3 border-bottom bg-white fw-bold text-secondary text-uppercase small d-flex align-items-center justify-content-between sticky-top" style={{ zIndex: 2 }}>
+                                        <div className="p-3 border-bottom bg-white fw-bold text-uppercase small d-flex align-items-center justify-content-between sticky-top" style={{ zIndex: 2, color: 'var(--primary-dark)' }}>
                                             <div className="d-flex align-items-center gap-2">
                                                 <i className="bi bi-clipboard-check-fill" style={{ color: 'var(--primary-teal)' }} />
-                                                <span>3. Selected Summary</span>
+                                                <span style={{ color: 'var(--primary-dark)', fontWeight: 700 }}>3. Selected Summary</span>
                                             </div>
                                             <span className="badge rounded-pill fw-bold" style={{ background: 'rgba(33, 94, 97, 0.1)', color: 'var(--primary-teal)' }}>
                                                 {modalSelectedPairs.length} Selected
@@ -1035,6 +1035,16 @@ export default function StudentAttendanceSettingsPage() {
 
             <style jsx>{`
                 .cursor-pointer { cursor: pointer; }
+                .coordinator-manage-btn {
+                    background: var(--primary-teal) !important;
+                    color: #ffffff !important;
+                }
+                .coordinator-manage-btn:hover {
+                    background: var(--primary-teal-hover, #1a4a4d) !important;
+                    color: #ffffff !important;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 10px rgba(33, 94, 97, 0.3) !important;
+                }
                 .class-list::-webkit-scrollbar,
                 .section-list::-webkit-scrollbar,
                 .holidays-scroll-list::-webkit-scrollbar {
