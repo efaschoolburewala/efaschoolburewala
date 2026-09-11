@@ -219,7 +219,7 @@ function writePng(rgba, width, height) {
 const SOURCE = path.join(__dirname, 'appicon.png');
 
 const candidateResDirs = [
-  path.join(__dirname, '../android [D_P_School]/app/src/main/res'),
+  path.join(__dirname, '../android [EFA_School]/app/src/main/res'),
   path.join(__dirname, '../android/app/src/main/res')
 ];
 
