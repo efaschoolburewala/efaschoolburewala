@@ -77,10 +77,10 @@ function normalizeSlips(rawSlips: any[]): SlipRow[] {
             if (s.line_items && s.line_items.length > 0) {
                 const extraItems = s.line_items.filter((li: any) => {
                     const hn = (li.head_name || '').toLowerCase();
-                    return !hn.includes('tuition') &&
-                        !hn.includes('family monthly fee') &&
-                        !hn.includes('monthly fee') &&
-                        !hn.includes('previous balance');
+                    return !hn.includes('tuition') && 
+                           !hn.includes('family monthly fee') && 
+                           !hn.includes('monthly fee') && 
+                           !hn.includes('previous balance');
                 });
                 nonTuitionTotal = extraItems.reduce((sum: number, li: any) => sum + parseFloat(li.amount as any || 0), 0);
             } else {
@@ -88,9 +88,9 @@ function normalizeSlips(rawSlips: any[]): SlipRow[] {
             }
 
             const paid = parseFloat(s.paid_amount as any || 0);
-            const status: 'paid' | 'partial' | 'unpaid' | 'satteled' =
-                nonTuitionTotal <= 0
-                    ? 'satteled'
+            const status: 'paid' | 'partial' | 'unpaid' | 'satteled' = 
+                nonTuitionTotal <= 0 
+                    ? 'satteled' 
                     : (paid >= nonTuitionTotal ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'));
 
             return {
@@ -153,7 +153,7 @@ export default function CollectFeePage() {
                     setSelectedAcademicYear(active.id.toString());
                 }
             }
-        }).catch(() => { });
+        }).catch(() => {});
         fetch(`${API}/academic/active-year`).then(r => r.json()).then(data => {
             if (data && data.id) {
                 setActiveYear(data);
@@ -163,7 +163,7 @@ export default function CollectFeePage() {
                     setYear(startY);
                 }
             }
-        }).catch(() => { });
+        }).catch(() => {});
         // School info lives in school_settings table (via /settings), NOT system_settings
         fetch(`${API}/settings`).then(r => r.json()).then((data: any) => {
             if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -269,9 +269,9 @@ export default function CollectFeePage() {
             if (targetSlip.line_items && targetSlip.line_items.length > 0) {
                 targetSlip.line_items.forEach((item: any) => {
                     const headId = item.item_id ? item.item_id.toString() : item.head_name;
-                    const isTuitionOrPb = (item.head_name || '').toLowerCase().includes('tuition') ||
-                        (item.head_name || '').toLowerCase().includes('family monthly fee') ||
-                        (item.head_name || '').toLowerCase().includes('monthly fee') ||
+                    const isTuitionOrPb = (item.head_name || '').toLowerCase().includes('tuition') || 
+                        (item.head_name || '').toLowerCase().includes('family monthly fee') || 
+                        (item.head_name || '').toLowerCase().includes('monthly fee') || 
                         (item.head_name || '').toLowerCase().includes('previous balance');
 
                     if (isTrusted && isTuitionOrPb) {
@@ -281,7 +281,7 @@ export default function CollectFeePage() {
 
                     const rem = Math.max(0, parseFloat(item.amount as any || 0) - parseFloat(item.paid_amount as any || 0));
                     const isLateFine = (item.head_name || '').toLowerCase().includes('late') || (item.head_name || '').toLowerCase().includes('fine');
-
+                    
                     if (isLateFine && targetSlip.due_date) {
                         let cutoff = new Date(targetSlip.due_date);
                         if (item.fine_after_day && parseInt(item.fine_after_day) > 0) {
@@ -689,7 +689,7 @@ export default function CollectFeePage() {
 
         const receivingSnap = Object.values(activeVals).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
         if (receivingSnap <= 0 && waivedItemIds.length === 0) { notify.error('Enter a valid amount or waive fine.'); return; }
-
+        
         // Snapshot before state changes (needed for receipt after async updates)
         const prevPaidSnap = parseFloat(activeSlip!.paid_amount as any);
         const slipSnap = { ...activeSlip! };
@@ -810,6 +810,21 @@ export default function CollectFeePage() {
         });
         // After collecting all slips, find the latest unpaid/partial per group
         map.forEach(g => {
+            // For family groups, ensure primary student info reflects the ACTIVE family lead
+            if (g.is_family_slip && g.family_members && g.family_members.length > 0) {
+                const activeMembers = g.family_members.filter((m: any) => (m.status || 'Active').toLowerCase() === 'active');
+                const activeLead = activeMembers.length > 0 ? activeMembers[0] : null;
+                if (activeLead) {
+                    g.first_name = activeLead.first_name;
+                    g.last_name = activeLead.last_name;
+                    g.admission_no = activeLead.admission_no;
+                    g.class_name = activeLead.class_name;
+                    g.student_id = activeLead.student_id;
+                    if (activeLead.section_name) g.section_name = activeLead.section_name;
+                    if (activeLead.father_name) g.father_name = activeLead.father_name;
+                }
+            }
+
             const isTrustedGroup = Boolean(
                 (g.family_members && g.family_members.length > 0 && g.family_members.every((m: any) => (m.category || '').toLowerCase() === 'trusted')) ||
                 ((g.latest_slip?.category || '').toLowerCase() === 'trusted') ||
@@ -825,7 +840,7 @@ export default function CollectFeePage() {
                     return (tot - paid) > 0;
                 })
                 .sort((a, b) => (b.year - a.year) || (b.month - a.month));
-
+            
             if (unpaid.length > 0) {
                 g.latest_unpaid = unpaid[0];
                 const tot = parseFloat(g.latest_unpaid.total_amount as any || 0);
@@ -1092,11 +1107,21 @@ export default function CollectFeePage() {
                                                                 )}
                                                                 {isFam && members.length > 0 && (
                                                                     <div className="d-flex flex-wrap gap-1 mt-1">
-                                                                        {members.map((m, mi) => (
-                                                                            <span key={mi} style={{ fontSize: '0.7rem', backgroundColor: '#f0f9f9', color: 'var(--primary-teal)', border: '1px solid #c5e8e8', borderRadius: 4, padding: '1px 5px' }}>
-                                                                                {m.first_name} {m.last_name}
-                                                                            </span>
-                                                                        ))}
+                                                                        {members.map((m, mi) => {
+                                                                            const isMInactive = (m.status || 'Active').toLowerCase() !== 'active';
+                                                                            return (
+                                                                                <span key={mi} style={{
+                                                                                    fontSize: '0.7rem',
+                                                                                    backgroundColor: isMInactive ? '#f8d7da' : '#f0f9f9',
+                                                                                    color: isMInactive ? '#842029' : 'var(--primary-teal)',
+                                                                                    border: `1px solid ${isMInactive ? '#f5c2c7' : '#c5e8e8'}`,
+                                                                                    borderRadius: 4,
+                                                                                    padding: '1px 5px'
+                                                                                }}>
+                                                                                    {m.first_name} {m.last_name}{isMInactive ? ' (Inactive)' : ''}
+                                                                                </span>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 )}
                                                             </div>

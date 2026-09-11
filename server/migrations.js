@@ -428,6 +428,17 @@ async function runEssentialMigrations() {
             ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
         `);
 
+        // 11. Family Fee & Sibling Monthly Fee Auto-Sync Migration
+        console.log("   → Checking and synchronizing family members monthly fees...");
+        await client.query(`
+            UPDATE students s
+            SET monthly_fee = f.family_fee
+            FROM families f
+            WHERE s.family_id = f.family_id
+              AND (s.monthly_fee IS NULL OR s.monthly_fee <= 0)
+              AND f.family_fee > 0;
+        `);
+
         const { syncAllSequences } = require('./utils/sequenceSync');
         await syncAllSequences(client);
 
