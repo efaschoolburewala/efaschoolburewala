@@ -1005,13 +1005,23 @@ router.post('/staff/verify-biometric', async (req, res) => {
 
         // Realtime notification dispatch
         try {
-            const { notifyUser } = require('../utils/notify');
+            const { notifyUser, notifyPermission } = require('../utils/notify');
             if (emp.app_user_id) {
-                notifyUser(emp.app_user_id, {
+                await notifyUser(emp.app_user_id, {
                     type: 'staff_attendance',
                     title: `Staff ${session_type.toUpperCase()} Attendance Verified`,
                     message: `${emp.first_name} ${emp.last_name || ''}, your ${session_type.toUpperCase()} attendance was recorded at ${currentTimeStr} (${savedRecord.status}${isInLate ? ' - Late Entry' : ''}${isOutEarly ? ' - Early Exit' : ''}).`,
-                    link: '/profile'
+                    link: '/attendance/staff'
+                });
+            }
+
+            // If staff arrived late or exited early, notify supervisors with attendance.staff permission
+            if (isInLate || isOutEarly) {
+                await notifyPermission('attendance.staff', {
+                    type: 'staff_attendance',
+                    title: `Staff ${isInLate ? 'Late Arrival' : 'Early Exit'} Alert ⏰`,
+                    message: `${emp.first_name} ${emp.last_name || ''} punched ${session_type.toUpperCase()} at ${currentTimeStr} (${isInLate ? 'Late Entry' : 'Early Exit'}).`,
+                    link: '/attendance/staff/history'
                 });
             }
         } catch (ne) {
