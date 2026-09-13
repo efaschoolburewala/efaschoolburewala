@@ -189,12 +189,13 @@ router.post('/login', async (req, res) => {
         const uNameUpper = (safeUser.username || '').toUpperCase();
         let isStudentUser = rNameLower.includes('student') || rNameLower.includes('family') || uNameUpper.startsWith('STU-') || uNameUpper.startsWith('FAM-');
         
-        if (!isStudentUser && safeUser.id) {
+        if (safeUser.id) {
             try {
-                const sCheck = await pool.query('SELECT student_id FROM students WHERE user_id = $1 LIMIT 1', [safeUser.id]);
+                const sCheck = await pool.query('SELECT student_id, family_id FROM students WHERE user_id = $1 LIMIT 1', [safeUser.id]);
                 if (sCheck.rows.length > 0) {
                     isStudentUser = true;
                     safeUser.student_id = sCheck.rows[0].student_id;
+                    safeUser.family_id = sCheck.rows[0].family_id;
                 }
             } catch (e) {}
         }
