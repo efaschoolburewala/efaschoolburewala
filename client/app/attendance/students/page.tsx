@@ -384,7 +384,7 @@ export default function StudentAttendancePage() {
                 <table className="table table-hover align-middle mb-0">
                   <thead style={{ background: 'var(--primary-dark)' }}>
                     <tr>
-                      {['#', 'Student', 'Roll', 'Attendance Status', 'Remarks'].map(h => (
+                      {['#', 'Student', 'Father Name', 'Roll', 'Attendance Status', 'Remarks'].map(h => (
                         <th key={h} className="fw-semibold border-0"
                           style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '12px 16px', whiteSpace: 'nowrap' }}>
                           {h}
@@ -395,6 +395,9 @@ export default function StudentAttendancePage() {
                   <tbody>
                     {students.map((s, idx) => {
                       const cur = (statuses[s.student_id] || 'Present') as StatusType;
+                      const fullName = [s.first_name, s.last_name].filter(Boolean).join(' ').trim() || 'Student';
+                      const initial1 = (s.first_name?.[0] || fullName[0] || '?').toUpperCase();
+                      const initial2 = (s.last_name?.[0] || '').toUpperCase();
                       return (
                         <tr key={s.student_id}
                           style={{
@@ -408,10 +411,13 @@ export default function StudentAttendancePage() {
                             <div className="d-flex align-items-center gap-2">
                               <div className="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
                                 style={{ width: 34, height: 34, background: `linear-gradient(135deg,var(--primary-dark),var(--primary-teal))`, fontSize: '0.75rem', flexShrink: 0 }}>
-                                {s.first_name[0]}{s.last_name[0]}
+                                {initial1}{initial2}
                               </div>
-                              <span className="fw-semibold" style={{ color: 'var(--primary-dark)', fontSize: '0.9rem' }}>{s.first_name} {s.last_name}</span>
+                              <span className="fw-semibold" style={{ color: 'var(--primary-dark)', fontSize: '0.9rem' }}>{fullName}</span>
                             </div>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: '#334155', fontSize: '0.88rem' }}>
+                            <span className="fw-medium">{s.father_name || '—'}</span>
                           </td>
                           <td className="text-muted" style={{ fontSize: '0.85rem' }}>{s.roll_no || '—'}</td>
                           <td style={{ padding: '12px 16px' }}>
