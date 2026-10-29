@@ -25,6 +25,7 @@ interface StudentMember {
     current_address: string;
     class_id: number;
     class_name: string;
+    class_order?: number;
     section_id: number;
     section_name: string;
     status: string;
@@ -204,17 +205,41 @@ export default function FamilyListPage() {
         setSelectedSection('');
     };
 
+    const CLASS_HIERARCHY: Record<string, number> = {
+        'pre-nursery': 1,
+        'prenursery': 1,
+        'nursery': 2,
+        'prep': 3,
+        'one': 4,
+        'two': 5,
+        'three': 6,
+        'four': 7,
+        'five': 8,
+        'six': 9,
+        'seven': 10,
+        'eight': 11,
+        'nine': 12,
+        'tenth': 13,
+    };
+
+    const getMemberClassOrder = (m: StudentMember): number => {
+        if (m.class_order && m.class_order > 0) return m.class_order;
+        const name = (m.class_name || '').trim().toLowerCase();
+        if (CLASS_HIERARCHY[name]) return CLASS_HIERARCHY[name];
+        return m.class_id || 0;
+    };
+
     // Helper: Identify the Eldest Child (Lead Student) representing the family unit
     // Seniority is determined by:
     // 1. ACTIVE students strictly (an inactive child cannot lead or represent a family unit)
-    // 2. Highest class level (class_id DESC), then earliest admission
+    // 2. Highest class academic grade level (class_order DESC), then earliest admission
     const getEldestChild = (members: StudentMember[]): StudentMember | null => {
         if (!members || members.length === 0) return null;
         const activeMembers = members.filter(m => (m.status || 'Active').toLowerCase() === 'active');
         if (activeMembers.length === 0) return null;
         return activeMembers.reduce((eldest, curr) => {
             if (!eldest) return curr;
-            const diff = (curr.class_id || 0) - (eldest.class_id || 0);
+            const diff = getMemberClassOrder(curr) - getMemberClassOrder(eldest);
             if (diff > 0) return curr;
             if (diff < 0) return eldest;
             return eldest;
@@ -291,7 +316,7 @@ export default function FamilyListPage() {
                 // Sort members inside family:
                 // Sorted by Class DESC (highest class active child is Lead), Section & Name.
                 const sortedMembers = [...activeMembers].sort((a, b) => {
-                    const cDiff = (b.class_id || 0) - (a.class_id || 0);
+                    const cDiff = getMemberClassOrder(b) - getMemberClassOrder(a);
                     if (cDiff !== 0) return cDiff;
                     const sComp = (a.section_name || '').localeCompare(b.section_name || '');
                     if (sComp !== 0) return sComp;

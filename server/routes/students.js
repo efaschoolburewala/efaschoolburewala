@@ -703,6 +703,7 @@ router.get('/families-directory', async (req, res) => {
                 s.monthly_fee,
                 c.class_id,
                 c.class_name,
+                COALESCE(c.class_order, c.class_id) AS class_order,
                 sec.section_id,
                 sec.section_name,
                 f.family_fee,
@@ -717,7 +718,7 @@ router.get('/families-directory', async (req, res) => {
             WHERE s.family_id IS NOT NULL 
               AND TRIM(s.family_id) != ''
               AND LOWER(COALESCE(s.status, 'Active')) = 'active'
-            ORDER BY s.family_id, c.class_id DESC NULLS LAST, s.admission_no ASC
+            ORDER BY s.family_id, COALESCE(c.class_order, c.class_id) DESC NULLS LAST, s.admission_no ASC
         `);
 
         const familiesMap = {};
@@ -756,6 +757,7 @@ router.get('/families-directory', async (req, res) => {
                 current_address: (s.current_address || '').trim(),
                 class_id: s.class_id,
                 class_name: s.class_name || 'N/A',
+                class_order: parseInt(s.class_order || 0, 10),
                 section_id: s.section_id,
                 section_name: s.section_name || 'N/A',
                 status: s.status || 'Active'
@@ -991,7 +993,7 @@ router.get('/families/:family_id', async (req, res) => {
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.class_id
             WHERE s.family_id = $1 AND s.status = 'Active'
-            ORDER BY c.class_id DESC NULLS LAST, s.first_name
+            ORDER BY COALESCE(c.class_order, c.class_id) DESC NULLS LAST, s.first_name
         `, [family_id]);
         res.json({
             ...familyResult.rows[0],
@@ -2188,23 +2190,25 @@ router.patch('/:id/status', async (req, res) => {
         // Auto-shift Family Fee Slips & Arrears to the Active Family Lead
         if (family_id) {
             const CLASS_SENIORITY_ORDER = `
-                CASE 
-                    WHEN c.class_name ~ '^[0-9]+' THEN CAST(SUBSTRING(c.class_name FROM '^[0-9]+') AS INTEGER)
-                    WHEN c.class_name ILIKE '%Class 10%' OR c.class_name ILIKE '%10%' THEN 10
-                    WHEN c.class_name ILIKE '%Class 9%' OR c.class_name ILIKE '%9%' THEN 9
-                    WHEN c.class_name ILIKE '%Class 8%' OR c.class_name ILIKE '%8%' THEN 8
-                    WHEN c.class_name ILIKE '%Class 7%' OR c.class_name ILIKE '%7%' THEN 7
-                    WHEN c.class_name ILIKE '%Class 6%' OR c.class_name ILIKE '%6%' THEN 6
-                    WHEN c.class_name ILIKE '%Class 5%' OR c.class_name ILIKE '%5%' THEN 5
-                    WHEN c.class_name ILIKE '%Class 4%' OR c.class_name ILIKE '%4%' THEN 4
-                    WHEN c.class_name ILIKE '%Class 3%' OR c.class_name ILIKE '%3%' THEN 3
-                    WHEN c.class_name ILIKE '%Class 2%' OR c.class_name ILIKE '%2%' THEN 2
-                    WHEN c.class_name ILIKE '%Class 1%' OR c.class_name ILIKE '%1%' THEN 1
-                    WHEN c.class_name ILIKE '%Prep%' OR c.class_name ILIKE '%KG%' THEN 0
-                    WHEN c.class_name ILIKE '%Nursery%' THEN -1
-                    WHEN c.class_name ILIKE '%Reception%' OR c.class_name ILIKE '%Play%' THEN -2
-                    ELSE COALESCE(c.class_id, 0)
-                END DESC, c.class_id DESC, s.first_name ASC
+                COALESCE(c.class_order, 
+                    CASE 
+                        WHEN c.class_name ~ '^[0-9]+' THEN CAST(SUBSTRING(c.class_name FROM '^[0-9]+') AS INTEGER)
+                        WHEN c.class_name ILIKE '%Tenth%' OR c.class_name ILIKE '%10%' THEN 13
+                        WHEN c.class_name ILIKE '%Nine%' OR c.class_name ILIKE '%9%' THEN 12
+                        WHEN c.class_name ILIKE '%Eight%' OR c.class_name ILIKE '%8%' THEN 11
+                        WHEN c.class_name ILIKE '%Seven%' OR c.class_name ILIKE '%7%' THEN 10
+                        WHEN c.class_name ILIKE '%Six%' OR c.class_name ILIKE '%6%' THEN 9
+                        WHEN c.class_name ILIKE '%Five%' OR c.class_name ILIKE '%5%' THEN 8
+                        WHEN c.class_name ILIKE '%Four%' OR c.class_name ILIKE '%4%' THEN 7
+                        WHEN c.class_name ILIKE '%Three%' OR c.class_name ILIKE '%3%' THEN 6
+                        WHEN c.class_name ILIKE '%Two%' OR c.class_name ILIKE '%2%' THEN 5
+                        WHEN c.class_name ILIKE '%One%' OR c.class_name ILIKE '%1%' THEN 4
+                        WHEN c.class_name ILIKE '%Prep%' OR c.class_name ILIKE '%KG%' THEN 3
+                        WHEN c.class_name ILIKE '%Nursery%' THEN 2
+                        WHEN c.class_name ILIKE '%Pre-Nursery%' OR c.class_name ILIKE '%Play%' THEN 1
+                        ELSE COALESCE(c.class_id, 0)
+                    END
+                ) DESC, s.admission_no ASC, s.first_name ASC
             `;
 
             if (status.toLowerCase() !== 'active') {

@@ -190,7 +190,7 @@ router.post('/generate', async (req, res) => {
              LEFT JOIN families f ON f.family_id = s.family_id
              LEFT JOIN classes c ON c.class_id = s.class_id
              WHERE s.class_id = $1 AND s.status = 'Active'
-             ORDER BY s.family_id NULLS LAST, c.class_id DESC NULLS LAST, s.first_name`, [class_id]
+             ORDER BY s.family_id NULLS LAST, COALESCE(c.class_order, c.class_id) DESC NULLS LAST, s.first_name`, [class_id]
         );
         if (studentsResult.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -433,23 +433,25 @@ router.post('/generate', async (req, res) => {
                  LEFT JOIN classes c ON c.class_id = s.class_id
                  WHERE s.family_id = $1 AND s.status = 'Active'
                  ORDER BY 
-                     CASE 
-                         WHEN c.class_name ~ '^[0-9]+' THEN CAST(SUBSTRING(c.class_name FROM '^[0-9]+') AS INTEGER)
-                         WHEN c.class_name ILIKE '%Class 10%' OR c.class_name ILIKE '%10%' THEN 10
-                         WHEN c.class_name ILIKE '%Class 9%' OR c.class_name ILIKE '%9%' THEN 9
-                         WHEN c.class_name ILIKE '%Class 8%' OR c.class_name ILIKE '%8%' THEN 8
-                         WHEN c.class_name ILIKE '%Class 7%' OR c.class_name ILIKE '%7%' THEN 7
-                         WHEN c.class_name ILIKE '%Class 6%' OR c.class_name ILIKE '%6%' THEN 6
-                         WHEN c.class_name ILIKE '%Class 5%' OR c.class_name ILIKE '%5%' THEN 5
-                         WHEN c.class_name ILIKE '%Class 4%' OR c.class_name ILIKE '%4%' THEN 4
-                         WHEN c.class_name ILIKE '%Class 3%' OR c.class_name ILIKE '%3%' THEN 3
-                         WHEN c.class_name ILIKE '%Class 2%' OR c.class_name ILIKE '%2%' THEN 2
-                         WHEN c.class_name ILIKE '%Class 1%' OR c.class_name ILIKE '%1%' THEN 1
-                         WHEN c.class_name ILIKE '%Prep%' OR c.class_name ILIKE '%KG%' THEN 0
-                         WHEN c.class_name ILIKE '%Nursery%' THEN -1
-                         WHEN c.class_name ILIKE '%Reception%' OR c.class_name ILIKE '%Play%' THEN -2
-                         ELSE COALESCE(c.class_id, 0)
-                     END DESC, c.class_id DESC, s.first_name ASC LIMIT 1`,
+                     COALESCE(c.class_order, 
+                         CASE 
+                             WHEN c.class_name ~ '^[0-9]+' THEN CAST(SUBSTRING(c.class_name FROM '^[0-9]+') AS INTEGER)
+                             WHEN c.class_name ILIKE '%Tenth%' OR c.class_name ILIKE '%10%' THEN 13
+                             WHEN c.class_name ILIKE '%Nine%' OR c.class_name ILIKE '%9%' THEN 12
+                             WHEN c.class_name ILIKE '%Eight%' OR c.class_name ILIKE '%8%' THEN 11
+                             WHEN c.class_name ILIKE '%Seven%' OR c.class_name ILIKE '%7%' THEN 10
+                             WHEN c.class_name ILIKE '%Six%' OR c.class_name ILIKE '%6%' THEN 9
+                             WHEN c.class_name ILIKE '%Five%' OR c.class_name ILIKE '%5%' THEN 8
+                             WHEN c.class_name ILIKE '%Four%' OR c.class_name ILIKE '%4%' THEN 7
+                             WHEN c.class_name ILIKE '%Three%' OR c.class_name ILIKE '%3%' THEN 6
+                             WHEN c.class_name ILIKE '%Two%' OR c.class_name ILIKE '%2%' THEN 5
+                             WHEN c.class_name ILIKE '%One%' OR c.class_name ILIKE '%1%' THEN 4
+                             WHEN c.class_name ILIKE '%Prep%' OR c.class_name ILIKE '%KG%' THEN 3
+                             WHEN c.class_name ILIKE '%Nursery%' THEN 2
+                             WHEN c.class_name ILIKE '%Pre-Nursery%' OR c.class_name ILIKE '%Play%' THEN 1
+                             ELSE COALESCE(c.class_id, 0)
+                         END
+                     ) DESC, s.admission_no ASC, s.first_name ASC LIMIT 1`,
                 [fid]
             );
             if (famPrimaryRes.rows.length === 0) {
@@ -711,23 +713,25 @@ router.get('/available-months', async (req, res) => {
 const syncFamilyLeadSlips = async () => {
     try {
         const CLASS_SENIORITY_ORDER = `
-            CASE 
-                WHEN c.class_name ~ '^[0-9]+' THEN CAST(SUBSTRING(c.class_name FROM '^[0-9]+') AS INTEGER)
-                WHEN c.class_name ILIKE '%Class 10%' OR c.class_name ILIKE '%10%' THEN 10
-                WHEN c.class_name ILIKE '%Class 9%' OR c.class_name ILIKE '%9%' THEN 9
-                WHEN c.class_name ILIKE '%Class 8%' OR c.class_name ILIKE '%8%' THEN 8
-                WHEN c.class_name ILIKE '%Class 7%' OR c.class_name ILIKE '%7%' THEN 7
-                WHEN c.class_name ILIKE '%Class 6%' OR c.class_name ILIKE '%6%' THEN 6
-                WHEN c.class_name ILIKE '%Class 5%' OR c.class_name ILIKE '%5%' THEN 5
-                WHEN c.class_name ILIKE '%Class 4%' OR c.class_name ILIKE '%4%' THEN 4
-                WHEN c.class_name ILIKE '%Class 3%' OR c.class_name ILIKE '%3%' THEN 3
-                WHEN c.class_name ILIKE '%Class 2%' OR c.class_name ILIKE '%2%' THEN 2
-                WHEN c.class_name ILIKE '%Class 1%' OR c.class_name ILIKE '%1%' THEN 1
-                WHEN c.class_name ILIKE '%Prep%' OR c.class_name ILIKE '%KG%' THEN 0
-                WHEN c.class_name ILIKE '%Nursery%' THEN -1
-                WHEN c.class_name ILIKE '%Reception%' OR c.class_name ILIKE '%Play%' THEN -2
-                ELSE COALESCE(c.class_id, 0)
-            END DESC, c.class_id DESC, s.first_name ASC
+            COALESCE(c.class_order, 
+                CASE 
+                    WHEN c.class_name ~ '^[0-9]+' THEN CAST(SUBSTRING(c.class_name FROM '^[0-9]+') AS INTEGER)
+                    WHEN c.class_name ILIKE '%Tenth%' OR c.class_name ILIKE '%10%' THEN 13
+                    WHEN c.class_name ILIKE '%Nine%' OR c.class_name ILIKE '%9%' THEN 12
+                    WHEN c.class_name ILIKE '%Eight%' OR c.class_name ILIKE '%8%' THEN 11
+                    WHEN c.class_name ILIKE '%Seven%' OR c.class_name ILIKE '%7%' THEN 10
+                    WHEN c.class_name ILIKE '%Six%' OR c.class_name ILIKE '%6%' THEN 9
+                    WHEN c.class_name ILIKE '%Five%' OR c.class_name ILIKE '%5%' THEN 8
+                    WHEN c.class_name ILIKE '%Four%' OR c.class_name ILIKE '%4%' THEN 7
+                    WHEN c.class_name ILIKE '%Three%' OR c.class_name ILIKE '%3%' THEN 6
+                    WHEN c.class_name ILIKE '%Two%' OR c.class_name ILIKE '%2%' THEN 5
+                    WHEN c.class_name ILIKE '%One%' OR c.class_name ILIKE '%1%' THEN 4
+                    WHEN c.class_name ILIKE '%Prep%' OR c.class_name ILIKE '%KG%' THEN 3
+                    WHEN c.class_name ILIKE '%Nursery%' THEN 2
+                    WHEN c.class_name ILIKE '%Pre-Nursery%' OR c.class_name ILIKE '%Play%' THEN 1
+                    ELSE COALESCE(c.class_id, 0)
+                END
+            ) DESC, s.admission_no ASC, s.first_name ASC
         `;
 
         // Find any unpaid or partial family slips assigned to an inactive student
@@ -1389,7 +1393,7 @@ router.get('/print-queue', async (req, res) => {
                      ay.year_name, ay.is_active,
                      s.first_name, s.last_name, s.admission_no, s.monthly_fee, s.father_name, s.family_id, s.status,
                      sc.class_name, sc.class_id, sec.section_name
-            ORDER BY s.family_id NULLS LAST, sc.class_id DESC NULLS LAST, s.first_name
+            ORDER BY s.family_id NULLS LAST, COALESCE(sc.class_order, sc.class_id) DESC NULLS LAST, s.first_name
         `, params);
 
         const allSlips = result.rows;

@@ -166,7 +166,7 @@ async function getFamilyLeadStudent(clientOrPool, familyId) {
                 WHEN c.class_name ILIKE '%Nursery%' THEN -1
                 WHEN c.class_name ILIKE '%Reception%' OR c.class_name ILIKE '%Play%' THEN -2
                 ELSE COALESCE(c.class_id, 0)
-            END DESC, c.class_id DESC, s.student_id ASC
+            END DESC, COALESCE(c.class_order, c.class_id) DESC, s.student_id ASC
         `;
         const res = await (clientOrPool || pool).query(`
             SELECT s.student_id, CONCAT(s.first_name, ' ', s.last_name) AS full_name, s.family_id, s.class_id
