@@ -29,6 +29,140 @@ async function getActiveAcademicYear(clientPool) {
     return yearRes.rows[0] || null;
 }
 
+// Helper to attach class exam fee collections to slips and line items,
+// and deduct the class-collected portion from the monthly fee voucher's exam head and total bill
+async function attachClassExamCollections(slips, clientPool) {
+    if (!slips || slips.length === 0) return slips;
+
+    const slipIds = slips.map(s => s.slip_id).filter(Boolean);
+    const familyIds = [...new Set(slips.filter(s => s.family_id).map(s => s.family_id))];
+    const studentIds = [...new Set(slips.map(s => s.student_id).filter(Boolean))];
+
+    if (slipIds.length === 0) return slips;
+
+    try {
+        const efcRes = await clientPool.query(`
+            SELECT 
+                efc.id,
+                efc.fee_slip_id,
+                efc.student_id,
+                efc.amount,
+                efc.month,
+                efc.year,
+                efc.academic_year_id,
+                efc.collection_name,
+                efc.collection_source,
+                efc.collection_date,
+                s.family_id,
+                s.first_name,
+                s.last_name,
+                s.admission_no,
+                c.class_name,
+                COALESCE(u.full_name, u.username) AS collector_name
+            FROM exam_fee_collections efc
+            JOIN students s ON s.student_id = efc.student_id
+            LEFT JOIN classes c ON c.class_id = s.class_id
+            LEFT JOIN app_users u ON u.id = efc.collected_by
+            WHERE efc.collection_source = 'Class'
+              AND (
+                  efc.fee_slip_id = ANY($1::int[])
+                  OR (s.family_id IS NOT NULL AND s.family_id = ANY($2::varchar[]))
+                  OR s.student_id = ANY($3::int[])
+              )
+        `, [slipIds, familyIds, studentIds]);
+
+        const efcRows = efcRes.rows;
+
+        for (const slip of slips) {
+            const slipMonthsList = slip.months_list && Array.isArray(slip.months_list) && slip.months_list.length > 0
+                ? slip.months_list
+                : (slip.month ? [slip.month] : []);
+            const slipYear = slip.year;
+            const slipAcadId = slip.academic_year_id;
+
+            const matchedEfc = efcRows.filter(efc => {
+                if (efc.fee_slip_id && efc.fee_slip_id === slip.slip_id) return true;
+
+                const targetMatch = slip.family_id
+                    ? efc.family_id === slip.family_id
+                    : efc.student_id === slip.student_id;
+
+                if (!targetMatch) return false;
+
+                const monthMatch = efc.month 
+                    ? slipMonthsList.includes(efc.month) 
+                    : true;
+
+                const yearMatch = efc.year && slipYear
+                    ? efc.year === slipYear
+                    : (efc.academic_year_id && slipAcadId ? efc.academic_year_id === slipAcadId : true);
+
+                return monthMatch && yearMatch;
+            });
+
+            // Deduplicate by efc.id
+            const uniqueMap = new Map();
+            matchedEfc.forEach(e => uniqueMap.set(e.id, e));
+            const uniqueList = Array.from(uniqueMap.values());
+
+            const totalClassCollected = uniqueList.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+            const studentDetails = uniqueList.map(e => ({
+                student_id: e.student_id,
+                name: `${e.first_name} ${e.last_name || ''}`.trim(),
+                admission_no: e.admission_no,
+                class_name: e.class_name,
+                amount: parseFloat(e.amount) || 0,
+                collector_name: e.collector_name,
+                collection_date: e.collection_date
+            }));
+
+            slip.class_collected_amount = totalClassCollected;
+            slip.class_collected_students = studentDetails;
+
+            // Calculate unapplied deduction
+            const alreadyDeducted = parseFloat(slip.class_exam_deducted || 0);
+            const unapplied = Math.max(0, totalClassCollected - alreadyDeducted);
+
+            // Deduct unapplied from total_amount and adjust status
+            slip.original_total_amount = parseFloat(slip.total_amount || 0);
+            if (unapplied > 0) {
+                slip.total_amount = Math.max(0, parseFloat((slip.original_total_amount - unapplied).toFixed(2)));
+                const sPaid = parseFloat(slip.paid_amount || 0);
+                if (slip.is_trusted && slip.total_amount <= 0) {
+                    slip.status = 'satteled';
+                } else if (sPaid >= slip.total_amount && slip.total_amount > 0) {
+                    slip.status = 'paid';
+                }
+            }
+
+            // Also deduct unapplied from the Exam Fee line item
+            let lineItems = slip.line_items;
+            if (typeof lineItems === 'string') {
+                try { lineItems = JSON.parse(lineItems); } catch { lineItems = []; }
+            }
+            if (Array.isArray(lineItems)) {
+                lineItems.forEach(item => {
+                    const hn = (item.head_name || '').toLowerCase();
+                    const isExamHead = hn.includes('exam') || hn.includes('paper fund') || item.head_type === 'exam';
+                    if (isExamHead) {
+                        item.class_collected_amount = totalClassCollected;
+                        item.class_collected_students = studentDetails;
+                        item.original_amount = parseFloat(item.amount || 0);
+                        if (unapplied > 0) {
+                            item.amount = Math.max(0, parseFloat((item.original_amount - unapplied).toFixed(2)));
+                        }
+                    }
+                });
+                slip.line_items = lineItems;
+            }
+        }
+    } catch (err) {
+        console.error("Error in attachClassExamCollections:", err.message);
+    }
+
+    return slips;
+}
+
 // POST /fee-slips/generate
 router.post('/generate', async (req, res) => {
     const client = await pool.connect();
@@ -762,6 +896,13 @@ const syncFamilyLeadSlips = async () => {
                 );
             }
         }
+
+        // Ensure all slips with a family_id have is_family_slip = TRUE
+        await pool.query(`
+            UPDATE monthly_fee_slips 
+            SET is_family_slip = TRUE 
+            WHERE family_id IS NOT NULL AND (is_family_slip IS NULL OR is_family_slip = FALSE)
+        `);
     } catch (e) {
         console.error("syncFamilyLeadSlips error:", e.message);
     }
@@ -918,7 +1059,7 @@ router.get('/', async (req, res) => {
 
         // For family slips, attach all active students in this class that share the family_id
         const familySlipIds = result.rows
-            .filter(r => r.is_family_slip && r.family_id)
+            .filter(r => r.family_id)
             .map(r => r.family_id);
         const membersMap = {};
         if (familySlipIds.length > 0) {
@@ -961,7 +1102,7 @@ router.get('/', async (req, res) => {
 
         // Evaluate trusted category and all-trusted families
         result.rows.forEach(r => {
-            if (r.is_family_slip && r.family_id) {
+            if (r.family_id) {
                 r.family_members = membersMap[r.family_id] || [];
                 // If the student on the slip is inactive, dynamically project the senior active member
                 const activeLead = r.family_members.find(m => (m.status || 'Active').toLowerCase() === 'active') || r.family_members[0];
@@ -1028,7 +1169,7 @@ router.get('/', async (req, res) => {
             // Multi-month / Whole year query: Group by account to prevent double-counting of Previous Balance
             const accountMap = new Map();
             result.rows.forEach(r => {
-                const key = (r.is_family_slip && r.family_id) ? `fam_${r.family_id}` : `stu_${r.student_id}`;
+                const key = r.family_id ? `fam_${r.family_id}` : `stu_${r.student_id}`;
                 if (!accountMap.has(key)) {
                     accountMap.set(key, []);
                 }
@@ -1272,8 +1413,8 @@ router.post('/admission-fees/:ledger_id/pay', async (req, res) => {
                 // Create a standalone tuition slip
                 const newSlip = await client.query(
                     `INSERT INTO monthly_fee_slips 
-                    (student_id, family_id, class_id, month, year, total_amount, paid_amount, status, months_list, academic_year_id)
-                    VALUES ($1, (SELECT family_id FROM students WHERE student_id=$1), (SELECT class_id FROM students WHERE student_id=$1), $2, $3, $4, $5, $6, ARRAY[$2]::int[], $7)
+                    (student_id, family_id, class_id, month, year, total_amount, paid_amount, status, is_family_slip, months_list, academic_year_id)
+                    VALUES ($1, (SELECT family_id FROM students WHERE student_id=$1), (SELECT class_id FROM students WHERE student_id=$1), $2, $3, $4, $5, $6, CASE WHEN (SELECT family_id FROM students WHERE student_id=$1) IS NOT NULL THEN TRUE ELSE FALSE END, ARRAY[$2]::int[], $7)
                     RETURNING slip_id`,
                     [
                         current.student_id,
