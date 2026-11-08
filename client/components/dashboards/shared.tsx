@@ -1367,3 +1367,5 @@ export function DailyFeeReceipts() {
     </div>
   );
 }
+
+export { default as CollectionVelocityCurve } from './CollectionVelocityCurve';
